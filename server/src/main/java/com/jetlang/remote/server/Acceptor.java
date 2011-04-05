@@ -1,4 +1,4 @@
-package com.jetlang.server;
+package com.jetlang.remote.server;
 
 import java.io.IOException;
 import java.net.ServerSocket;
@@ -18,6 +18,17 @@ public class Acceptor implements Runnable {
 
         void closeError(IOException e);
 
+        public class SysOut implements ErrorHandler {
+            public void acceptError(IOException e, AtomicBoolean running) {
+                if (running.get()) {
+                    e.printStackTrace();
+                }
+            }
+
+            public void closeError(IOException e) {
+                e.printStackTrace();
+            }
+        }
     }
 
     public static interface ClientHandler {
@@ -51,6 +62,5 @@ public class Acceptor implements Runnable {
                 handler.closeError(e);
             }
         }
-        running.set(false);
     }
 }
