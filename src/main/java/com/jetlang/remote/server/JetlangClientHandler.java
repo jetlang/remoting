@@ -21,8 +21,6 @@ public class JetlangClientHandler implements Acceptor.ClientHandler {
         final JetlangSession session = new JetlangSession(socket);
         channels.publishNewSession(session);
         Runnable clientReader = new Runnable() {
-            final byte[] readBuffer = new byte[1024 * 64];
-
             public void run() {
                 try {
                     final StreamReader input = new StreamReader(socket.getInputStream());
