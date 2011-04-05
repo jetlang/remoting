@@ -11,6 +11,8 @@ import org.jetlang.core.SynchronousDisposingExecutor;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class Main {
 
@@ -32,7 +34,8 @@ public class Main {
         sessions.SessionOpen.subscribe(new SynchronousDisposingExecutor(), onOpen);
         sessions.SessionClose.subscribe(new SynchronousDisposingExecutor(), onClose);
 
-        JetlangClientHandler handler = new JetlangClientHandler(null, sessions);
+        ExecutorService service = Executors.newCachedThreadPool();
+        JetlangClientHandler handler = new JetlangClientHandler(null, sessions, service);
 
         Acceptor acceptor = new Acceptor(
                 new ServerSocket(8081),
@@ -45,8 +48,9 @@ public class Main {
         Socket socket = new Socket("localhost", 8081);
         JetlangClient client = new JetlangClient(socket);
         client.subscribe("newtopic");
-        Thread.sleep(10000);
+        Thread.sleep(1000);
         acceptor.stop();
+        System.out.println("Stopped");
 
     }
 }
