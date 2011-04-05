@@ -34,6 +34,8 @@ public class Acceptor implements Runnable {
     public static interface ClientHandler {
 
         void startClient(Socket socket);
+
+        void close();
     }
 
     public Acceptor(final ServerSocket port, final ErrorHandler handler, final ClientHandler clientHandler) {
@@ -58,6 +60,7 @@ public class Acceptor implements Runnable {
         if (running.compareAndSet(true, false)) {
             try {
                 port.close();
+                clientHandler.close();
             } catch (IOException e) {
                 handler.closeError(e);
             }
