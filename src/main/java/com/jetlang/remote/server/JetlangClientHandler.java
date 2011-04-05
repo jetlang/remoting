@@ -1,7 +1,9 @@
 package com.jetlang.remote.server;
 
+import com.jetlang.remote.core.MsgTypes;
 import com.jetlang.remote.core.Serializer;
 import com.jetlang.remote.core.StreamReader;
+import org.jetlang.fibers.ThreadFiber;
 
 import java.io.IOException;
 import java.net.Socket;
@@ -57,7 +59,9 @@ public class JetlangClientHandler implements Acceptor.ClientHandler {
     }
 
     private Runnable createRunnable(final Socket socket) {
-        final JetlangSession session = new JetlangSession(socket);
+        ThreadFiber fiber = new ThreadFiber();
+        fiber.start();
+        final JetlangSession session = new JetlangSession(socket, fiber);
         channels.publishNewSession(session);
         return new Runnable() {
             public void run() {
@@ -80,10 +84,14 @@ public class JetlangClientHandler implements Acceptor.ClientHandler {
             return false;
         }
         switch (read) {
-            case 1: //subscription
+            case MsgTypes.Subscription:
                 int topicSizeInBytes = input.readByteAsInt();
                 String topic = input.readString(topicSizeInBytes);
                 session.onSubscriptionRequest(topic);
+                break;
+            case MsgTypes.Disconnect:
+                session.write(MsgTypes.Disconnect);
+                session.onLogout();
                 break;
             default:
                 System.err.println("Unknown message type: " + read);
