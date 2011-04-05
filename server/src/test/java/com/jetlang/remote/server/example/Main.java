@@ -51,6 +51,6 @@ public class Main {
         Thread.sleep(1000);
         acceptor.stop();
         System.out.println("Stopped");
-
+        service.shutdownNow();
     }
 }
