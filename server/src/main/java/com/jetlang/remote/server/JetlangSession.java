@@ -1,5 +1,6 @@
 package com.jetlang.remote.server;
 
+import com.jetlang.remote.core.HeartbeatEvent;
 import com.jetlang.remote.core.MsgTypes;
 import org.jetlang.channels.Channel;
 import org.jetlang.channels.MemoryChannel;

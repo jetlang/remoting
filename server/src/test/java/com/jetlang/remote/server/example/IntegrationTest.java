@@ -4,6 +4,7 @@ import com.jetlang.remote.client.JetlangClient;
 import com.jetlang.remote.client.JetlangClientConfig;
 import com.jetlang.remote.client.ReadTimeoutEvent;
 import com.jetlang.remote.client.SocketConnector;
+import com.jetlang.remote.core.HeartbeatEvent;
 import com.jetlang.remote.server.*;
 import org.jetlang.core.Callback;
 import org.jetlang.core.SynchronousDisposingExecutor;
