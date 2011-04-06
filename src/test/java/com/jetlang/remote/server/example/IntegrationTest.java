@@ -37,17 +37,13 @@ public class IntegrationTest {
     };
     JetlangClientConfig config = new JetlangClientConfig();
 
-    public IntegrationTest() {
-        config.setHeartbeatIntervalInMs(1000);
-    }
-
     @After
     public void shutdown() {
         service.shutdownNow();
     }
 
     @Test
-    public void hearbeat() throws IOException {
+    public void heartbeat() throws IOException {
         final EventAssert<HeartbeatEvent> hb = new EventAssert<HeartbeatEvent>(3);
 
         Callback<JetlangSession> sessionCallback = new Callback<JetlangSession>() {
