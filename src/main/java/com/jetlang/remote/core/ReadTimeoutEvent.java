@@ -1,4 +1,4 @@
-package com.jetlang.remote.client;
+package com.jetlang.remote.core;
 
 public class ReadTimeoutEvent {
 }

@@ -77,12 +77,19 @@ public class JetlangClientHandler implements Acceptor.ClientHandler {
         final JetlangStreamSession session = new JetlangStreamSession(new SocketMessageStreamWriter(socket, charset, serializer.getWriter()), fiber);
         channels.publishNewSession(session);
         session.startHeartbeat(config.getHeartbeatIntervalInMs(), TimeUnit.MILLISECONDS);
+        final Runnable onReadTimeout = new Runnable() {
+
+            public void run() {
+                session.ReadTimeout.publish(new ReadTimeoutEvent());
+            }
+        };
         return new Runnable() {
             public void run() {
                 try {
-                    final StreamReader input = new StreamReader(socket.getInputStream(), charset, serializer.getReader());
+                    final StreamReader input = new StreamReader(socket.getInputStream(), charset, serializer.getReader(), onReadTimeout);
 
                     while (readFromStream(input, session)) {
+
                     }
                 } catch (Exception failed) {
                     failed.printStackTrace();
@@ -98,6 +105,8 @@ public class JetlangClientHandler implements Acceptor.ClientHandler {
             socket.setReceiveBufferSize(config.getReceiveBufferSize());
         if (config.getSendBufferSize() > 0)
             socket.setSendBufferSize(config.getSendBufferSize());
+        if (config.getReadTimeoutInMs() > 0)
+            socket.setSoTimeout(config.getReadTimeoutInMs());
     }
 
     private boolean readFromStream(StreamReader input, JetlangStreamSession session) throws IOException {
