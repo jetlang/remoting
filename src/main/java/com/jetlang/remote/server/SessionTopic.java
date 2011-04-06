@@ -7,9 +7,9 @@ package com.jetlang.remote.server;
  */
 public class SessionTopic {
     private final String topic;
-    private final JetlangSession session;
+    private final JetlangStreamSession session;
 
-    public SessionTopic(String topic, JetlangSession session) {
+    public SessionTopic(String topic, JetlangStreamSession session) {
         this.topic = topic;
         this.session = session;
     }

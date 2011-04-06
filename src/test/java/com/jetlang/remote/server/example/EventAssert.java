@@ -1,9 +1,6 @@
 package com.jetlang.remote.server.example;
 
-import org.jetlang.channels.Channel;
-import org.jetlang.channels.ChannelSubscription;
-import org.jetlang.channels.MemoryChannel;
-import org.jetlang.channels.Subscribable;
+import org.jetlang.channels.*;
 import org.jetlang.core.Callback;
 import org.jetlang.core.SynchronousDisposingExecutor;
 
@@ -38,7 +35,7 @@ public class EventAssert<T> {
         return new ChannelSubscription<T>(new SynchronousDisposingExecutor(), r);
     }
 
-    public void subscribe(Channel<T> channel) {
+    public void subscribe(Subscriber<T> channel) {
         Callback<T> r = createCallback();
         channel.subscribe(new SynchronousDisposingExecutor(), r);
     }
