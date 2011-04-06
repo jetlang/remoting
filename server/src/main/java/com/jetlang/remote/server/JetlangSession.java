@@ -14,6 +14,7 @@ public class JetlangSession {
     public final Channel<String> SubscriptionRequest = new MemoryChannel<String>();
     public final Channel<LogoutEvent> Logout = new MemoryChannel<LogoutEvent>();
     public final Channel<HeartbeatEvent> Heartbeat = new MemoryChannel<HeartbeatEvent>();
+    public final Channel<SessionMessage<?>> Messages = new MemoryChannel<SessionMessage<?>>();
 
     private final MessageStreamWriter socket;
     private final Fiber sendFiber;
@@ -40,14 +41,18 @@ public class JetlangSession {
     public void write(final int byteToWrite) {
         Runnable r = new Runnable() {
             public void run() {
-                socket.writeByteAsInt(byteToWrite);
+                try {
+                    socket.writeByteAsInt(byteToWrite);
+                } catch (IOException e) {
+                    handleDisconnect(e);
+                }
             }
         };
         sendFiber.execute(r);
     }
 
     private void handleDisconnect(IOException e) {
-
+        socket.tryClose();
     }
 
     public void onLogout() {
@@ -61,9 +66,17 @@ public class JetlangSession {
     public <T> void publish(final String topic, final T msg) {
         Runnable r = new Runnable() {
             public void run() {
-                socket.write(topic, msg);
+                try {
+                    socket.write(topic, msg);
+                } catch (IOException e) {
+                    handleDisconnect(e);
+                }
             }
         };
         sendFiber.execute(r);
+    }
+
+    public void onMessage(String topic, Object msg) {
+        Messages.publish(new SessionMessage<Object>(topic, msg));
     }
 }

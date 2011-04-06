@@ -1,8 +1,7 @@
 package com.jetlang.remote.client;
 
-import com.jetlang.remote.core.HeartbeatEvent;
-import com.jetlang.remote.core.MsgTypes;
-import com.jetlang.remote.core.StreamReader;
+import com.jetlang.remote.core.*;
+import com.jetlang.remote.server.MessageStreamWriter;
 import org.jetlang.channels.Channel;
 import org.jetlang.channels.ChannelSubscription;
 import org.jetlang.channels.MemoryChannel;
@@ -26,9 +25,10 @@ import java.util.concurrent.atomic.AtomicBoolean;
  */
 public class JetlangClient {
 
-    private Socket socket;
+    private MessageStreamWriter socket;
     private final Fiber sendFiber;
     private final JetlangClientConfig config;
+    private final Serializer ser;
     private static final Charset charset = Charset.forName("US-ASCII");
     private final SocketConnector socketConnector;
     private Disposable pendingConnect;
@@ -44,10 +44,11 @@ public class JetlangClient {
     private Disposable hbSchedule;
     public final Channel<HeartbeatEvent> Heartbeat = new MemoryChannel<HeartbeatEvent>();
 
-    public JetlangClient(SocketConnector socketConnector, Fiber sendFiber, JetlangClientConfig config) {
+    public JetlangClient(SocketConnector socketConnector, Fiber sendFiber, JetlangClientConfig config, Serializer ser) {
         this.socketConnector = socketConnector;
         this.sendFiber = sendFiber;
         this.config = config;
+        this.ser = ser;
     }
 
     public <T> void subscribe(final String subject, final Subscribable<T> callback) {
@@ -82,9 +83,9 @@ public class JetlangClient {
         if (socket != null) {
             try {
                 byte[] bytes = subject.getBytes(charset);
-                socket.getOutputStream().write(MsgTypes.Subscription);
-                socket.getOutputStream().write(bytes.length);
-                socket.getOutputStream().write(bytes);
+                socket.writeByteAsInt(MsgTypes.Subscription);
+                socket.writeByteAsInt(bytes.length);
+                socket.writeBytes(bytes);
             } catch (IOException e) {
                 handleDisconnect();
             }
@@ -93,11 +94,7 @@ public class JetlangClient {
 
     private void closeIfNeeded() {
         if (socket != null) {
-            try {
-                socket.close();
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
+            socket.tryClose();
             socket = null;
             if (hbSchedule != null) {
                 hbSchedule.dispose();
@@ -122,7 +119,7 @@ public class JetlangClient {
         public void run() {
             try {
                 if (socket != null) {
-                    socket.getOutputStream().write(MsgTypes.Heartbeat);
+                    socket.writeByteAsInt(MsgTypes.Heartbeat);
                 }
             } catch (IOException exc) {
                 handleDisconnect();
@@ -133,11 +130,11 @@ public class JetlangClient {
     private void handleConnect(Socket newSocket) throws IOException {
         this.pendingConnect.dispose();
         this.pendingConnect = null;
-        this.socket = newSocket;
+        this.socket = new SocketMessageStreamWriter(newSocket, charset, ser.getWriter());
         for (String subscription : channels.keySet()) {
             sendSubscription(subscription);
         }
-        final StreamReader stream = new StreamReader(newSocket.getInputStream(), charset);
+        final StreamReader stream = new StreamReader(newSocket.getInputStream(), charset, ser.getReader());
         Runnable reader = new Runnable() {
 
             public void run() {
@@ -222,7 +219,7 @@ public class JetlangClient {
                 public void run() {
                     if (socket != null && sendLogoutIfStillConnected) {
                         try {
-                            socket.getOutputStream().write(MsgTypes.Disconnect);
+                            socket.writeByteAsInt(MsgTypes.Disconnect);
                             logoutLatch.await(1, TimeUnit.SECONDS);
                         } catch (Exception e) {
                             e.printStackTrace();
@@ -241,5 +238,20 @@ public class JetlangClient {
             return closedLatch;
         }
         throw new RuntimeException("Already closed.");
+    }
+
+    public <T> void publish(final String topic, final T msg) {
+        Runnable r = new Runnable() {
+            public void run() {
+                if (socket != null) {
+                    try {
+                        socket.write(topic, msg);
+                    } catch (IOException e) {
+                        handleDisconnect();
+                    }
+                }
+            }
+        };
+        sendFiber.execute(r);
     }
 }

@@ -1,9 +1,6 @@
 package com.jetlang.remote.server.example;
 
-import com.jetlang.remote.client.JetlangClient;
-import com.jetlang.remote.client.JetlangClientConfig;
-import com.jetlang.remote.client.ReadTimeoutEvent;
-import com.jetlang.remote.client.SocketConnector;
+import com.jetlang.remote.client.*;
 import com.jetlang.remote.core.HeartbeatEvent;
 import com.jetlang.remote.core.JavaSerializer;
 import com.jetlang.remote.server.*;
@@ -72,16 +69,18 @@ public class IntegrationTest {
         EventAssert serverSessionOpen = EventAssert.expect(1, sessions.SessionOpen);
         final EventAssert<String> subscriptionReceived = new EventAssert<String>(1);
         final EventAssert<LogoutEvent> logoutEvent = new EventAssert<LogoutEvent>(1);
+        final EventAssert<SessionMessage<?>> serverMessageReceive = new EventAssert<SessionMessage<?>>(1);
 
         Callback<JetlangSession> sessionCallback = new Callback<JetlangSession>() {
             public void onMessage(JetlangSession message) {
                 subscriptionReceived.subscribe(message.SubscriptionRequest);
                 logoutEvent.subscribe(message.Logout);
+                serverMessageReceive.subscribe(message.Messages);
                 message.publish("newtopic", "mymsg");
             }
         };
         sessions.SessionOpen.subscribe(new SynchronousDisposingExecutor(), sessionCallback);
-        EventAssert serverSessionClose = EventAssert.expect(1, sessions.SessionClose);
+        EventAssert<JetlangSession> serverSessionClose = EventAssert.expect(1, sessions.SessionClose);
 
         Acceptor acceptor = createAcceptor();
 
@@ -90,9 +89,9 @@ public class IntegrationTest {
 
         JetlangClient client = createClient();
 
-        EventAssert clientConnect = EventAssert.expect(1, client.Connected);
-        EventAssert clientDisconnect = EventAssert.expect(1, client.Disconnected);
-        EventAssert clientClose = EventAssert.expect(1, client.Closed);
+        EventAssert<ConnectEvent> clientConnect = EventAssert.expect(1, client.Connected);
+        EventAssert<DisconnectEvent> clientDisconnect = EventAssert.expect(1, client.Disconnected);
+        EventAssert<CloseEvent> clientClose = EventAssert.expect(1, client.Closed);
 
         ThreadFiber clientFiber = new ThreadFiber();
         clientFiber.start();
@@ -106,6 +105,8 @@ public class IntegrationTest {
         assertEquals("newtopic", subscriptionReceived.received.take());
         clientConnect.assertEvent();
         clientMsgReceive.assertEvent();
+        client.publish("toServer", "myclientmessage");
+        serverMessageReceive.assertEvent();
 
         CountDownLatch closeLatch = client.close(true);
 
@@ -120,7 +121,7 @@ public class IntegrationTest {
     }
 
     private JetlangClient createClient() {
-        return new JetlangClient(conn, new ThreadFiber(), config);
+        return new JetlangClient(conn, new ThreadFiber(), config, new JavaSerializer());
     }
 
     private Acceptor createAcceptor() throws IOException {

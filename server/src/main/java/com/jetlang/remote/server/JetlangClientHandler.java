@@ -23,7 +23,8 @@ public class JetlangClientHandler implements Acceptor.ClientHandler {
 
     public JetlangClientHandler(SerializerFactory ser,
                                 JetlangSessionChannels channels,
-                                Executor exec, JetlangSessionConfig config) {
+                                Executor exec,
+                                JetlangSessionConfig config) {
         this.ser = ser;
         this.channels = channels;
         this.exec = exec;
@@ -70,7 +71,7 @@ public class JetlangClientHandler implements Acceptor.ClientHandler {
     private Runnable createRunnable(final Socket socket) throws IOException {
         ThreadFiber fiber = new ThreadFiber();
         fiber.start();
-        Serializer serializer = ser.createForSocket(socket);
+        final Serializer serializer = ser.createForSocket(socket);
 
         final JetlangSession session = new JetlangSession(new SocketMessageStreamWriter(socket, charset, serializer.getWriter()), fiber);
         channels.publishNewSession(session);
@@ -78,7 +79,7 @@ public class JetlangClientHandler implements Acceptor.ClientHandler {
         return new Runnable() {
             public void run() {
                 try {
-                    final StreamReader input = new StreamReader(socket.getInputStream(), charset);
+                    final StreamReader input = new StreamReader(socket.getInputStream(), charset, serializer.getReader());
 
                     while (readFromStream(input, session)) {
                     }
@@ -107,6 +108,13 @@ public class JetlangClientHandler implements Acceptor.ClientHandler {
             case MsgTypes.Disconnect:
                 session.write(MsgTypes.Disconnect);
                 session.onLogout();
+                break;
+            case MsgTypes.Data:
+                int topicSize = input.readByteAsInt();
+                String msgTopic = input.readString(topicSize);
+                int msgSize = input.readInt();
+                Object msg = input.readObject(msgSize);
+                session.onMessage(msgTopic, msg);
                 break;
             default:
                 System.err.println("Unknown message type: " + read);
