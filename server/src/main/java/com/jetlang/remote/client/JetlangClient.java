@@ -139,7 +139,9 @@ public class JetlangClient {
         Thread readThread = new Thread(reader);
         readThread.start();
         this.Connected.publish(new ConnectEvent());
-        hbSchedule = sendFiber.scheduleAtFixedRate(hb, config.getHeartbeatIntervalInMs(), config.getHeartbeatIntervalInMs(), TimeUnit.MILLISECONDS);
+        if(config.getHeartbeatIntervalInMs() > 0){
+            hbSchedule = sendFiber.scheduleAtFixedRate(hb, config.getHeartbeatIntervalInMs(), config.getHeartbeatIntervalInMs(), TimeUnit.MILLISECONDS);
+        }
     }
 
     private boolean read(StreamReader stream) throws IOException {
