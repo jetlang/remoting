@@ -1,17 +1,17 @@
 package com.jetlang.remote.core;
 
-import java.io.IOException;
-import java.io.InputStream;
+import java.io.*;
 import java.nio.charset.Charset;
 
 public class StreamReader {
 
     private byte[] readBuffer = new byte[1024 * 64];
-    private final InputStream stream;
-    private final Charset charset = Charset.forName("US-ASCII");
+    private final DataInputStream stream;
+    private final Charset charset;
 
-    public StreamReader(InputStream stream) {
-        this.stream = stream;
+    public StreamReader(InputStream stream, Charset charset) {
+        this.stream = new DataInputStream(stream);
+        this.charset = charset;
     }
 
     public int readByteAsInt() throws IOException {
@@ -44,5 +44,19 @@ public class StreamReader {
             throw new IOException("End Read");
         }
         return read;
+    }
+
+    public int readInt() throws IOException {
+        return stream.readInt();
+    }
+
+    public Object readObject(int msgSize) throws IOException {
+        byte[] buffer = fillBuffer(msgSize);
+        ByteArrayInputStream readStream = new ByteArrayInputStream(buffer);
+        try {
+            return new ObjectInputStream(readStream).readObject();
+        } catch (ClassNotFoundException e) {
+            throw new RuntimeException(e);
+        }
     }
 }
