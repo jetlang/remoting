@@ -61,7 +61,13 @@ public class IntegrationTest {
     @Test
     public void regression() throws IOException, InterruptedException {
         EventAssert serverSessionOpen = EventAssert.expect(1, sessions.SessionOpen);
-        final EventAssert<String> subscriptionReceived = new EventAssert<String>(1);
+        final EventAssert<SessionTopic> subscriptionReceived = new EventAssert<SessionTopic>(1);
+        Callback<SessionTopic> onTopic = new Callback<SessionTopic>() {
+            public void onMessage(SessionTopic message) {
+                message.publish("mymsg");
+            }
+        };
+        subscriptionReceived.onMessage(onTopic);
         final EventAssert<LogoutEvent> logoutEvent = new EventAssert<LogoutEvent>(1);
         final EventAssert<SessionMessage<?>> serverMessageReceive = new EventAssert<SessionMessage<?>>(1);
 
@@ -70,7 +76,6 @@ public class IntegrationTest {
                 subscriptionReceived.subscribe(message.SubscriptionRequest);
                 logoutEvent.subscribe(message.Logout);
                 serverMessageReceive.subscribe(message.Messages);
-                message.publish("newtopic", "mymsg");
             }
         };
         sessions.SessionOpen.subscribe(new SynchronousDisposingExecutor(), sessionCallback);
@@ -96,7 +101,7 @@ public class IntegrationTest {
 
         serverSessionOpen.assertEvent();
         subscriptionReceived.assertEvent();
-        assertEquals("newtopic", subscriptionReceived.takeFromReceived());
+        assertEquals("newtopic", subscriptionReceived.takeFromReceived().getTopic());
         clientConnect.assertEvent();
         clientMsgReceive.assertEvent();
         client.publish("toServer", "myclientmessage");

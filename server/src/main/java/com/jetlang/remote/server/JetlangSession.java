@@ -11,7 +11,7 @@ import java.util.concurrent.TimeUnit;
 
 public class JetlangSession {
 
-    public final Channel<String> SubscriptionRequest = new MemoryChannel<String>();
+    public final Channel<SessionTopic> SubscriptionRequest = new MemoryChannel<SessionTopic>();
     public final Channel<LogoutEvent> Logout = new MemoryChannel<LogoutEvent>();
     public final Channel<HeartbeatEvent> Heartbeat = new MemoryChannel<HeartbeatEvent>();
     public final Channel<SessionMessage<?>> Messages = new MemoryChannel<SessionMessage<?>>();
@@ -35,7 +35,7 @@ public class JetlangSession {
     }
 
     void onSubscriptionRequest(String topic) {
-        SubscriptionRequest.publish(topic);
+        SubscriptionRequest.publish(new SessionTopic(topic, this));
     }
 
     public void write(final int byteToWrite) {
