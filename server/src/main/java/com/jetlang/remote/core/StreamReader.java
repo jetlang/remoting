@@ -1,29 +1,37 @@
 package com.jetlang.remote.core;
 
-import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.SocketTimeoutException;
 import java.nio.charset.Charset;
 
 public class StreamReader {
 
     private byte[] readBuffer = new byte[1024 * 64];
-    private final DataInputStream stream;
+    private final InputStream stream;
     private final Charset charset;
     private final ObjectByteReader reader;
+    private final Runnable onReadTimeout;
 
-    public StreamReader(InputStream stream, Charset charset, ObjectByteReader reader) {
+    public StreamReader(InputStream stream, Charset charset, ObjectByteReader reader, Runnable onReadTimeout) {
         this.reader = reader;
-        this.stream = new DataInputStream(stream);
+        this.onReadTimeout = onReadTimeout;
+        this.stream = stream;
         this.charset = charset;
     }
 
     public int readByteAsInt() throws IOException {
-        int read = stream.read();
-        if (read < 0) {
-            throw new IOException("Read End");
+        while (true) {
+            try {
+                int read = stream.read();
+                if (read < 0) {
+                    throw new IOException("Read End");
+                }
+                return read;
+            } catch (SocketTimeoutException timeout) {
+                onReadTimeout.run();
+            }
         }
-        return read;
     }
 
     public String readString(int topicSizeInBytes) throws IOException {
@@ -43,15 +51,25 @@ public class StreamReader {
     }
 
     private int read(byte[] buffer, int offset, int length) throws IOException {
-        int read = stream.read(buffer, offset, length);
-        if (read < 0) {
-            throw new IOException("End Read");
+        while (true) {
+            try {
+                int read = stream.read(buffer, offset, length);
+                if (read < 0) {
+                    throw new IOException("End Read");
+                }
+                return read;
+            } catch (SocketTimeoutException timeout) {
+                onReadTimeout.run();
+            }
         }
-        return read;
     }
 
     public int readInt() throws IOException {
-        return stream.readInt();
+        int ch1 = readByteAsInt();
+        int ch2 = readByteAsInt();
+        int ch3 = readByteAsInt();
+        int ch4 = readByteAsInt();
+        return ((ch1 << 24) + (ch2 << 16) + (ch3 << 8) + (ch4 << 0));
     }
 
     public Object readObject(int msgSize) throws IOException {

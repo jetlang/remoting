@@ -2,6 +2,7 @@ package com.jetlang.remote.server;
 
 import com.jetlang.remote.core.HeartbeatEvent;
 import com.jetlang.remote.core.MsgTypes;
+import com.jetlang.remote.core.ReadTimeoutEvent;
 import org.jetlang.channels.Channel;
 import org.jetlang.channels.MemoryChannel;
 import org.jetlang.channels.Subscriber;
@@ -16,6 +17,7 @@ public class JetlangStreamSession implements JetlangSession {
     public final Channel<LogoutEvent> Logout = new MemoryChannel<LogoutEvent>();
     public final Channel<HeartbeatEvent> Heartbeat = new MemoryChannel<HeartbeatEvent>();
     public final Channel<SessionMessage<?>> Messages = new MemoryChannel<SessionMessage<?>>();
+    public final Channel<ReadTimeoutEvent> ReadTimeout = new MemoryChannel<ReadTimeoutEvent>();
 
     private final MessageStreamWriter socket;
     private final Fiber sendFiber;
@@ -26,13 +28,15 @@ public class JetlangStreamSession implements JetlangSession {
     }
 
     public void startHeartbeat(int interval, TimeUnit unit) {
-        Runnable send = new Runnable() {
+        if (interval > 0) {
+            Runnable send = new Runnable() {
 
-            public void run() {
-                write(MsgTypes.Heartbeat);
-            }
-        };
-        sendFiber.scheduleAtFixedRate(send, interval, interval, unit);
+                public void run() {
+                    write(MsgTypes.Heartbeat);
+                }
+            };
+            sendFiber.scheduleAtFixedRate(send, interval, interval, unit);
+        }
     }
 
     void onSubscriptionRequest(String topic) {
@@ -91,6 +95,10 @@ public class JetlangStreamSession implements JetlangSession {
 
     public Subscriber<SessionMessage<?>> getSessionMessageChannel() {
         return Messages;
+    }
+
+    public Subscriber<ReadTimeoutEvent> getReadTimeoutChannel() {
+        return ReadTimeout;
     }
 
     public void onMessage(String topic, Object msg) {

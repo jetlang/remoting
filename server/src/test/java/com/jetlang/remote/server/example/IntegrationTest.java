@@ -3,6 +3,7 @@ package com.jetlang.remote.server.example;
 import com.jetlang.remote.client.*;
 import com.jetlang.remote.core.HeartbeatEvent;
 import com.jetlang.remote.core.JavaSerializer;
+import com.jetlang.remote.core.ReadTimeoutEvent;
 import com.jetlang.remote.server.*;
 import org.jetlang.core.Callback;
 import org.jetlang.core.SynchronousDisposingExecutor;
@@ -25,9 +26,9 @@ public class IntegrationTest {
     ExecutorService service = Executors.newCachedThreadPool();
     JetlangSessionConfig sessionConfig = new JetlangSessionConfig();
     JetlangClientHandler handler = new JetlangClientHandler(new JavaSerializer.Factory(), sessions, service, sessionConfig);
-    JetlangClientConfig config = new JetlangClientConfig();
+    JetlangClientConfig clientConfig = new JetlangClientConfig();
 
-    SocketConnector conn = new SocketConnector("localhost", 8081, config);
+    SocketConnector conn = new SocketConnector("localhost", 8081, clientConfig);
 
     @After
     public void shutdown() {
@@ -50,12 +51,39 @@ public class IntegrationTest {
         runner.start();
 
         JetlangClient client = createClient();
-        EventAssert<ReadTimeoutEvent> timeout = EventAssert.expect(0, client.ReadTimeout);
+        EventAssert<ReadTimeoutEvent> timeout = EventAssert.expect(0, client.getReadTimeoutChannel());
         client.start();
         hb.assertEvent();
         client.close(true);
         acceptor.stop();
         timeout.assertEvent();
+    }
+
+    @Test
+    public void serverHeartbeatTimeout() throws IOException {
+        final EventAssert<ReadTimeoutEvent> serverSessionTimeout = new EventAssert<ReadTimeoutEvent>(1);
+
+        Callback<JetlangSession> sessionCallback = new Callback<JetlangSession>() {
+            public void onMessage(JetlangSession session) {
+                serverSessionTimeout.subscribe(session.getReadTimeoutChannel());
+            }
+        };
+        sessions.SessionOpen.subscribe(new SynchronousDisposingExecutor(), sessionCallback);
+
+        //short read timeout.
+        sessionConfig.setReadTimeoutInMs(10);
+        Acceptor acceptor = createAcceptor();
+
+        Thread runner = new Thread(acceptor);
+        runner.start();
+
+        //disable heartbeats.
+        clientConfig.setHeartbeatIntervalInMs(0);
+        JetlangClient client = createClient();
+        client.start();
+        serverSessionTimeout.assertEvent();
+        client.close(true);
+        acceptor.stop();
     }
 
     @Test
@@ -88,9 +116,9 @@ public class IntegrationTest {
 
         JetlangClient client = createClient();
 
-        EventAssert<ConnectEvent> clientConnect = EventAssert.expect(1, client.Connected);
-        EventAssert<DisconnectEvent> clientDisconnect = EventAssert.expect(1, client.Disconnected);
-        EventAssert<CloseEvent> clientClose = EventAssert.expect(1, client.Closed);
+        EventAssert<ConnectEvent> clientConnect = EventAssert.expect(1, client.getConnectChannel());
+        EventAssert<DisconnectEvent> clientDisconnect = EventAssert.expect(1, client.getDisconnectChannel());
+        EventAssert<CloseEvent> clientClose = EventAssert.expect(1, client.getCloseChannel());
 
         ThreadFiber clientFiber = new ThreadFiber();
         clientFiber.start();
@@ -123,7 +151,7 @@ public class IntegrationTest {
     }
 
     private JetlangClient createClient() {
-        return new JetlangClient(conn, new ThreadFiber(), config, new JavaSerializer());
+        return new JetlangTcpClient(conn, new ThreadFiber(), clientConfig, new JavaSerializer());
     }
 
     private Acceptor createAcceptor() throws IOException {

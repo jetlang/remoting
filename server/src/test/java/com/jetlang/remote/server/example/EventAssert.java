@@ -64,7 +64,7 @@ public class EventAssert<T> {
         }
     }
 
-    public static <T> EventAssert<T> expect(int expected, Channel<T> connected) {
+    public static <T> EventAssert<T> expect(int expected, Subscriber<T> connected) {
         EventAssert eventSink = new EventAssert(expected);
         eventSink.subscribe(connected);
         return eventSink;

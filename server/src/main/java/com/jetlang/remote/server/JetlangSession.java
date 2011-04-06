@@ -1,6 +1,7 @@
 package com.jetlang.remote.server;
 
 import com.jetlang.remote.core.HeartbeatEvent;
+import com.jetlang.remote.core.ReadTimeoutEvent;
 import org.jetlang.channels.Subscriber;
 
 /**
@@ -17,5 +18,7 @@ public interface JetlangSession {
     Subscriber<HeartbeatEvent> getHeartbeatChannel();
 
     Subscriber<SessionMessage<?>> getSessionMessageChannel();
+
+    Subscriber<ReadTimeoutEvent> getReadTimeoutChannel();
 
 }

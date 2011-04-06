@@ -6,6 +6,7 @@ public class JetlangSessionConfig {
     private boolean tcpNoDelay = true;
     private int receiveBufferSize = 1024 * 512;
     private int sendBufferSize = 1024 * 512;
+    private int readTimeoutInMs = 3000;
 
     public void setHeartbeatIntervalInMs(int ms) {
         this.hbIntervalInMs = ms;
@@ -37,5 +38,13 @@ public class JetlangSessionConfig {
 
     public void setSendBufferSize(int sendBufferSize) {
         this.sendBufferSize = sendBufferSize;
+    }
+
+    public int getReadTimeoutInMs() {
+        return readTimeoutInMs;
+    }
+
+    public void setReadTimeoutInMs(int readTimeoutInMs) {
+        this.readTimeoutInMs = readTimeoutInMs;
     }
 }
