@@ -40,7 +40,7 @@ public class IntegrationTest {
 
         Callback<JetlangSession> sessionCallback = new Callback<JetlangSession>() {
             public void onMessage(JetlangSession message) {
-                hb.subscribe(message.Heartbeat);
+                hb.subscribe(message.getHeartbeatChannel());
             }
         };
         sessions.SessionOpen.subscribe(new SynchronousDisposingExecutor(), sessionCallback);
@@ -73,9 +73,9 @@ public class IntegrationTest {
 
         Callback<JetlangSession> sessionCallback = new Callback<JetlangSession>() {
             public void onMessage(JetlangSession message) {
-                subscriptionReceived.subscribe(message.SubscriptionRequest);
-                logoutEvent.subscribe(message.Logout);
-                serverMessageReceive.subscribe(message.Messages);
+                subscriptionReceived.subscribe(message.getSubscriptionRequestChannel());
+                logoutEvent.subscribe(message.getLogoutChannel());
+                serverMessageReceive.subscribe(message.getSessionMessageChannel());
             }
         };
         sessions.SessionOpen.subscribe(new SynchronousDisposingExecutor(), sessionCallback);
