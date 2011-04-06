@@ -5,6 +5,7 @@ import com.jetlang.remote.client.JetlangClientConfig;
 import com.jetlang.remote.client.ReadTimeoutEvent;
 import com.jetlang.remote.client.SocketConnector;
 import com.jetlang.remote.core.HeartbeatEvent;
+import com.jetlang.remote.core.JavaSerializer;
 import com.jetlang.remote.server.*;
 import org.jetlang.core.Callback;
 import org.jetlang.core.SynchronousDisposingExecutor;
@@ -27,7 +28,7 @@ public class IntegrationTest {
     JetlangSessionChannels sessions = new JetlangSessionChannels();
     ExecutorService service = Executors.newCachedThreadPool();
     JetlangSessionConfig sessionConfig = new JetlangSessionConfig();
-    JetlangClientHandler handler = new JetlangClientHandler(null, sessions, service, sessionConfig);
+    JetlangClientHandler handler = new JetlangClientHandler(new JavaSerializer.Factory(), sessions, service, sessionConfig);
     SocketConnector conn = new SocketConnector() {
         public Socket connect() throws IOException {
             Socket socket = new Socket("localhost", 8081);
@@ -76,6 +77,7 @@ public class IntegrationTest {
             public void onMessage(JetlangSession message) {
                 subscriptionReceived.subscribe(message.SubscriptionRequest);
                 logoutEvent.subscribe(message.Logout);
+                message.publish("newtopic", "mymsg");
             }
         };
         sessions.SessionOpen.subscribe(new SynchronousDisposingExecutor(), sessionCallback);
@@ -92,21 +94,18 @@ public class IntegrationTest {
         EventAssert clientDisconnect = EventAssert.expect(1, client.Disconnected);
         EventAssert clientClose = EventAssert.expect(1, client.Closed);
 
-        Callback<String> newTopicCb = new Callback<String>() {
-            public void onMessage(String message) {
-                System.out.println("message = " + message);
-            }
-        };
         ThreadFiber clientFiber = new ThreadFiber();
         clientFiber.start();
 
-        client.subscribe("newtopic", clientFiber, newTopicCb);
+        EventAssert<String> clientMsgReceive = new EventAssert<String>(1);
+        client.subscribe("newtopic", clientMsgReceive.asSubscribable());
         client.start();
 
         serverSessionOpen.assertEvent();
         subscriptionReceived.assertEvent();
         assertEquals("newtopic", subscriptionReceived.received.take());
         clientConnect.assertEvent();
+        clientMsgReceive.assertEvent();
 
         CountDownLatch closeLatch = client.close(true);
 

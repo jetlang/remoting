@@ -7,7 +7,6 @@ import org.jetlang.channels.MemoryChannel;
 import org.jetlang.fibers.Fiber;
 
 import java.io.IOException;
-import java.net.Socket;
 import java.util.concurrent.TimeUnit;
 
 public class JetlangSession {
@@ -16,10 +15,10 @@ public class JetlangSession {
     public final Channel<LogoutEvent> Logout = new MemoryChannel<LogoutEvent>();
     public final Channel<HeartbeatEvent> Heartbeat = new MemoryChannel<HeartbeatEvent>();
 
-    private final Socket socket;
+    private final MessageStreamWriter socket;
     private final Fiber sendFiber;
 
-    public JetlangSession(Socket socket, Fiber sendFiber) {
+    public JetlangSession(MessageStreamWriter socket, Fiber sendFiber) {
         this.socket = socket;
         this.sendFiber = sendFiber;
     }
@@ -41,11 +40,7 @@ public class JetlangSession {
     public void write(final int byteToWrite) {
         Runnable r = new Runnable() {
             public void run() {
-                try {
-                    socket.getOutputStream().write(byteToWrite);
-                } catch (IOException e) {
-                    handleDisconnect(e);
-                }
+                socket.writeByteAsInt(byteToWrite);
             }
         };
         sendFiber.execute(r);
@@ -60,7 +55,15 @@ public class JetlangSession {
     }
 
     public void onHb() {
-
         Heartbeat.publish(new HeartbeatEvent());
+    }
+
+    public <T> void publish(final String topic, final T msg) {
+        Runnable r = new Runnable() {
+            public void run() {
+                socket.write(topic, msg);
+            }
+        };
+        sendFiber.execute(r);
     }
 }

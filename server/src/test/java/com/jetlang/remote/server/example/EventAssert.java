@@ -1,6 +1,8 @@
 package com.jetlang.remote.server.example;
 
 import org.jetlang.channels.Channel;
+import org.jetlang.channels.ChannelSubscription;
+import org.jetlang.channels.Subscribable;
 import org.jetlang.core.Callback;
 import org.jetlang.core.SynchronousDisposingExecutor;
 
@@ -24,13 +26,23 @@ public class EventAssert<T> {
     public final LinkedBlockingQueue<T> received = new LinkedBlockingQueue<T>();
     private final int expected;
 
-    public EventAssert(int expected){
+    public EventAssert(int expected) {
         this.expected = expected;
         this.latch = new CountDownLatch(expected);
     }
 
-    public void subscribe(Channel<T> channel){
-        Callback<T> r = new Callback<T>(){
+    public Subscribable<T> asSubscribable() {
+        Callback<T> r = createCallback();
+        return new ChannelSubscription<T>(new SynchronousDisposingExecutor(), r);
+    }
+
+    public void subscribe(Channel<T> channel) {
+        Callback<T> r = createCallback();
+        channel.subscribe(new SynchronousDisposingExecutor(), r);
+    }
+
+    private Callback<T> createCallback() {
+        return new Callback<T>() {
             public void onMessage(T message) {
                 receiveCount.incrementAndGet();
                 latch.countDown();
@@ -41,7 +53,6 @@ public class EventAssert<T> {
                 }
             }
         };
-        channel.subscribe(new SynchronousDisposingExecutor(), r);
     }
 
     public void assertEvent() {
@@ -58,4 +69,5 @@ public class EventAssert<T> {
         eventSink.subscribe(connected);
         return eventSink;
     }
+
 }

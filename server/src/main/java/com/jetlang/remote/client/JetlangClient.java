@@ -53,16 +53,29 @@ public class JetlangClient {
     public <T> void subscribe(final String subject, final Subscribable<T> callback) {
         Runnable sub = new Runnable() {
             public void run() {
-                @SuppressWarnings({"unchecked"}) Channel<T> channel = (Channel<T>) channels.get(subject);
-                if (channel == null) {
-                    channel = new MemoryChannel<T>();
-                    channels.put(subject, channel);
+                Channel<T> channel;
+                synchronized (channels) {
+                    channel = (Channel<T>) channels.get(subject);
+                    if (channel == null) {
+                        channel = new MemoryChannel<T>();
+                        channels.put(subject, channel);
+                    }
                 }
                 channel.subscribe(callback);
                 sendSubscription(subject);
             }
         };
         sendFiber.execute(sub);
+    }
+
+    private void publishData(String topic, Object object) {
+        Channel channel;
+        synchronized (channels) {
+            channel = channels.get(topic);
+        }
+        if (channel != null) {
+            channel.publish(object);
+        }
     }
 
     private void sendSubscription(String subject) {
@@ -124,7 +137,7 @@ public class JetlangClient {
         for (String subscription : channels.keySet()) {
             sendSubscription(subscription);
         }
-        final StreamReader stream = new StreamReader(newSocket.getInputStream());
+        final StreamReader stream = new StreamReader(newSocket.getInputStream(), charset);
         Runnable reader = new Runnable() {
 
             public void run() {
@@ -139,7 +152,7 @@ public class JetlangClient {
         Thread readThread = new Thread(reader);
         readThread.start();
         this.Connected.publish(new ConnectEvent());
-        if(config.getHeartbeatIntervalInMs() > 0){
+        if (config.getHeartbeatIntervalInMs() > 0) {
             hbSchedule = sendFiber.scheduleAtFixedRate(hb, config.getHeartbeatIntervalInMs(), config.getHeartbeatIntervalInMs(), TimeUnit.MILLISECONDS);
         }
     }
@@ -154,6 +167,13 @@ public class JetlangClient {
                     return false;
                 case MsgTypes.Heartbeat:
                     this.Heartbeat.publish(new HeartbeatEvent());
+                    return true;
+                case MsgTypes.Data:
+                    int topicSize = stream.readByteAsInt();
+                    String topic = stream.readString(topicSize);
+                    int msgSize = stream.readInt();
+                    Object object = stream.readObject(msgSize);
+                    publishData(topic, object);
                     return true;
                 default:
                     error("Unknown msg: " + msg);
