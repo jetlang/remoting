@@ -9,13 +9,14 @@ import java.net.Socket;
 
 public class JetlangSession {
 
-    public Channel<String> SubscriptionRequest = new MemoryChannel<String>();
-    public Channel<LogoutEvent> Logout = new MemoryChannel<LogoutEvent>();
+    public final Channel<String> SubscriptionRequest = new MemoryChannel<String>();
+    public final Channel<LogoutEvent> Logout = new MemoryChannel<LogoutEvent>();
+    public final Channel<HeartbeatEvent> Heartbeat = new MemoryChannel<HeartbeatEvent>();
 
     private final Socket socket;
     private final Fiber sendFiber;
 
-    public JetlangSession(Socket socket, Fiber sendFiber ) {
+    public JetlangSession(Socket socket, Fiber sendFiber) {
         this.socket = socket;
         this.sendFiber = sendFiber;
     }
@@ -25,7 +26,7 @@ public class JetlangSession {
     }
 
     public void write(final int byteToWrite) {
-        Runnable r = new Runnable(){
+        Runnable r = new Runnable() {
             public void run() {
                 try {
                     socket.getOutputStream().write(byteToWrite);
@@ -42,6 +43,11 @@ public class JetlangSession {
     }
 
     public void onLogout() {
-         Logout.publish(new LogoutEvent());
+        Logout.publish(new LogoutEvent());
+    }
+
+    public void onHb() {
+
+        Heartbeat.publish(new HeartbeatEvent());
     }
 }

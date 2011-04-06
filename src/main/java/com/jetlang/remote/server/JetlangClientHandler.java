@@ -84,6 +84,9 @@ public class JetlangClientHandler implements Acceptor.ClientHandler {
             return false;
         }
         switch (read) {
+            case MsgTypes.Heartbeat:
+                session.onHb();
+                break;
             case MsgTypes.Subscription:
                 int topicSizeInBytes = input.readByteAsInt();
                 String topic = input.readString(topicSizeInBytes);
@@ -95,6 +98,7 @@ public class JetlangClientHandler implements Acceptor.ClientHandler {
                 break;
             default:
                 System.err.println("Unknown message type: " + read);
+                return false;
         }
         return true;
     }
