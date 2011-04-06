@@ -70,4 +70,11 @@ public class EventAssert<T> {
         return eventSink;
     }
 
+    public T takeFromReceived() {
+        try {
+            return received.take();
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+    }
 }

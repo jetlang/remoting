@@ -5,6 +5,7 @@ import org.jetlang.fibers.ThreadFiber;
 
 import java.io.IOException;
 import java.net.Socket;
+import java.net.SocketException;
 import java.nio.charset.Charset;
 import java.util.HashSet;
 import java.util.concurrent.Executor;
@@ -72,7 +73,7 @@ public class JetlangClientHandler implements Acceptor.ClientHandler {
         ThreadFiber fiber = new ThreadFiber();
         fiber.start();
         final Serializer serializer = ser.createForSocket(socket);
-
+        configureClientSocketAfterAccept(socket);
         final JetlangSession session = new JetlangSession(new SocketMessageStreamWriter(socket, charset, serializer.getWriter()), fiber);
         channels.publishNewSession(session);
         session.startHeartbeat(config.getHeartbeatIntervalInMs(), TimeUnit.MILLISECONDS);
@@ -89,6 +90,14 @@ public class JetlangClientHandler implements Acceptor.ClientHandler {
                 channels.publishSessionEnd(session);
             }
         };
+    }
+
+    private void configureClientSocketAfterAccept(Socket socket) throws SocketException {
+        socket.setTcpNoDelay(config.getTcpNoDelay());
+        if (config.getReceiveBufferSize() > 0)
+            socket.setReceiveBufferSize(config.getReceiveBufferSize());
+        if (config.getSendBufferSize() > 0)
+            socket.setSendBufferSize(config.getSendBufferSize());
     }
 
     private boolean readFromStream(StreamReader input, JetlangSession session) throws IOException {

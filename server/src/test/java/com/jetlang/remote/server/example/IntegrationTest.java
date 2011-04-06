@@ -12,7 +12,6 @@ import org.junit.Test;
 
 import java.io.IOException;
 import java.net.ServerSocket;
-import java.net.Socket;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -26,14 +25,9 @@ public class IntegrationTest {
     ExecutorService service = Executors.newCachedThreadPool();
     JetlangSessionConfig sessionConfig = new JetlangSessionConfig();
     JetlangClientHandler handler = new JetlangClientHandler(new JavaSerializer.Factory(), sessions, service, sessionConfig);
-    SocketConnector conn = new SocketConnector() {
-        public Socket connect() throws IOException {
-            Socket socket = new Socket("localhost", 8081);
-            socket.setSoTimeout(config.getHeartbeatIntervalInMs() * 2);
-            return socket;
-        }
-    };
     JetlangClientConfig config = new JetlangClientConfig();
+
+    SocketConnector conn = new SocketConnector("localhost", 8081, config);
 
     @After
     public void shutdown() {
@@ -102,11 +96,14 @@ public class IntegrationTest {
 
         serverSessionOpen.assertEvent();
         subscriptionReceived.assertEvent();
-        assertEquals("newtopic", subscriptionReceived.received.take());
+        assertEquals("newtopic", subscriptionReceived.takeFromReceived());
         clientConnect.assertEvent();
         clientMsgReceive.assertEvent();
         client.publish("toServer", "myclientmessage");
         serverMessageReceive.assertEvent();
+        SessionMessage<?> sessionMessage = serverMessageReceive.takeFromReceived();
+        assertEquals("toServer", sessionMessage.getTopic());
+        assertEquals("myclientmessage", sessionMessage.getMessage());
 
         CountDownLatch closeLatch = client.close(true);
 
