@@ -1,8 +1,8 @@
 package com.jetlang.remote.client;
 
+import com.jetlang.remote.core.HeartbeatEvent;
 import com.jetlang.remote.core.MsgTypes;
 import com.jetlang.remote.core.StreamReader;
-import com.jetlang.remote.server.HeartbeatEvent;
 import org.jetlang.channels.Channel;
 import org.jetlang.channels.ChannelSubscription;
 import org.jetlang.channels.MemoryChannel;
