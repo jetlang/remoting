@@ -1,6 +1,7 @@
-package com.jetlang.remote.client;
+package com.jetlang.remote.server;
 
-public class JetlangClientConfig {
+public class JetlangSessionConfig {
+
     private int hbIntervalInMs = 2000;
 
     public void setHeartbeatIntervalInMs(int ms) {
@@ -10,4 +11,5 @@ public class JetlangClientConfig {
     public int getHeartbeatIntervalInMs() {
         return hbIntervalInMs;
     }
+
 }

@@ -1,11 +1,13 @@
 package com.jetlang.remote.server;
 
+import com.jetlang.remote.core.MsgTypes;
 import org.jetlang.channels.Channel;
 import org.jetlang.channels.MemoryChannel;
 import org.jetlang.fibers.Fiber;
 
 import java.io.IOException;
 import java.net.Socket;
+import java.util.concurrent.TimeUnit;
 
 public class JetlangSession {
 
@@ -19,6 +21,16 @@ public class JetlangSession {
     public JetlangSession(Socket socket, Fiber sendFiber) {
         this.socket = socket;
         this.sendFiber = sendFiber;
+    }
+
+    public void startHeartbeat(int interval, TimeUnit unit) {
+        Runnable send = new Runnable() {
+
+            public void run() {
+                write(MsgTypes.Heartbeat);
+            }
+        };
+        sendFiber.scheduleAtFixedRate(send, interval, interval, unit);
     }
 
     void onSubscriptionRequest(String topic) {

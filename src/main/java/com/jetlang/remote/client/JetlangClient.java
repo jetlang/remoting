@@ -2,6 +2,7 @@ package com.jetlang.remote.client;
 
 import com.jetlang.remote.core.MsgTypes;
 import com.jetlang.remote.core.StreamReader;
+import com.jetlang.remote.server.HeartbeatEvent;
 import org.jetlang.channels.Channel;
 import org.jetlang.channels.ChannelSubscription;
 import org.jetlang.channels.MemoryChannel;
@@ -41,6 +42,7 @@ public class JetlangClient {
     private final AtomicBoolean closed = new AtomicBoolean(false);
     private final CountDownLatch logoutLatch = new CountDownLatch(1);
     private Disposable hbSchedule;
+    public final Channel<HeartbeatEvent> Heartbeat = new MemoryChannel<HeartbeatEvent>();
 
     public JetlangClient(SocketConnector socketConnector, Fiber sendFiber, JetlangClientConfig config) {
         this.socketConnector = socketConnector;
@@ -148,6 +150,9 @@ public class JetlangClient {
                     logoutLatch.countDown();
                     this.Disconnected.publish(new DisconnectEvent());
                     return false;
+                case MsgTypes.Heartbeat:
+                    this.Heartbeat.publish(new HeartbeatEvent());
+                    return true;
                 default:
                     error("Unknown msg: " + msg);
             }
