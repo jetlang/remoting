@@ -13,11 +13,10 @@ import org.jetlang.fibers.ThreadFiber;
 
 import java.io.IOException;
 import java.net.Socket;
+import java.net.SocketTimeoutException;
 import java.nio.charset.Charset;
 import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -28,6 +27,7 @@ public class JetlangClient {
 
     private Socket socket;
     private final Fiber sendFiber;
+    private final JetlangClientConfig config;
     private static final Charset charset = Charset.forName("US-ASCII");
     private final SocketConnector socketConnector;
     private Disposable pendingConnect;
@@ -36,20 +36,24 @@ public class JetlangClient {
     public final Channel<ConnectEvent> Connected = new MemoryChannel<ConnectEvent>();
     public final Channel<DisconnectEvent> Disconnected = new MemoryChannel<DisconnectEvent>();
     public final Channel<CloseEvent> Closed = new MemoryChannel<CloseEvent>();
+    public final Channel<ReadTimeoutEvent> ReadTimeout = new MemoryChannel<ReadTimeoutEvent>();
+
     private final AtomicBoolean closed = new AtomicBoolean(false);
     private final CountDownLatch logoutLatch = new CountDownLatch(1);
+    private Disposable hbSchedule;
 
-    public JetlangClient(SocketConnector socketConnector, Fiber sendFiber) {
+    public JetlangClient(SocketConnector socketConnector, Fiber sendFiber, JetlangClientConfig config) {
         this.socketConnector = socketConnector;
         this.sendFiber = sendFiber;
+        this.config = config;
     }
 
     public <T> void subscribe(final String subject, final Subscribable<T> callback) {
         Runnable sub = new Runnable() {
             public void run() {
-                Channel<T> channel = (Channel<T>) channels.get(subject);
+                @SuppressWarnings({"unchecked"}) Channel<T> channel = (Channel<T>) channels.get(subject);
                 if (channel == null) {
-                    channel = new MemoryChannel();
+                    channel = new MemoryChannel<T>();
                     channels.put(subject, channel);
                 }
                 channel.subscribe(callback);
@@ -80,6 +84,9 @@ public class JetlangClient {
                 e.printStackTrace();
             }
             socket = null;
+            if (hbSchedule != null) {
+                hbSchedule.dispose();
+            }
             this.Closed.publish(new CloseEvent());
         }
     }
@@ -92,6 +99,18 @@ public class JetlangClient {
             } catch (Exception failed) {
                 failed.printStackTrace();
                 socket = null;
+            }
+        }
+    };
+
+    private final Runnable hb = new Runnable() {
+        public void run() {
+            try {
+                if (socket != null) {
+                    socket.getOutputStream().write(MsgTypes.Heartbeat);
+                }
+            } catch (IOException exc) {
+                handleDisconnect();
             }
         }
     };
@@ -118,19 +137,25 @@ public class JetlangClient {
         Thread readThread = new Thread(reader);
         readThread.start();
         this.Connected.publish(new ConnectEvent());
+        hbSchedule = sendFiber.scheduleAtFixedRate(hb, config.getHeartbeatIntervalInMs(), config.getHeartbeatIntervalInMs(), TimeUnit.MILLISECONDS);
     }
 
     private boolean read(StreamReader stream) throws IOException {
-        int msg = stream.readByteAsInt();
-        switch (msg) {
-            case MsgTypes.Disconnect://logout
-                logoutLatch.countDown();
-                this.Disconnected.publish(new DisconnectEvent());
-                return false;
-            default:
-                error("Unknown msg: " + msg);
+        try {
+            int msg = stream.readByteAsInt();
+            switch (msg) {
+                case MsgTypes.Disconnect://logout
+                    logoutLatch.countDown();
+                    this.Disconnected.publish(new DisconnectEvent());
+                    return false;
+                default:
+                    error("Unknown msg: " + msg);
+            }
+            return false;
+        } catch (SocketTimeoutException readTimeout) {
+            this.ReadTimeout.publish(new ReadTimeoutEvent());
+            return true;
         }
-        return false;
     }
 
     private void error(String s) {
