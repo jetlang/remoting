@@ -9,6 +9,7 @@ import java.io.IOException;
 import java.net.Socket;
 import java.util.HashSet;
 import java.util.concurrent.Executor;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class JetlangClientHandler implements Acceptor.ClientHandler {
@@ -16,15 +17,17 @@ public class JetlangClientHandler implements Acceptor.ClientHandler {
     private final Serializer ser;
     private final JetlangSessionChannels channels;
     private final Executor exec;
+    private final JetlangSessionConfig config;
     private final AtomicBoolean running = new AtomicBoolean(true);
     private final HashSet<Socket> clients = new HashSet<Socket>();
 
     public JetlangClientHandler(Serializer ser,
                                 JetlangSessionChannels channels,
-                                Executor exec) {
+                                Executor exec, JetlangSessionConfig config) {
         this.ser = ser;
         this.channels = channels;
         this.exec = exec;
+        this.config = config;
     }
 
     public void startClient(final Socket socket) {
@@ -63,6 +66,7 @@ public class JetlangClientHandler implements Acceptor.ClientHandler {
         fiber.start();
         final JetlangSession session = new JetlangSession(socket, fiber);
         channels.publishNewSession(session);
+        session.startHeartbeat(config.getHeartbeatIntervalInMs(), TimeUnit.MILLISECONDS);
         return new Runnable() {
             public void run() {
                 try {

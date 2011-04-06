@@ -25,11 +25,12 @@ import static org.junit.Assert.assertTrue;
 public class IntegrationTest {
     JetlangSessionChannels sessions = new JetlangSessionChannels();
     ExecutorService service = Executors.newCachedThreadPool();
-    JetlangClientHandler handler = new JetlangClientHandler(null, sessions, service);
+    JetlangSessionConfig sessionConfig = new JetlangSessionConfig();
+    JetlangClientHandler handler = new JetlangClientHandler(null, sessions, service, sessionConfig);
     SocketConnector conn = new SocketConnector() {
         public Socket connect() throws IOException {
             Socket socket = new Socket("localhost", 8081);
-            socket.setSoTimeout((int) (config.getHeartbeatIntervalInMs() * 2));
+            socket.setSoTimeout(config.getHeartbeatIntervalInMs() * 2);
             return socket;
         }
     };
