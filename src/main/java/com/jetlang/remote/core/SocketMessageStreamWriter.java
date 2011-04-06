@@ -25,21 +25,20 @@ public class SocketMessageStreamWriter implements MessageStreamWriter {
         this.dataStream = new DataOutputStream(socket.getOutputStream());
     }
 
-    public void writeByteAsInt(int byteToWrite) {
-        try {
-            socket.getOutputStream().write(byteToWrite);
-        } catch (IOException e) {
-            tryClose();
-        }
+    public void writeByteAsInt(int byteToWrite) throws IOException {
+        socket.getOutputStream().write(byteToWrite);
     }
 
-    private void tryClose() {
+    public boolean tryClose() {
         try {
-            if (!socket.isClosed())
+            if (!socket.isClosed()) {
                 socket.close();
+                return true;
+            }
         } catch (IOException e) {
-            //e.printStackTrace();
+
         }
+        return false;
     }
 
     private final ByteMessageWriter byteMessageWriter = new ByteMessageWriter() {
@@ -53,16 +52,16 @@ public class SocketMessageStreamWriter implements MessageStreamWriter {
         }
     };
 
-    public void write(String topic, Object msg) {
+    public void write(String topic, Object msg) throws IOException {
         byte[] topicBytes = topic.getBytes(charset);
-        try {
-            socket.getOutputStream().write(MsgTypes.Data);
-            socket.getOutputStream().write(topicBytes.length);
-            socket.getOutputStream().write(topicBytes);
-            writer.write(msg, byteMessageWriter);
-        } catch (IOException e) {
-            tryClose();
-        }
+        socket.getOutputStream().write(MsgTypes.Data);
+        socket.getOutputStream().write(topicBytes.length);
+        socket.getOutputStream().write(topicBytes);
+        writer.write(msg, byteMessageWriter);
+    }
+
+    public void writeBytes(byte[] bytes) throws IOException {
+        socket.getOutputStream().write(bytes);
     }
 
 }

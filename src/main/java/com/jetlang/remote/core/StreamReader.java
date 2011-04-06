@@ -1,6 +1,8 @@
 package com.jetlang.remote.core;
 
-import java.io.*;
+import java.io.DataInputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.nio.charset.Charset;
 
 public class StreamReader {
@@ -8,8 +10,10 @@ public class StreamReader {
     private byte[] readBuffer = new byte[1024 * 64];
     private final DataInputStream stream;
     private final Charset charset;
+    private final ObjectByteReader reader;
 
-    public StreamReader(InputStream stream, Charset charset) {
+    public StreamReader(InputStream stream, Charset charset, ObjectByteReader reader) {
+        this.reader = reader;
         this.stream = new DataInputStream(stream);
         this.charset = charset;
     }
@@ -52,11 +56,6 @@ public class StreamReader {
 
     public Object readObject(int msgSize) throws IOException {
         byte[] buffer = fillBuffer(msgSize);
-        ByteArrayInputStream readStream = new ByteArrayInputStream(buffer);
-        try {
-            return new ObjectInputStream(readStream).readObject();
-        } catch (ClassNotFoundException e) {
-            throw new RuntimeException(e);
-        }
+        return reader.readObject(buffer, 0, msgSize);
     }
 }
