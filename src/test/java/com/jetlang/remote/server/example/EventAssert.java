@@ -2,6 +2,7 @@ package com.jetlang.remote.server.example;
 
 import org.jetlang.channels.Channel;
 import org.jetlang.channels.ChannelSubscription;
+import org.jetlang.channels.MemoryChannel;
 import org.jetlang.channels.Subscribable;
 import org.jetlang.core.Callback;
 import org.jetlang.core.SynchronousDisposingExecutor;
@@ -24,6 +25,7 @@ public class EventAssert<T> {
     public final CountDownLatch latch;
     public final AtomicInteger receiveCount = new AtomicInteger(0);
     public final LinkedBlockingQueue<T> received = new LinkedBlockingQueue<T>();
+    private final Channel<T> onRcv = new MemoryChannel<T>();
     private final int expected;
 
     public EventAssert(int expected) {
@@ -51,6 +53,7 @@ public class EventAssert<T> {
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
+                onRcv.publish(message);
             }
         };
     }
@@ -76,5 +79,9 @@ public class EventAssert<T> {
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    public void onMessage(Callback<T> onTopic) {
+        onRcv.subscribe(new SynchronousDisposingExecutor(), onTopic);
     }
 }
