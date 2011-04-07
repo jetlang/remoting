@@ -4,6 +4,7 @@ import com.jetlang.remote.core.ReadTimeoutEvent;
 import org.jetlang.channels.Subscribable;
 import org.jetlang.channels.Subscriber;
 import org.jetlang.core.Callback;
+import org.jetlang.core.Disposable;
 import org.jetlang.core.DisposingExecutor;
 
 import java.util.concurrent.CountDownLatch;
@@ -25,9 +26,9 @@ public interface JetlangClient {
 
     <T> void publish(String topic, T msg);
 
-    <T> void subscribe(String subject, Subscribable<T> callback);
+    <T> Disposable subscribe(String subject, Subscribable<T> callback);
 
-    <T> void subscribe(String topic, DisposingExecutor clientFiber, Callback<T> cb);
+    <T> Disposable subscribe(String topic, DisposingExecutor clientFiber, Callback<T> cb);
 
     void start();
 

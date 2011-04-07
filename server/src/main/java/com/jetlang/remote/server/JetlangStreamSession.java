@@ -14,6 +14,7 @@ import java.util.concurrent.TimeUnit;
 public class JetlangStreamSession implements JetlangSession {
 
     public final Channel<SessionTopic> SubscriptionRequest = new MemoryChannel<SessionTopic>();
+    public final Channel<String> UnsubscribeRequest = new MemoryChannel<String>();
     public final Channel<LogoutEvent> Logout = new MemoryChannel<LogoutEvent>();
     public final Channel<HeartbeatEvent> Heartbeat = new MemoryChannel<HeartbeatEvent>();
     public final Channel<SessionMessage<?>> Messages = new MemoryChannel<SessionMessage<?>>();
@@ -103,5 +104,13 @@ public class JetlangStreamSession implements JetlangSession {
 
     public void onMessage(String topic, Object msg) {
         Messages.publish(new SessionMessage<Object>(topic, msg));
+    }
+
+    public void onUnsubscribeRequest(String top) {
+        UnsubscribeRequest.publish(top);
+    }
+
+    public Subscriber<String> getUnsubscribeChannel() {
+        return UnsubscribeRequest;
     }
 }

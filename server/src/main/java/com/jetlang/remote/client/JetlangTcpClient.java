@@ -48,22 +48,41 @@ public class JetlangTcpClient implements JetlangClient {
         this.ser = ser;
     }
 
-    public <T> void subscribe(final String subject, final Subscribable<T> callback) {
+    public <T> Disposable subscribe(final String subject, final Subscribable<T> callback) {
+        Channel<T> channel;
+        synchronized (channels) {
+            //noinspection unchecked
+            channel = (Channel<T>) channels.get(subject);
+            if (channel == null) {
+                channel = new MemoryChannel<T>();
+                channels.put(subject, channel);
+            } else {
+                throw new RuntimeException("Subscription Already Exists: " + subject);
+            }
+        }
+        final Disposable unSub = channel.subscribe(callback);
         Runnable sub = new Runnable() {
             public void run() {
-                Channel<T> channel;
-                synchronized (channels) {
-                    channel = (Channel<T>) channels.get(subject);
-                    if (channel == null) {
-                        channel = new MemoryChannel<T>();
-                        channels.put(subject, channel);
-                    }
-                }
-                channel.subscribe(callback);
-                sendSubscription(subject);
+                sendSubscription(subject, MsgTypes.Subscription);
             }
         };
         sendFiber.execute(sub);
+        return new Disposable() {
+            public void dispose() {
+                //unsubscribe immediately
+                unSub.dispose();
+                Runnable sendUnsub = new Runnable() {
+
+                    public void run() {
+                        synchronized (channels) {
+                            channels.remove(subject);
+                            sendSubscription(subject, MsgTypes.Unsubscribe);
+                        }
+                    }
+                };
+                sendFiber.execute(sendUnsub);
+            }
+        };
     }
 
     private void publishData(String topic, Object object) {
@@ -72,15 +91,16 @@ public class JetlangTcpClient implements JetlangClient {
             channel = channels.get(topic);
         }
         if (channel != null) {
+            //noinspection unchecked
             channel.publish(object);
         }
     }
 
-    private void sendSubscription(String subject) {
+    private void sendSubscription(String subject, int msgType) {
         if (socket != null) {
             try {
                 byte[] bytes = subject.getBytes(charset);
-                socket.writeByteAsInt(MsgTypes.Subscription);
+                socket.writeByteAsInt(msgType);
                 socket.writeByteAsInt(bytes.length);
                 socket.writeBytes(bytes);
             } catch (IOException e) {
@@ -135,7 +155,7 @@ public class JetlangTcpClient implements JetlangClient {
         this.pendingConnect = null;
         this.socket = new SocketMessageStreamWriter(newSocket, charset, ser.getWriter());
         for (String subscription : channels.keySet()) {
-            sendSubscription(subscription);
+            sendSubscription(subscription, MsgTypes.Subscription);
         }
         final StreamReader stream = new StreamReader(newSocket.getInputStream(), charset, ser.getReader(), onReadTimeout);
         Runnable reader = new Runnable() {
@@ -206,8 +226,8 @@ public class JetlangTcpClient implements JetlangClient {
         }
     }
 
-    public <T> void subscribe(String topic, DisposingExecutor clientFiber, Callback<T> cb) {
-        subscribe(topic, new ChannelSubscription<T>(clientFiber, cb));
+    public <T> Disposable subscribe(String topic, DisposingExecutor clientFiber, Callback<T> cb) {
+        return subscribe(topic, new ChannelSubscription<T>(clientFiber, cb));
     }
 
     public void start() {

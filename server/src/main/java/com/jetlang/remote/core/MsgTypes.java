@@ -6,6 +6,7 @@ public class MsgTypes {
     public static final int Disconnect = 2;
     public static final int Subscription = 3;
     public static final int Data = 4;
+    public static final int Unsubscribe = 5;
 
     private MsgTypes() {
 
