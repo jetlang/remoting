@@ -12,13 +12,12 @@ public class SocketConnector {
 
     private final String host;
     private final int port;
-    private final JetlangClientConfig config;
     private boolean tcpNoDelay = true;
+    private int readTimeoutInMs = 3000;
 
-    public SocketConnector(String host, int port, JetlangClientConfig config) {
+    public SocketConnector(String host, int port) {
         this.host = host;
         this.port = port;
-        this.config = config;
     }
 
     public boolean isTcpNoDelay() {
@@ -29,10 +28,18 @@ public class SocketConnector {
         this.tcpNoDelay = tcpNoDelay;
     }
 
+    public int getReadTimeoutInMs() {
+        return readTimeoutInMs;
+    }
+
+    public void setReadTimeoutInMs(int readTimeoutInMs) {
+        this.readTimeoutInMs = readTimeoutInMs;
+    }
+
     public Socket connect() throws IOException {
         Socket socket = new Socket(host, port);
         socket.setTcpNoDelay(tcpNoDelay);
-        socket.setSoTimeout(config.getHeartbeatIntervalInMs() * 2);
+        socket.setSoTimeout(readTimeoutInMs);
         return socket;
     }
 }
