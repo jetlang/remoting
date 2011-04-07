@@ -2,6 +2,7 @@ package com.jetlang.remote.server.example;
 
 import org.jetlang.channels.*;
 import org.jetlang.core.Callback;
+import org.jetlang.core.DisposingExecutor;
 import org.jetlang.core.SynchronousDisposingExecutor;
 
 import java.util.concurrent.CountDownLatch;
@@ -35,6 +36,12 @@ public class EventAssert<T> {
         return new ChannelSubscription<T>(new SynchronousDisposingExecutor(), r);
     }
 
+    public void subscribe(Subscriber<T> channel, DisposingExecutor exec) {
+        Callback<T> r = createCallback();
+        channel.subscribe(exec, r);
+
+    }
+
     public void subscribe(Subscriber<T> channel) {
         Callback<T> r = createCallback();
         channel.subscribe(new SynchronousDisposingExecutor(), r);
@@ -65,7 +72,7 @@ public class EventAssert<T> {
     }
 
     public static <T> EventAssert<T> expect(int expected, Subscriber<T> connected) {
-        EventAssert eventSink = new EventAssert(expected);
+        EventAssert<T> eventSink = new EventAssert<T>(expected);
         eventSink.subscribe(connected);
         return eventSink;
     }

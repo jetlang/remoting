@@ -8,6 +8,7 @@ import com.jetlang.remote.server.*;
 import org.jetlang.core.Callback;
 import org.jetlang.core.Disposable;
 import org.jetlang.core.SynchronousDisposingExecutor;
+import org.jetlang.fibers.Fiber;
 import org.jetlang.fibers.ThreadFiber;
 import org.junit.After;
 import org.junit.Test;
@@ -100,17 +101,19 @@ public class IntegrationTest {
         final EventAssert<LogoutEvent> logoutEvent = new EventAssert<LogoutEvent>(1);
         final EventAssert<SessionMessage<?>> serverMessageReceive = new EventAssert<SessionMessage<?>>(1);
         final EventAssert<String> unsubscribeReceive = new EventAssert<String>(1);
+        final EventAssert<SessionCloseEvent> serverSessionClose = new EventAssert<SessionCloseEvent>(1);
 
-        Callback<JetlangSession> sessionCallback = new Callback<JetlangSession>() {
-            public void onMessage(JetlangSession session) {
-                subscriptionReceived.subscribe(session.getSubscriptionRequestChannel());
-                logoutEvent.subscribe(session.getLogoutChannel());
-                serverMessageReceive.subscribe(session.getSessionMessageChannel());
-                unsubscribeReceive.subscribe(session.getUnsubscribeChannel());
+        SessionHandlerFactory handlerFactory = new SessionHandlerFactory() {
+            public void onNewSession(JetlangSession session, Fiber fiber) {
+                subscriptionReceived.subscribe(session.getSubscriptionRequestChannel(), fiber);
+                logoutEvent.subscribe(session.getLogoutChannel(), fiber);
+                serverMessageReceive.subscribe(session.getSessionMessageChannel(), fiber);
+                unsubscribeReceive.subscribe(session.getUnsubscribeChannel(), fiber);
+                serverSessionClose.subscribe(session.getSessionCloseChannel(), fiber);
+
             }
         };
-        sessions.SessionOpen.subscribe(new SynchronousDisposingExecutor(), sessionCallback);
-        EventAssert<JetlangSession> serverSessionClose = EventAssert.expect(1, sessions.SessionClose);
+        FiberPerSession fiberPer = new FiberPerSession(sessions, handlerFactory, new FiberPerSession.FiberFactory.ThreadFiberFactory());
 
         Acceptor acceptor = createAcceptor();
 

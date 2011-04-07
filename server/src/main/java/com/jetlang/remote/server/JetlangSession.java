@@ -23,4 +23,5 @@ public interface JetlangSession {
 
     Subscriber<ReadTimeoutEvent> getReadTimeoutChannel();
 
+    Subscriber<SessionCloseEvent> getSessionCloseChannel();
 }

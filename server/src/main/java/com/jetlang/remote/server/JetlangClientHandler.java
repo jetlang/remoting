@@ -94,7 +94,7 @@ public class JetlangClientHandler implements Acceptor.ClientHandler {
                 } catch (Exception failed) {
                     //failed.printStackTrace();
                 }
-                channels.publishSessionEnd(session);
+                session.SessionClose.publish(new SessionCloseEvent());
             }
         };
     }

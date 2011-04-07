@@ -19,6 +19,7 @@ public class JetlangStreamSession implements JetlangSession {
     public final Channel<HeartbeatEvent> Heartbeat = new MemoryChannel<HeartbeatEvent>();
     public final Channel<SessionMessage<?>> Messages = new MemoryChannel<SessionMessage<?>>();
     public final Channel<ReadTimeoutEvent> ReadTimeout = new MemoryChannel<ReadTimeoutEvent>();
+    public final Channel<SessionCloseEvent> SessionClose = new MemoryChannel<SessionCloseEvent>();
 
     private final MessageStreamWriter socket;
     private final Fiber sendFiber;
@@ -100,6 +101,10 @@ public class JetlangStreamSession implements JetlangSession {
 
     public Subscriber<ReadTimeoutEvent> getReadTimeoutChannel() {
         return ReadTimeout;
+    }
+
+    public Subscriber<SessionCloseEvent> getSessionCloseChannel() {
+        return SessionClose;
     }
 
     public void onMessage(String topic, Object msg) {
