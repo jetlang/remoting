@@ -46,17 +46,24 @@ public class JetlangTcpClient implements JetlangClient {
 
         void onUnexpectedDisconnect(Exception msg);
 
+        void onConnectionFailure(Exception failed);
+
         public class SysOut implements ErrorHandler {
 
             public void onUnexpectedDisconnect(Exception msg) {
                 msg.printStackTrace();
+            }
+
+            public void onConnectionFailure(Exception failed) {
+                failed.printStackTrace();
             }
         }
     }
 
     public JetlangTcpClient(SocketConnector socketConnector, Fiber sendFiber,
                             JetlangClientConfig config,
-                            Serializer ser, ErrorHandler errorHandler) {
+                            Serializer ser,
+                            ErrorHandler errorHandler) {
         this.socketConnector = socketConnector;
         this.sendFiber = sendFiber;
         this.config = config;
@@ -142,7 +149,7 @@ public class JetlangTcpClient implements JetlangClient {
                 Socket socket = socketConnector.connect();
                 handleConnect(socket);
             } catch (Exception failed) {
-                failed.printStackTrace();
+                errorHandler.onConnectionFailure(failed);
                 socket = null;
             }
         }
