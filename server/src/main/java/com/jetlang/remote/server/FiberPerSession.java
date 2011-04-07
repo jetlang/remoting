@@ -7,7 +7,7 @@ import org.jetlang.fibers.ThreadFiber;
 
 public class FiberPerSession {
 
-    private final SessionHandlerFactory fact;
+    private final NewSessionHandler fact;
     private final FiberPerSession.FiberFactory fiberFactory;
 
     public static interface FiberFactory {
@@ -23,7 +23,7 @@ public class FiberPerSession {
 
     }
 
-    public FiberPerSession(JetlangSessionChannels channels, SessionHandlerFactory fact, FiberPerSession.FiberFactory fiberFactory) {
+    public FiberPerSession(JetlangSessionChannels channels, NewSessionHandler fact, FiberPerSession.FiberFactory fiberFactory) {
         this.fact = fact;
         this.fiberFactory = fiberFactory;
         channels.SessionOpen.subscribe(new SynchronousDisposingExecutor(), onOpen());
