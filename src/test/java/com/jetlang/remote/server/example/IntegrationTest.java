@@ -6,6 +6,7 @@ import com.jetlang.remote.core.JavaSerializer;
 import com.jetlang.remote.core.ReadTimeoutEvent;
 import com.jetlang.remote.server.*;
 import org.jetlang.core.Callback;
+import org.jetlang.core.Disposable;
 import org.jetlang.core.SynchronousDisposingExecutor;
 import org.jetlang.fibers.ThreadFiber;
 import org.junit.After;
@@ -98,12 +99,14 @@ public class IntegrationTest {
         subscriptionReceived.onMessage(onTopic);
         final EventAssert<LogoutEvent> logoutEvent = new EventAssert<LogoutEvent>(1);
         final EventAssert<SessionMessage<?>> serverMessageReceive = new EventAssert<SessionMessage<?>>(1);
+        final EventAssert<String> unsubscribeReceive = new EventAssert<String>(1);
 
         Callback<JetlangSession> sessionCallback = new Callback<JetlangSession>() {
-            public void onMessage(JetlangSession message) {
-                subscriptionReceived.subscribe(message.getSubscriptionRequestChannel());
-                logoutEvent.subscribe(message.getLogoutChannel());
-                serverMessageReceive.subscribe(message.getSessionMessageChannel());
+            public void onMessage(JetlangSession session) {
+                subscriptionReceived.subscribe(session.getSubscriptionRequestChannel());
+                logoutEvent.subscribe(session.getLogoutChannel());
+                serverMessageReceive.subscribe(session.getSessionMessageChannel());
+                unsubscribeReceive.subscribe(session.getUnsubscribeChannel());
             }
         };
         sessions.SessionOpen.subscribe(new SynchronousDisposingExecutor(), sessionCallback);
@@ -124,7 +127,7 @@ public class IntegrationTest {
         clientFiber.start();
 
         EventAssert<String> clientMsgReceive = new EventAssert<String>(1);
-        client.subscribe("newtopic", clientMsgReceive.asSubscribable());
+        Disposable unsubscribe = client.subscribe("newtopic", clientMsgReceive.asSubscribable());
         client.start();
 
         serverSessionOpen.assertEvent();
@@ -137,6 +140,9 @@ public class IntegrationTest {
         SessionMessage<?> sessionMessage = serverMessageReceive.takeFromReceived();
         assertEquals("toServer", sessionMessage.getTopic());
         assertEquals("myclientmessage", sessionMessage.getMessage());
+        unsubscribe.dispose();
+        unsubscribeReceive.assertEvent();
+        assertEquals("newtopic", unsubscribeReceive.takeFromReceived());
 
         CountDownLatch closeLatch = client.close(true);
 

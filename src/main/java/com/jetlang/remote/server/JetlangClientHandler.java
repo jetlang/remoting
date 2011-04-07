@@ -123,6 +123,11 @@ public class JetlangClientHandler implements Acceptor.ClientHandler {
                 String topic = input.readString(topicSizeInBytes);
                 session.onSubscriptionRequest(topic);
                 break;
+            case MsgTypes.Unsubscribe:
+                int unsubSize = input.readByteAsInt();
+                String top = input.readString(unsubSize);
+                session.onUnsubscribeRequest(top);
+                break;
             case MsgTypes.Disconnect:
                 session.write(MsgTypes.Disconnect);
                 session.onLogout();

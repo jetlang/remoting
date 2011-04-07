@@ -13,6 +13,8 @@ public interface JetlangSession {
 
     Subscriber<SessionTopic> getSubscriptionRequestChannel();
 
+    Subscriber<String> getUnsubscribeChannel();
+
     Subscriber<LogoutEvent> getLogoutChannel();
 
     Subscriber<HeartbeatEvent> getHeartbeatChannel();
