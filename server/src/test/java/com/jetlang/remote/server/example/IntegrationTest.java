@@ -157,7 +157,7 @@ public class IntegrationTest {
     }
 
     private JetlangClient createClient() {
-        return new JetlangTcpClient(conn, new ThreadFiber(), clientConfig, new JavaSerializer());
+        return new JetlangTcpClient(conn, new ThreadFiber(), clientConfig, new JavaSerializer(), new JetlangTcpClient.ErrorHandler.SysOut());
     }
 
     private Acceptor createAcceptor() throws IOException {

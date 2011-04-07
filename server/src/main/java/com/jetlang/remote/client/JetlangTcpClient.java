@@ -26,6 +26,7 @@ public class JetlangTcpClient implements JetlangClient {
     private final Fiber sendFiber;
     private final JetlangClientConfig config;
     private final Serializer ser;
+    private final ErrorHandler errorHandler;
     private static final Charset charset = Charset.forName("US-ASCII");
     private final SocketConnector socketConnector;
     private Disposable pendingConnect;
@@ -41,11 +42,26 @@ public class JetlangTcpClient implements JetlangClient {
     private Disposable hbSchedule;
     public final Channel<HeartbeatEvent> Heartbeat = new MemoryChannel<HeartbeatEvent>();
 
-    public JetlangTcpClient(SocketConnector socketConnector, Fiber sendFiber, JetlangClientConfig config, Serializer ser) {
+    public interface ErrorHandler {
+
+        void onUnexpectedDisconnect(Exception msg);
+
+        public class SysOut implements ErrorHandler {
+
+            public void onUnexpectedDisconnect(Exception msg) {
+                msg.printStackTrace();
+            }
+        }
+    }
+
+    public JetlangTcpClient(SocketConnector socketConnector, Fiber sendFiber,
+                            JetlangClientConfig config,
+                            Serializer ser, ErrorHandler errorHandler) {
         this.socketConnector = socketConnector;
         this.sendFiber = sendFiber;
         this.config = config;
         this.ser = ser;
+        this.errorHandler = errorHandler;
     }
 
     public <T> Disposable subscribe(final String subject, final Subscribable<T> callback) {
@@ -104,7 +120,7 @@ public class JetlangTcpClient implements JetlangClient {
                 socket.writeByteAsInt(bytes.length);
                 socket.writeBytes(bytes);
             } catch (IOException e) {
-                handleDisconnect();
+                handleDisconnect(false, e);
             }
         }
     }
@@ -139,7 +155,7 @@ public class JetlangTcpClient implements JetlangClient {
                     socket.writeByteAsInt(MsgTypes.Heartbeat);
                 }
             } catch (IOException exc) {
-                handleDisconnect();
+                handleDisconnect(false, exc);
             }
         }
     };
@@ -165,7 +181,7 @@ public class JetlangTcpClient implements JetlangClient {
                     while (read(stream)) {
                     }
                 } catch (IOException failed) {
-                    handleDisconnectOnSendFiber();
+                    handleDisconnectOnSendFiber(failed);
                 }
             }
         };
@@ -196,34 +212,32 @@ public class JetlangTcpClient implements JetlangClient {
                     publishData(topic, object);
                     return true;
                 default:
-                    error("Unknown msg: " + msg);
+                    throw new IOException("Unknown msg: " + msg);
             }
-            return false;
         } catch (SocketTimeoutException readTimeout) {
             this.ReadTimeout.publish(new ReadTimeoutEvent());
             return true;
         }
     }
 
-    private void error(String s) {
-        System.err.println(s);
-    }
-
-    private void handleDisconnectOnSendFiber() {
+    private void handleDisconnectOnSendFiber(final Exception e) {
         Runnable exec = new Runnable() {
             public void run() {
-                handleDisconnect();
+                handleDisconnect(false, e);
             }
         };
         sendFiber.execute(exec);
     }
 
-    private void handleDisconnect() {
+    private void handleDisconnect(boolean expected, Exception msg) {
         closeIfNeeded();
         if (pendingConnect == null && !closed.get()) {
             //should use fixed rate but don't want to introduce a dependency on that method.
             pendingConnect = sendFiber.scheduleWithFixedDelay(connect, 0, 1, TimeUnit.SECONDS);
+            if (!expected)
+                errorHandler.onUnexpectedDisconnect(msg);
         }
+
     }
 
     public <T> Disposable subscribe(String topic, DisposingExecutor clientFiber, Callback<T> cb) {
@@ -231,7 +245,7 @@ public class JetlangTcpClient implements JetlangClient {
     }
 
     public void start() {
-        handleDisconnect();
+        handleDisconnect(true, null);
         sendFiber.start();
     }
 
@@ -287,7 +301,7 @@ public class JetlangTcpClient implements JetlangClient {
                     try {
                         socket.write(topic, msg);
                     } catch (IOException e) {
-                        handleDisconnect();
+                        handleDisconnect(false, e);
                     }
                 }
             }
