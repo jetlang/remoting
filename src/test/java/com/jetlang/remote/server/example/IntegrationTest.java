@@ -27,7 +27,8 @@ public class IntegrationTest {
     JetlangSessionChannels sessions = new JetlangSessionChannels();
     ExecutorService service = Executors.newCachedThreadPool();
     JetlangSessionConfig sessionConfig = new JetlangSessionConfig();
-    JetlangClientHandler handler = new JetlangClientHandler(new JavaSerializer.Factory(), sessions, service, sessionConfig);
+    JetlangClientHandler handler = new JetlangClientHandler(new JavaSerializer.Factory(), sessions,
+            service, sessionConfig, new JetlangClientHandler.FiberFactory.ThreadFiberFactory());
     JetlangClientConfig clientConfig = new JetlangClientConfig();
 
     SocketConnector conn = new SocketConnector("localhost", 8081, clientConfig);
@@ -103,7 +104,7 @@ public class IntegrationTest {
         final EventAssert<String> unsubscribeReceive = new EventAssert<String>(1);
         final EventAssert<SessionCloseEvent> serverSessionClose = new EventAssert<SessionCloseEvent>(1);
 
-        SessionHandlerFactory handlerFactory = new SessionHandlerFactory() {
+        NewSessionHandler handlerFactory = new NewSessionHandler() {
             public void onNewSession(JetlangSession session, Fiber fiber) {
                 subscriptionReceived.subscribe(session.getSubscriptionRequestChannel(), fiber);
                 logoutEvent.subscribe(session.getLogoutChannel(), fiber);
@@ -125,9 +126,6 @@ public class IntegrationTest {
         EventAssert<ConnectEvent> clientConnect = EventAssert.expect(1, client.getConnectChannel());
         EventAssert<DisconnectEvent> clientDisconnect = EventAssert.expect(1, client.getDisconnectChannel());
         EventAssert<CloseEvent> clientClose = EventAssert.expect(1, client.getCloseChannel());
-
-        ThreadFiber clientFiber = new ThreadFiber();
-        clientFiber.start();
 
         EventAssert<String> clientMsgReceive = new EventAssert<String>(1);
         Disposable unsubscribe = client.subscribe("newtopic", clientMsgReceive.asSubscribable());

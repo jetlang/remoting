@@ -1,6 +1,7 @@
 package com.jetlang.remote.server;
 
 import com.jetlang.remote.core.*;
+import org.jetlang.fibers.Fiber;
 import org.jetlang.fibers.ThreadFiber;
 
 import java.io.IOException;
@@ -18,18 +19,33 @@ public class JetlangClientHandler implements Acceptor.ClientHandler {
     private final JetlangSessionChannels channels;
     private final Executor exec;
     private final JetlangSessionConfig config;
+    private final FiberFactory fiberFactory;
     private final AtomicBoolean running = new AtomicBoolean(true);
     private final HashSet<Socket> clients = new HashSet<Socket>();
     private final Charset charset = Charset.forName("US-ASCII");
 
+    public static interface FiberFactory {
+
+        Fiber createSendFiber(Socket socket);
+
+        public static class ThreadFiberFactory implements FiberFactory {
+
+            public Fiber createSendFiber(Socket socket) {
+                return new ThreadFiber();
+            }
+        }
+    }
+
     public JetlangClientHandler(SerializerFactory ser,
                                 JetlangSessionChannels channels,
                                 Executor exec,
-                                JetlangSessionConfig config) {
+                                JetlangSessionConfig config,
+                                FiberFactory fiberFactory) {
         this.ser = ser;
         this.channels = channels;
         this.exec = exec;
         this.config = config;
+        this.fiberFactory = fiberFactory;
     }
 
     public void startClient(final Socket socket) {
@@ -70,7 +86,7 @@ public class JetlangClientHandler implements Acceptor.ClientHandler {
     }
 
     private Runnable createRunnable(final Socket socket) throws IOException {
-        ThreadFiber fiber = new ThreadFiber();
+        final Fiber fiber = fiberFactory.createSendFiber(socket);
         fiber.start();
         final Serializer serializer = ser.createForSocket(socket);
         configureClientSocketAfterAccept(socket);
@@ -95,6 +111,7 @@ public class JetlangClientHandler implements Acceptor.ClientHandler {
                     //failed.printStackTrace();
                 }
                 session.SessionClose.publish(new SessionCloseEvent());
+                fiber.dispose();
             }
         };
     }
