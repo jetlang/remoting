@@ -72,8 +72,8 @@ public class StreamReader {
         return ((ch1 << 24) + (ch2 << 16) + (ch3 << 8) + (ch4 << 0));
     }
 
-    public Object readObject(int msgSize) throws IOException {
+    public Object readObject(String fromTopic, int msgSize) throws IOException {
         byte[] buffer = fillBuffer(msgSize);
-        return reader.readObject(buffer, 0, msgSize);
+        return reader.readObject(fromTopic, buffer, 0, msgSize);
     }
 }

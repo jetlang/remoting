@@ -57,7 +57,7 @@ public class SocketMessageStreamWriter implements MessageStreamWriter {
         socket.getOutputStream().write(MsgTypes.Data);
         socket.getOutputStream().write(topicBytes.length);
         socket.getOutputStream().write(topicBytes);
-        writer.write(msg, byteMessageWriter);
+        writer.write(topic, msg, byteMessageWriter);
     }
 
     public void writeBytes(byte[] bytes) throws IOException {

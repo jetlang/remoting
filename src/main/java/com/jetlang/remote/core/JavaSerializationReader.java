@@ -10,7 +10,8 @@ import java.io.ObjectInputStream;
  * Time: 12:30 PM
  */
 public class JavaSerializationReader implements ObjectByteReader {
-    public Object readObject(byte[] buffer, int offset, int length) throws IOException {
+
+    public Object readObject(String fromTopic, byte[] buffer, int offset, int length) throws IOException {
         ByteArrayInputStream readStream = new ByteArrayInputStream(buffer);
         try {
             return new ObjectInputStream(readStream).readObject();

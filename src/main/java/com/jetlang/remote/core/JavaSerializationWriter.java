@@ -20,7 +20,7 @@ public class JavaSerializationWriter implements ObjectByteWriter {
 
     final ByteStream bytes = new ByteStream();
 
-    public void write(Object msg, ByteMessageWriter writer) throws IOException {
+    public void write(String toTopic, Object msg, ByteMessageWriter writer) throws IOException {
         bytes.reset();
         ObjectOutputStream output = new ObjectOutputStream(bytes);
         output.writeObject(msg);

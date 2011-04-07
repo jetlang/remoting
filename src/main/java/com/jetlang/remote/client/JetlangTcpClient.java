@@ -215,7 +215,7 @@ public class JetlangTcpClient implements JetlangClient {
                     int topicSize = stream.readByteAsInt();
                     String topic = stream.readString(topicSize);
                     int msgSize = stream.readInt();
-                    Object object = stream.readObject(msgSize);
+                    Object object = stream.readObject(topic, msgSize);
                     publishData(topic, object);
                     return true;
                 default:
