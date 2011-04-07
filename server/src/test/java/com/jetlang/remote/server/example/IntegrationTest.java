@@ -31,7 +31,7 @@ public class IntegrationTest {
             service, sessionConfig, new JetlangClientHandler.FiberFactory.ThreadFiberFactory());
     JetlangClientConfig clientConfig = new JetlangClientConfig();
 
-    SocketConnector conn = new SocketConnector("localhost", 8081, clientConfig);
+    SocketConnector conn = new SocketConnector("localhost", 8081);
 
     @After
     public void shutdown() {
