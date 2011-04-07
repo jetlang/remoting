@@ -8,5 +8,5 @@ import java.io.IOException;
  * Time: 12:27 PM
  */
 public interface ObjectByteReader {
-    Object readObject(byte[] buffer, int offset, int length) throws IOException;
+    Object readObject(String fromTopic, byte[] buffer, int offset, int length) throws IOException;
 }

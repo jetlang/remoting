@@ -153,7 +153,7 @@ public class JetlangClientHandler implements Acceptor.ClientHandler {
                 int topicSize = input.readByteAsInt();
                 String msgTopic = input.readString(topicSize);
                 int msgSize = input.readInt();
-                Object msg = input.readObject(msgSize);
+                Object msg = input.readObject(msgTopic, msgSize);
                 session.onMessage(msgTopic, msg);
                 break;
             default:
