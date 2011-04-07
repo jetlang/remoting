@@ -92,7 +92,7 @@ public class JetlangClientHandler implements Acceptor.ClientHandler {
 
                     }
                 } catch (Exception failed) {
-                    failed.printStackTrace();
+                    //failed.printStackTrace();
                 }
                 channels.publishSessionEnd(session);
             }

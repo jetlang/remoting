@@ -152,7 +152,6 @@ public class IntegrationTest {
         clientDisconnect.assertEvent();
         clientClose.assertEvent();
         acceptor.stop();
-        System.out.println("Stopped");
         service.shutdownNow();
     }
 
