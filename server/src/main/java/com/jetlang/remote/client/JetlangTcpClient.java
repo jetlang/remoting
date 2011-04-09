@@ -60,7 +60,8 @@ public class JetlangTcpClient implements JetlangClient {
         }
     }
 
-    public JetlangTcpClient(SocketConnector socketConnector, Fiber sendFiber,
+    public JetlangTcpClient(SocketConnector socketConnector,
+                            Fiber sendFiber,
                             JetlangClientConfig config,
                             Serializer ser,
                             ErrorHandler errorHandler) {

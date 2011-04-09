@@ -61,7 +61,6 @@ public class JetlangClientHandler implements Acceptor.ClientHandler {
         try {
             clientReader = createRunnable(socket);
         } catch (IOException e) {
-            clients.remove(socket);
             close(socket);
         }
         exec.execute(clientReader);
@@ -79,9 +78,19 @@ public class JetlangClientHandler implements Acceptor.ClientHandler {
 
     private void close(Socket client) {
         try {
-            client.close();
+            if (!client.isClosed())
+                client.close();
         } catch (IOException e) {
             e.printStackTrace();
+        }
+        synchronized (clients) {
+            clients.remove(client);
+        }
+    }
+
+    public int clientCount() {
+        synchronized (clients) {
+            return clients.size();
         }
     }
 
@@ -110,8 +119,9 @@ public class JetlangClientHandler implements Acceptor.ClientHandler {
                 } catch (Exception failed) {
                     //failed.printStackTrace();
                 }
-                session.SessionClose.publish(new SessionCloseEvent());
                 fiber.dispose();
+                close(socket);
+                session.SessionClose.publish(new SessionCloseEvent());
             }
         };
     }
