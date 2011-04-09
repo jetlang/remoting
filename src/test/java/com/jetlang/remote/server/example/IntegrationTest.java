@@ -152,6 +152,7 @@ public class IntegrationTest {
         serverSessionClose.assertEvent();
         clientDisconnect.assertEvent();
         clientClose.assertEvent();
+        assertEquals(0, handler.clientCount());
         acceptor.stop();
         service.shutdownNow();
     }
