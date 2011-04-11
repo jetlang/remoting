@@ -57,13 +57,12 @@ public class JetlangClientHandler implements Acceptor.ClientHandler {
                 return;
             }
         }
-        Runnable clientReader = null;
         try {
-            clientReader = createRunnable(socket);
+            Runnable clientReader = createRunnable(socket);
+            exec.execute(clientReader);
         } catch (IOException e) {
             close(socket);
         }
-        exec.execute(clientReader);
     }
 
     public void close() {
