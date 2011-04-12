@@ -21,12 +21,18 @@ public class JetlangStreamSession implements JetlangSession {
     public final Channel<ReadTimeoutEvent> ReadTimeout = new MemoryChannel<ReadTimeoutEvent>();
     public final Channel<SessionCloseEvent> SessionClose = new MemoryChannel<SessionCloseEvent>();
 
+    private final Object id;
     private final MessageStreamWriter socket;
     private final Fiber sendFiber;
 
-    public JetlangStreamSession(MessageStreamWriter socket, Fiber sendFiber) {
+    public JetlangStreamSession(Object id, MessageStreamWriter socket, Fiber sendFiber) {
+        this.id = id;
         this.socket = socket;
         this.sendFiber = sendFiber;
+    }
+
+    public Object getSessionId() {
+        return id;
     }
 
     public void startHeartbeat(int interval, TimeUnit unit) {

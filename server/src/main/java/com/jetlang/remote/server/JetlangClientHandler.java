@@ -98,7 +98,7 @@ public class JetlangClientHandler implements Acceptor.ClientHandler {
         fiber.start();
         final Serializer serializer = ser.createForSocket(socket);
         configureClientSocketAfterAccept(socket);
-        final JetlangStreamSession session = new JetlangStreamSession(new SocketMessageStreamWriter(socket, charset, serializer.getWriter()), fiber);
+        final JetlangStreamSession session = new JetlangStreamSession(socket.getInetAddress(), new SocketMessageStreamWriter(socket, charset, serializer.getWriter()), fiber);
         channels.publishNewSession(session);
         session.startHeartbeat(config.getHeartbeatIntervalInMs(), TimeUnit.MILLISECONDS);
         final Runnable onReadTimeout = new Runnable() {
