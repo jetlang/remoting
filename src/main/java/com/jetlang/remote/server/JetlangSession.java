@@ -11,6 +11,8 @@ import org.jetlang.channels.Subscriber;
  */
 public interface JetlangSession {
 
+    Object getSessionId();
+
     Subscriber<SessionTopic> getSubscriptionRequestChannel();
 
     Subscriber<String> getUnsubscribeChannel();

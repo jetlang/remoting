@@ -111,7 +111,7 @@ public class IntegrationTest {
                 serverMessageReceive.subscribe(session.getSessionMessageChannel(), fiber);
                 unsubscribeReceive.subscribe(session.getUnsubscribeChannel(), fiber);
                 serverSessionClose.subscribe(session.getSessionCloseChannel(), fiber);
-
+                assertEquals(session.getSessionId(), session.getSessionId());
             }
         };
         FiberPerSession fiberPer = new FiberPerSession(sessions, handlerFactory, new FiberPerSession.FiberFactory.ThreadFiberFactory());
