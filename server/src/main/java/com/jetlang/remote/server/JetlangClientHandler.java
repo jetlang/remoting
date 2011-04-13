@@ -85,15 +85,16 @@ public class JetlangClientHandler implements Acceptor.ClientHandler, ClientPubli
             if (running.get()) {
                 clients.add(client);
             } else {
-                stop(client);
+                stopAndRemove(client);
                 return;
             }
         }
         try {
+            configureClientSocketAfterAccept(socket);
             Runnable clientReader = createRunnable(client);
             exec.execute(clientReader);
         } catch (IOException e) {
-            stop(client);
+            stopAndRemove(client);
         }
     }
 
@@ -109,7 +110,7 @@ public class JetlangClientHandler implements Acceptor.ClientHandler, ClientPubli
         }
     }
 
-    private void stop(ClientTcpSocket client) {
+    private void stopAndRemove(ClientTcpSocket client) {
         client.close();
         synchronized (clients) {
             clients.remove(client);
@@ -146,7 +147,6 @@ public class JetlangClientHandler implements Acceptor.ClientHandler, ClientPubli
         final TcpSocket socket = clientTcpSocket.getSocket();
         final Fiber fiber = fiberFactory.createSendFiber(socket.getSocket());
         final Serializer serializer = ser.createForSocket(socket.getSocket());
-        configureClientSocketAfterAccept(socket.getSocket());
         final JetlangStreamSession session = new JetlangStreamSession(socket.getId(), new SocketMessageStreamWriter(socket, charset, serializer.getWriter()), fiber);
         return new Runnable() {
             public void run() {
@@ -170,7 +170,7 @@ public class JetlangClientHandler implements Acceptor.ClientHandler, ClientPubli
                     errorHandler.onClientException(clientFailure);
                 } finally {
                     fiber.dispose();
-                    stop(clientTcpSocket);
+                    stopAndRemove(clientTcpSocket);
                     session.SessionClose.publish(new SessionCloseEvent());
                 }
             }
