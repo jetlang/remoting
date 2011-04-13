@@ -116,6 +116,33 @@ public class IntegrationTest {
         acceptor.stop();
     }
 
+    @Test
+    public void globalPublishToTwoClients() throws IOException {
+        final EventAssert<JetlangSession> openEvent = EventAssert.expect(2, sessions.SessionOpen);
+
+        Acceptor acceptor = createAcceptor();
+
+        Thread runner = new Thread(acceptor);
+        runner.start();
+
+        EventAssert<Object> msgReceived = new EventAssert<Object>(2);
+        JetlangClient client = createClient();
+        client.subscribe("topic", msgReceived.asSubscribable());
+        client.start();
+
+        JetlangClient client2 = createClient();
+        client2.subscribe("topic", msgReceived.asSubscribable());
+        client2.start();
+
+        openEvent.assertEvent();
+
+        handler.publishToAllSubscribedClients("topic", "mymsg");
+
+        msgReceived.assertEvent();
+
+        acceptor.stop();
+    }
+
 
     @Test
     public void regression() throws IOException, InterruptedException {

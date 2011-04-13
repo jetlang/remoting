@@ -24,8 +24,10 @@ public class JetlangClientHandler implements Acceptor.ClientHandler, ClientPubli
     private final AtomicBoolean running = new AtomicBoolean(true);
     private final HashSet<ClientTcpSocket> clients = new HashSet<ClientTcpSocket>();
     private final Charset charset = Charset.forName("US-ASCII");
+    private final CloseableByteArrayStream globalBuffer = new CloseableByteArrayStream();
+
     private final Fiber globalSendFiber;
-    private final ObjectByteWriter writer;
+    private final SocketMessageStreamWriter stream;
 
     public static interface FiberFactory {
 
@@ -70,7 +72,11 @@ public class JetlangClientHandler implements Acceptor.ClientHandler, ClientPubli
         this.errorHandler = errorHandler;
         this.globalSendFiber = fiberFactory.createGlobalSendFiber();
         this.globalSendFiber.start();
-        this.writer = ser.createForGlobalWriter();
+        try {
+            this.stream = new SocketMessageStreamWriter(globalBuffer, charset, ser.createForGlobalWriter());
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     public void startClient(final Socket socket) {
@@ -96,8 +102,9 @@ public class JetlangClientHandler implements Acceptor.ClientHandler, ClientPubli
         synchronized (clients) {
             if (running.compareAndSet(true, false)) {
                 for (ClientTcpSocket client : clients) {
-                    stop(client);
+                    client.close();
                 }
+                clients.clear();
             }
         }
     }
@@ -112,17 +119,6 @@ public class JetlangClientHandler implements Acceptor.ClientHandler, ClientPubli
     public int clientCount() {
         synchronized (clients) {
             return clients.size();
-        }
-    }
-
-    CloseableByteArrayStream globalBuffer = new CloseableByteArrayStream();
-    SocketMessageStreamWriter stream = createStream();
-
-    private SocketMessageStreamWriter createStream() {
-        try {
-            return new SocketMessageStreamWriter(globalBuffer, charset, writer);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
         }
     }
 
