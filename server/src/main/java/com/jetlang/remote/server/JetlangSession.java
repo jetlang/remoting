@@ -26,4 +26,11 @@ public interface JetlangSession {
     Subscriber<ReadTimeoutEvent> getReadTimeoutChannel();
 
     Subscriber<SessionCloseEvent> getSessionCloseChannel();
+
+    /**
+     * Attempts to disconnect the client. This call is synchronous to the client.
+     *
+     * @return true if close succeeds
+     */
+    boolean disconnect();
 }

@@ -13,25 +13,45 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-public class JetlangClientHandler implements Acceptor.ClientHandler {
+public class JetlangClientHandler implements Acceptor.ClientHandler, ClientPublisher {
 
     private final SerializerFactory ser;
     private final JetlangSessionChannels channels;
     private final Executor exec;
     private final JetlangSessionConfig config;
     private final FiberFactory fiberFactory;
+    private final ClientErrorHandler errorHandler;
     private final AtomicBoolean running = new AtomicBoolean(true);
-    private final HashSet<Socket> clients = new HashSet<Socket>();
+    private final HashSet<ClientTcpSocket> clients = new HashSet<ClientTcpSocket>();
     private final Charset charset = Charset.forName("US-ASCII");
+    private final Fiber globalSendFiber;
+    private final ObjectByteWriter writer;
 
     public static interface FiberFactory {
+
+        Fiber createGlobalSendFiber();
 
         Fiber createSendFiber(Socket socket);
 
         public static class ThreadFiberFactory implements FiberFactory {
 
+            public Fiber createGlobalSendFiber() {
+                return new ThreadFiber();
+            }
+
             public Fiber createSendFiber(Socket socket) {
                 return new ThreadFiber();
+            }
+        }
+    }
+
+    public static interface ClientErrorHandler {
+
+        void onClientException(Exception e);
+
+        public static class SysOutClientErrorHandler implements ClientErrorHandler {
+            public void onClientException(Exception e) {
+                e.printStackTrace();
             }
         }
     }
@@ -40,48 +60,50 @@ public class JetlangClientHandler implements Acceptor.ClientHandler {
                                 JetlangSessionChannels channels,
                                 Executor exec,
                                 JetlangSessionConfig config,
-                                FiberFactory fiberFactory) {
+                                FiberFactory fiberFactory,
+                                ClientErrorHandler errorHandler) {
         this.ser = ser;
         this.channels = channels;
         this.exec = exec;
         this.config = config;
         this.fiberFactory = fiberFactory;
+        this.errorHandler = errorHandler;
+        this.globalSendFiber = fiberFactory.createGlobalSendFiber();
+        this.globalSendFiber.start();
+        this.writer = ser.createForGlobalWriter();
     }
 
     public void startClient(final Socket socket) {
+        ClientTcpSocket client = new ClientTcpSocket(new TcpSocket(socket));
         synchronized (clients) {
             if (running.get()) {
-                clients.add(socket);
+                clients.add(client);
             } else {
-                close(socket);
+                stop(client);
                 return;
             }
         }
         try {
-            Runnable clientReader = createRunnable(socket);
+            Runnable clientReader = createRunnable(client);
             exec.execute(clientReader);
         } catch (IOException e) {
-            close(socket);
+            stop(client);
         }
     }
 
     public void close() {
+        globalSendFiber.dispose();
         synchronized (clients) {
             if (running.compareAndSet(true, false)) {
-                for (Socket client : clients) {
-                    close(client);
+                for (ClientTcpSocket client : clients) {
+                    stop(client);
                 }
             }
         }
     }
 
-    private void close(Socket client) {
-        try {
-            if (!client.isClosed())
-                client.close();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+    private void stop(ClientTcpSocket client) {
+        client.close();
         synchronized (clients) {
             clients.remove(client);
         }
@@ -93,34 +115,68 @@ public class JetlangClientHandler implements Acceptor.ClientHandler {
         }
     }
 
-    private Runnable createRunnable(final Socket socket) throws IOException {
-        final Fiber fiber = fiberFactory.createSendFiber(socket);
-        fiber.start();
-        final Serializer serializer = ser.createForSocket(socket);
-        configureClientSocketAfterAccept(socket);
-        final JetlangStreamSession session = new JetlangStreamSession(socket.getInetAddress(), new SocketMessageStreamWriter(socket, charset, serializer.getWriter()), fiber);
-        channels.publishNewSession(session);
-        session.startHeartbeat(config.getHeartbeatIntervalInMs(), TimeUnit.MILLISECONDS);
-        final Runnable onReadTimeout = new Runnable() {
+    CloseableByteArrayStream globalBuffer = new CloseableByteArrayStream();
+    SocketMessageStreamWriter stream = createStream();
 
+    private SocketMessageStreamWriter createStream() {
+        try {
+            return new SocketMessageStreamWriter(globalBuffer, charset, writer);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public void publishToAllSubscribedClients(final String topic, final Object msg) {
+        Runnable toSend = new Runnable() {
             public void run() {
-                session.ReadTimeout.publish(new ReadTimeoutEvent());
+                globalBuffer.reset();
+                try {
+                    stream.write(topic, msg);
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+                synchronized (clients) {
+                    for (ClientTcpSocket client : clients) {
+                        client.publishIfSubscribed(topic, globalBuffer.data.toByteArray());
+                    }
+                }
             }
         };
+        globalSendFiber.execute(toSend);
+    }
+
+
+    private Runnable createRunnable(final ClientTcpSocket clientTcpSocket) throws IOException {
+        final TcpSocket socket = clientTcpSocket.getSocket();
+        final Fiber fiber = fiberFactory.createSendFiber(socket.getSocket());
+        final Serializer serializer = ser.createForSocket(socket.getSocket());
+        configureClientSocketAfterAccept(socket.getSocket());
+        final JetlangStreamSession session = new JetlangStreamSession(socket.getId(), new SocketMessageStreamWriter(socket, charset, serializer.getWriter()), fiber);
         return new Runnable() {
             public void run() {
                 try {
+                    final Runnable onReadTimeout = new Runnable() {
+                        public void run() {
+                            session.ReadTimeout.publish(new ReadTimeoutEvent());
+                        }
+                    };
                     final StreamReader input = new StreamReader(socket.getInputStream(), charset, serializer.getReader(), onReadTimeout);
-
+                    clientTcpSocket.setSession(session);
+                    channels.publishNewSession(session);
+                    session.startHeartbeat(config.getHeartbeatIntervalInMs(), TimeUnit.MILLISECONDS);
+                    fiber.start();
                     while (readFromStream(input, session)) {
 
                     }
-                } catch (Exception failed) {
+                } catch (IOException disconnect) {
                     //failed.printStackTrace();
+                } catch (Exception clientFailure) {
+                    errorHandler.onClientException(clientFailure);
+                } finally {
+                    fiber.dispose();
+                    stop(clientTcpSocket);
+                    session.SessionClose.publish(new SessionCloseEvent());
                 }
-                fiber.dispose();
-                close(socket);
-                session.SessionClose.publish(new SessionCloseEvent());
             }
         };
     }

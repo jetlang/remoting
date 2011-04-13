@@ -9,4 +9,7 @@ import java.net.Socket;
  */
 public interface SerializerFactory {
     Serializer createForSocket(Socket socket);
+
+    ObjectByteWriter createForGlobalWriter();
+
 }

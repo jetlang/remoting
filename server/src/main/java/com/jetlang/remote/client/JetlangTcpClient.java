@@ -2,6 +2,7 @@ package com.jetlang.remote.client;
 
 import com.jetlang.remote.core.*;
 import com.jetlang.remote.server.MessageStreamWriter;
+import com.jetlang.remote.server.TcpSocket;
 import org.jetlang.channels.*;
 import org.jetlang.core.Callback;
 import org.jetlang.core.Disposable;
@@ -133,13 +134,15 @@ public class JetlangTcpClient implements JetlangClient {
         }
     }
 
-    private void closeIfNeeded() {
+    private void closeIfNeeded(boolean expected, Exception msg) {
         if (socket != null) {
             socket.tryClose();
             socket = null;
             if (hbSchedule != null) {
                 hbSchedule.dispose();
             }
+            if (!closed.get() && !expected)
+                this.errorHandler.onUnexpectedDisconnect(msg);
             this.Closed.publish(new CloseEvent());
         }
     }
@@ -177,7 +180,7 @@ public class JetlangTcpClient implements JetlangClient {
     private void handleConnect(Socket newSocket) throws IOException {
         this.pendingConnect.dispose();
         this.pendingConnect = null;
-        this.socket = new SocketMessageStreamWriter(newSocket, charset, ser.getWriter());
+        this.socket = new SocketMessageStreamWriter(new TcpSocket(newSocket), charset, ser.getWriter());
         for (String subscription : channels.keySet()) {
             sendSubscription(subscription, MsgTypes.Subscription);
         }
@@ -186,6 +189,7 @@ public class JetlangTcpClient implements JetlangClient {
 
             public void run() {
                 try {
+                    Connected.publish(new ConnectEvent());
                     while (read(stream)) {
                     }
                 } catch (IOException failed) {
@@ -195,7 +199,6 @@ public class JetlangTcpClient implements JetlangClient {
         };
         Thread readThread = new Thread(reader);
         readThread.start();
-        this.Connected.publish(new ConnectEvent());
         if (config.getHeartbeatIntervalInMs() > 0) {
             hbSchedule = sendFiber.scheduleAtFixedRate(hb, config.getHeartbeatIntervalInMs(), config.getHeartbeatIntervalInMs(), TimeUnit.MILLISECONDS);
         }
@@ -237,25 +240,25 @@ public class JetlangTcpClient implements JetlangClient {
         sendFiber.execute(exec);
     }
 
+    public void start() {
+        pendingConnect = sendFiber.scheduleWithFixedDelay(connect, config.getInitialConnectDelayInMs(), config.getReconnectDelayInMs(), TimeUnit.MILLISECONDS);
+        sendFiber.start();
+    }
+
     private void handleDisconnect(boolean expected, Exception msg) {
-        closeIfNeeded();
+        closeIfNeeded(expected, msg);
         if (pendingConnect == null && !closed.get()) {
             //should use fixed rate but don't want to introduce a dependency on that method.
-            pendingConnect = sendFiber.scheduleWithFixedDelay(connect, 0, 1, TimeUnit.SECONDS);
-            if (!expected)
-                errorHandler.onUnexpectedDisconnect(msg);
+            if (config.getReconnectDelayInMs() > 0) {
+                pendingConnect = sendFiber.scheduleWithFixedDelay(connect, config.getReconnectDelayInMs(), config.getReconnectDelayInMs(), TimeUnit.MILLISECONDS);
+            }
         }
-
     }
 
     public <T> Disposable subscribe(String topic, DisposingExecutor clientFiber, Callback<T> cb) {
         return subscribe(topic, new ChannelSubscription<T>(clientFiber, cb));
     }
 
-    public void start() {
-        handleDisconnect(true, null);
-        sendFiber.start();
-    }
 
     public CountDownLatch close(final boolean sendLogoutIfStillConnected) {
         final CountDownLatch closedLatch = new CountDownLatch(1);
@@ -274,7 +277,7 @@ public class JetlangTcpClient implements JetlangClient {
                     if (pendingConnect != null) {
                         pendingConnect.dispose();
                     }
-                    closeIfNeeded();
+                    closeIfNeeded(true, null);
                     closedLatch.countDown();
                     sendFiber.dispose();
                 }

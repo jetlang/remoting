@@ -28,7 +28,8 @@ public class IntegrationTest {
     ExecutorService service = Executors.newCachedThreadPool();
     JetlangSessionConfig sessionConfig = new JetlangSessionConfig();
     JetlangClientHandler handler = new JetlangClientHandler(new JavaSerializer.Factory(), sessions,
-            service, sessionConfig, new JetlangClientHandler.FiberFactory.ThreadFiberFactory());
+            service, sessionConfig, new JetlangClientHandler.FiberFactory.ThreadFiberFactory(),
+            new JetlangClientHandler.ClientErrorHandler.SysOutClientErrorHandler());
     JetlangClientConfig clientConfig = new JetlangClientConfig();
 
     SocketConnector conn = new SocketConnector("localhost", 8081);
@@ -88,6 +89,33 @@ public class IntegrationTest {
         client.close(true);
         acceptor.stop();
     }
+
+    @Test
+    public void disconnect() throws IOException {
+        final EventAssert<SessionCloseEvent> closeEvent = new EventAssert<SessionCloseEvent>(1);
+
+        Callback<JetlangSession> sessionCallback = new Callback<JetlangSession>() {
+            public void onMessage(JetlangSession session) {
+                closeEvent.subscribe(session.getSessionCloseChannel());
+                //immediate forced disconnect.
+                session.disconnect();
+            }
+        };
+        sessions.SessionOpen.subscribe(new SynchronousDisposingExecutor(), sessionCallback);
+
+        Acceptor acceptor = createAcceptor();
+
+        Thread runner = new Thread(acceptor);
+        runner.start();
+
+        //don't allow reconnects
+        clientConfig.setReconnectDelayInMs(-1);
+        JetlangClient client = createClient();
+        client.start();
+        closeEvent.assertEvent();
+        acceptor.stop();
+    }
+
 
     @Test
     public void regression() throws IOException, InterruptedException {

@@ -26,5 +26,9 @@ public class JavaSerializer implements Serializer {
             return new JavaSerializer();
         }
 
+        public ObjectByteWriter createForGlobalWriter() {
+            return new JavaSerializationWriter();
+        }
+
     }
 }
