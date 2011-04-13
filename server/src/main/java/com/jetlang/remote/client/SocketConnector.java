@@ -1,6 +1,7 @@
 package com.jetlang.remote.client;
 
 import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.net.Socket;
 
 /**
@@ -14,6 +15,7 @@ public class SocketConnector {
     private final int port;
     private boolean tcpNoDelay = true;
     private int readTimeoutInMs = 3000;
+    private int connectTimeoutInMs = 4000;
 
     public SocketConnector(String host, int port) {
         this.host = host;
@@ -36,10 +38,19 @@ public class SocketConnector {
         this.readTimeoutInMs = readTimeoutInMs;
     }
 
+    public void setConnectTimeoutInMs(int connectTimeoutInMs) {
+        this.connectTimeoutInMs = connectTimeoutInMs;
+    }
+
+    public int getConnectTimeoutInMs() {
+        return connectTimeoutInMs;
+    }
+
     public Socket connect() throws IOException {
-        Socket socket = new Socket(host, port);
+        Socket socket = new Socket();
         socket.setTcpNoDelay(tcpNoDelay);
         socket.setSoTimeout(readTimeoutInMs);
+        socket.connect(new InetSocketAddress(host, port), connectTimeoutInMs);
         return socket;
     }
 }
