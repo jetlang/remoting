@@ -52,7 +52,13 @@ public class JetlangStreamSession implements JetlangSession {
     }
 
     void onSubscriptionRequest(String topic) {
+        subscriptions.add(topic);
         SubscriptionRequest.publish(new SessionTopic(topic, this));
+    }
+
+    public void onUnsubscribeRequest(String top) {
+        subscriptions.remove(top);
+        UnsubscribeRequest.publish(top);
     }
 
     public void write(final int byteToWrite) {
@@ -140,9 +146,6 @@ public class JetlangStreamSession implements JetlangSession {
         Messages.publish(new SessionMessage<Object>(topic, msg));
     }
 
-    public void onUnsubscribeRequest(String top) {
-        UnsubscribeRequest.publish(top);
-    }
 
     public Subscriber<String> getUnsubscribeChannel() {
         return UnsubscribeRequest;
