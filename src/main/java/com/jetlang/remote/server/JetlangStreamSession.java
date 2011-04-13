@@ -9,6 +9,9 @@ import org.jetlang.channels.Subscriber;
 import org.jetlang.fibers.Fiber;
 
 import java.io.IOException;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 public class JetlangStreamSession implements JetlangSession {
@@ -24,6 +27,7 @@ public class JetlangStreamSession implements JetlangSession {
     private final Object id;
     private final MessageStreamWriter socket;
     private final Fiber sendFiber;
+    private final Set<String> subscriptions = Collections.synchronizedSet(new HashSet<String>());
 
     public JetlangStreamSession(Object id, MessageStreamWriter socket, Fiber sendFiber) {
         this.id = id;
@@ -68,6 +72,10 @@ public class JetlangStreamSession implements JetlangSession {
         socket.tryClose();
     }
 
+    public boolean disconnect() {
+        return socket.tryClose();
+    }
+
     public void onLogout() {
         Logout.publish(new LogoutEvent());
     }
@@ -87,6 +95,21 @@ public class JetlangStreamSession implements JetlangSession {
             }
         };
         sendFiber.execute(r);
+    }
+
+    public void publishIfSubscribed(final String topic, final byte[] data) {
+        if (subscriptions.contains(topic)) {
+            Runnable r = new Runnable() {
+                public void run() {
+                    try {
+                        socket.writeBytes(data);
+                    } catch (IOException e) {
+                        handleDisconnect(e);
+                    }
+                }
+            };
+            sendFiber.execute(r);
+        }
     }
 
     public Subscriber<SessionTopic> getSubscriptionRequestChannel() {

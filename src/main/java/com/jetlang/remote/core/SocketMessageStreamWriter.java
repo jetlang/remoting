@@ -4,7 +4,6 @@ import com.jetlang.remote.server.MessageStreamWriter;
 
 import java.io.DataOutputStream;
 import java.io.IOException;
-import java.net.Socket;
 import java.nio.charset.Charset;
 
 /**
@@ -13,12 +12,12 @@ import java.nio.charset.Charset;
  * Time: 8:52 AM
  */
 public class SocketMessageStreamWriter implements MessageStreamWriter {
-    private final Socket socket;
+    private final ClosableOutputStream socket;
     private final Charset charset;
     private final ObjectByteWriter writer;
     private final DataOutputStream dataStream;
 
-    public SocketMessageStreamWriter(Socket socket, Charset charset, ObjectByteWriter writer) throws IOException {
+    public SocketMessageStreamWriter(ClosableOutputStream socket, Charset charset, ObjectByteWriter writer) throws IOException {
         this.socket = socket;
         this.charset = charset;
         this.writer = writer;
@@ -30,15 +29,7 @@ public class SocketMessageStreamWriter implements MessageStreamWriter {
     }
 
     public boolean tryClose() {
-        try {
-            if (!socket.isClosed()) {
-                socket.close();
-                return true;
-            }
-        } catch (IOException e) {
-
-        }
-        return false;
+        return socket.close();
     }
 
     private final ByteMessageWriter byteMessageWriter = new ByteMessageWriter() {
