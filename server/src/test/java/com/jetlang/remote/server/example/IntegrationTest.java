@@ -203,6 +203,7 @@ public class IntegrationTest {
                 1000, TimeUnit.MILLISECONDS); //timeout
 
         reply.assertEvent();
+        assertEquals("replyMsg", reply.takeFromReceived());
         assertEquals(0, timeout.received.size());
 
         acceptor.stop();
