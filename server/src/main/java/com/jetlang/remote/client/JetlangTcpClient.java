@@ -212,7 +212,7 @@ public class JetlangTcpClient implements JetlangClient {
         Thread readThread = new Thread(reader);
         readThread.start();
         if (config.getHeartbeatIntervalInMs() > 0) {
-            hbSchedule = sendFiber.scheduleAtFixedRate(hb, config.getHeartbeatIntervalInMs(), config.getHeartbeatIntervalInMs(), TimeUnit.MILLISECONDS);
+            hbSchedule = sendFiber.scheduleWithFixedDelay(hb, config.getHeartbeatIntervalInMs(), config.getHeartbeatIntervalInMs(), TimeUnit.MILLISECONDS);
         }
     }
 

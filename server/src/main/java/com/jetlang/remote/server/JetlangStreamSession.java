@@ -48,7 +48,7 @@ public class JetlangStreamSession implements JetlangSession {
                     write(MsgTypes.Heartbeat);
                 }
             };
-            sendFiber.scheduleAtFixedRate(send, interval, interval, unit);
+            sendFiber.scheduleWithFixedDelay(send, interval, interval, unit);
         }
     }
 
