@@ -23,6 +23,8 @@ public interface JetlangSession {
 
     Subscriber<SessionMessage<?>> getSessionMessageChannel();
 
+    Subscriber<SessionRequest> getSessionRequestChannel();
+
     Subscriber<ReadTimeoutEvent> getReadTimeoutChannel();
 
     Subscriber<SessionCloseEvent> getSessionCloseChannel();

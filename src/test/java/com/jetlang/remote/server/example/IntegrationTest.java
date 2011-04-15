@@ -172,6 +172,19 @@ public class IntegrationTest {
     public void requestReply() throws IOException {
 
         Acceptor acceptor = createAcceptor();
+        Callback<JetlangSession> sessionCallback = new Callback<JetlangSession>() {
+
+            public void onMessage(JetlangSession jetlangSession) {
+                Callback<SessionRequest> onRequest = new Callback<SessionRequest>() {
+
+                    public void onMessage(SessionRequest sessionRequest) {
+                        sessionRequest.reply("replyMsg");
+                    }
+                };
+                jetlangSession.getSessionRequestChannel().subscribe(new SynchronousDisposingExecutor(), onRequest);
+            }
+        };
+        sessions.SessionOpen.subscribe(new SynchronousDisposingExecutor(), sessionCallback);
 
         Thread runner = new Thread(acceptor);
         runner.start();
@@ -186,8 +199,8 @@ public class IntegrationTest {
                 "requestObject",
                 new SynchronousDisposingExecutor(), //target fiber
                 reply.createCallback(), //on reply
-                timeout,
-                10, TimeUnit.MILLISECONDS); //timeout
+                timeout, //on timeout
+                1000, TimeUnit.MILLISECONDS); //timeout
 
         reply.assertEvent();
         assertEquals(0, timeout.received.size());
