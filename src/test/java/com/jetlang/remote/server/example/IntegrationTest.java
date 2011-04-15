@@ -168,6 +168,32 @@ public class IntegrationTest {
         acceptor.stop();
     }
 
+    @Test
+    public void requestReply() throws IOException {
+
+        Acceptor acceptor = createAcceptor();
+
+        Thread runner = new Thread(acceptor);
+        runner.start();
+
+        EventAssert<String> reply = new EventAssert<String>(1);
+        JetlangClient client = createClient();
+        client.start();
+
+        CallbackList<TimeoutControls> timeout = CallbackList.create();
+
+        client.request("reqTopic",
+                "requestObject",
+                new SynchronousDisposingExecutor(), //target fiber
+                reply.createCallback(), //on reply
+                timeout,
+                10, TimeUnit.MILLISECONDS); //timeout
+
+        reply.assertEvent();
+        assertEquals(0, timeout.received.size());
+
+        acceptor.stop();
+    }
 
 
     @Test
