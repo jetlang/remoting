@@ -145,9 +145,9 @@ public class JetlangClientHandler implements Acceptor.ClientHandler, ClientPubli
 
     private Runnable createRunnable(final ClientTcpSocket clientTcpSocket) throws IOException {
         final TcpSocket socket = clientTcpSocket.getSocket();
-        final Fiber fiber = fiberFactory.createSendFiber(socket.getSocket());
+        final Fiber sendFiber = fiberFactory.createSendFiber(socket.getSocket());
         final Serializer serializer = ser.createForSocket(socket.getSocket());
-        final JetlangStreamSession session = new JetlangStreamSession(socket.getId(), new SocketMessageStreamWriter(socket, charset, serializer.getWriter()), fiber);
+        final JetlangStreamSession session = new JetlangStreamSession(socket.getId(), new SocketMessageStreamWriter(socket, charset, serializer.getWriter()), sendFiber);
         return new Runnable() {
             public void run() {
                 try {
@@ -160,7 +160,7 @@ public class JetlangClientHandler implements Acceptor.ClientHandler, ClientPubli
                     clientTcpSocket.setSession(session);
                     channels.publishNewSession(session);
                     session.startHeartbeat(config.getHeartbeatIntervalInMs(), TimeUnit.MILLISECONDS);
-                    fiber.start();
+                    sendFiber.start();
                     while (readFromStream(input, session)) {
 
                     }
@@ -169,7 +169,7 @@ public class JetlangClientHandler implements Acceptor.ClientHandler, ClientPubli
                 } catch (Exception clientFailure) {
                     errorHandler.onClientException(clientFailure);
                 } finally {
-                    fiber.dispose();
+                    sendFiber.dispose();
                     stopAndRemove(clientTcpSocket);
                     session.SessionClose.publish(new SessionCloseEvent());
                 }
