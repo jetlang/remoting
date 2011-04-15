@@ -76,4 +76,13 @@ public class StreamReader {
         byte[] buffer = fillBuffer(msgSize);
         return reader.readObject(fromTopic, buffer, 0, msgSize);
     }
+
+    public String readStringWithSize() throws IOException {
+        return readString(readByteAsInt());
+    }
+
+    public Object readObjectWithSize(String topic) throws IOException {
+        return readObject(topic, readInt());
+
+    }
 }

@@ -23,6 +23,7 @@ public class JetlangStreamSession implements JetlangSession {
     public final Channel<SessionMessage<?>> Messages = new MemoryChannel<SessionMessage<?>>();
     public final Channel<ReadTimeoutEvent> ReadTimeout = new MemoryChannel<ReadTimeoutEvent>();
     public final Channel<SessionCloseEvent> SessionClose = new MemoryChannel<SessionCloseEvent>();
+    public final Channel<SessionRequest> SessionRequest = new MemoryChannel<SessionRequest>();
 
     private final Object id;
     private final MessageStreamWriter socket;
@@ -103,6 +104,20 @@ public class JetlangStreamSession implements JetlangSession {
         sendFiber.execute(r);
     }
 
+    public void reply(final int reqId, final String replyTopic, final Object replyMsg) {
+        final Runnable replyRunner = new Runnable() {
+            public void run() {
+                try {
+                    socket.writeReply(reqId, replyTopic, replyMsg);
+                } catch (IOException e) {
+                    handleDisconnect(e);
+                }
+            }
+        };
+        sendFiber.execute(replyRunner);
+    }
+
+
     public void publishIfSubscribed(final String topic, final byte[] data) {
         if (subscriptions.contains(topic)) {
             Runnable r = new Runnable() {
@@ -146,8 +161,16 @@ public class JetlangStreamSession implements JetlangSession {
         Messages.publish(new SessionMessage<Object>(topic, msg));
     }
 
-
     public Subscriber<String> getUnsubscribeChannel() {
         return UnsubscribeRequest;
     }
+
+    public Subscriber<SessionRequest> getSessionRequestChannel() {
+        return SessionRequest;
+    }
+
+    public void onRequest(int reqId, String reqmsgTopic, Object reqmsg) {
+        SessionRequest.publish(new SessionRequest(reqId, reqmsgTopic, reqmsg, this));
+    }
+
 }

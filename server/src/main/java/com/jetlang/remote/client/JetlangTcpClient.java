@@ -125,6 +125,14 @@ public class JetlangTcpClient implements JetlangClient {
         }
     }
 
+    private void publicReply(int id, Object reply) {
+        Req r = pendingRequests.remove(id);
+        if (r != null) {
+            //noinspection unchecked
+            r.onReply(reply);
+        }
+    }
+
     private void sendSubscription(String subject, int msgType) {
         if (socket != null) {
             try {
@@ -220,11 +228,15 @@ public class JetlangTcpClient implements JetlangClient {
                     this.Heartbeat.publish(new HeartbeatEvent());
                     return true;
                 case MsgTypes.Data:
-                    int topicSize = stream.readByteAsInt();
-                    String topic = stream.readString(topicSize);
-                    int msgSize = stream.readInt();
-                    Object object = stream.readObject(topic, msgSize);
+                    String topic = stream.readStringWithSize();
+                    Object object = stream.readObjectWithSize(topic);
                     publishData(topic, object);
+                    return true;
+                case MsgTypes.DataReply:
+                    int reqId = stream.readInt();
+                    String reqTopic = stream.readStringWithSize();
+                    Object reply = stream.readObjectWithSize(reqTopic);
+                    publicReply(reqId, reply);
                     return true;
                 default:
                     throw new IOException("Unknown msg: " + msg);
@@ -292,29 +304,44 @@ public class JetlangTcpClient implements JetlangClient {
         throw new RuntimeException("Already closed.");
     }
 
-    private class Req {
+    private class Req<T> {
         final DisposingExecutor fiber;
-        final Callback<?> cb;
+        final Callback<T> cb;
+        private final AtomicBoolean disposed;
 
-        public Req(DisposingExecutor fiber, Callback<?> cb, AtomicBoolean disposed){
+        public Req(DisposingExecutor fiber, Callback<T> cb, AtomicBoolean disposed) {
             this.fiber = fiber;
             this.cb = cb;
+            this.disposed = disposed;
+        }
+
+        public void onReply(final T reply) {
+            if (!disposed.get()) {
+                Runnable run = new Runnable() {
+                    public void run() {
+                        if (disposed.compareAndSet(false, true)) {
+                            cb.onMessage(reply);
+                        }
+                    }
+                };
+                fiber.execute(run);
+            }
         }
     }
 
-    public Disposable request(final String reqTopic,
-                              final Object req,
-                              final DisposingExecutor executor, final Callback<?> callback,
-                              final Callback<TimeoutControls> timeoutRunnable, int timeout, TimeUnit timeUnit) {
+    public <T> Disposable request(final String reqTopic,
+                                  final Object req,
+                                  final DisposingExecutor executor, final Callback<T> callback,
+                                  final Callback<TimeoutControls> timeoutRunnable, int timeout, TimeUnit timeUnit) {
         final AtomicBoolean disposed = new AtomicBoolean(false);
         final int id = reqId.incrementAndGet();
         Runnable reqSend = new Runnable() {
             public void run() {
                 if (!disposed.get()) {
                     if (socket != null) {
-                        pendingRequests.put(id, new Req(executor, callback, disposed));
+                        pendingRequests.put(id, new Req<T>(executor, callback, disposed));
                         try {
-                            socket.writeRequest(reqTopic, req);
+                            socket.writeRequest(id, reqTopic, req);
                         } catch (IOException e) {
                             pendingRequests.remove(id);
                             handleDisconnect(false, e);
@@ -325,11 +352,11 @@ public class JetlangTcpClient implements JetlangClient {
         };
         sendFiber.execute(reqSend);
         if (timeout > 0 && callback != null) {
-            Runnable onTimeout = new Runnable(){
+            Runnable onTimeout = new Runnable() {
                 final TimeoutControls controls = new TimeoutControls() {
-                    public void cancelRequest(){
+                    public void cancelRequest() {
                         disposed.set(true);
-                        Runnable removeId = new Runnable(){
+                        Runnable removeId = new Runnable() {
                             public void run() {
                                 pendingRequests.remove(id);
                             }
@@ -337,19 +364,21 @@ public class JetlangTcpClient implements JetlangClient {
                         sendFiber.execute(removeId);
                     }
                 };
+
                 public void run() {
-                    timeoutRunnable.onMessage(controls);
+                    if (!disposed.get()) {
+                        timeoutRunnable.onMessage(controls);
+                    }
                 }
             };
-           final Disposable d = sendFiber.schedule(onTimeout, timeout, timeUnit);
-           return new Disposable() {
-               public void dispose() {
-                   disposed.set(true);
-                   d.dispose();
-               }
-           };
-        }
-        else {
+            final Disposable d = sendFiber.schedule(onTimeout, timeout, timeUnit);
+            return new Disposable() {
+                public void dispose() {
+                    disposed.set(true);
+                    d.dispose();
+                }
+            };
+        } else {
             return new Disposable() {
                 public void dispose() {
                     disposed.set(true);
