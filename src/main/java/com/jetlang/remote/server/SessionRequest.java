@@ -13,6 +13,10 @@ public class SessionRequest {
         this.session = session;
     }
 
+    public Object getRequest() {
+        return reqmsg;
+    }
+
     public void reply(Object replyMsg) {
         session.reply(reqId, reqmsgTopic, replyMsg);
     }
