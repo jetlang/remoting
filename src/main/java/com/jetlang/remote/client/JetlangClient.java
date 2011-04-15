@@ -6,8 +6,10 @@ import org.jetlang.channels.Subscriber;
 import org.jetlang.core.Callback;
 import org.jetlang.core.Disposable;
 import org.jetlang.core.DisposingExecutor;
+import org.jetlang.core.SynchronousDisposingExecutor;
 
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 /**
  * User: mrettig
@@ -34,4 +36,9 @@ public interface JetlangClient {
 
     CountDownLatch close(boolean sendLogoutIfStillConnected);
 
+    Disposable request(String reqTopic,
+                       Object req,
+                       DisposingExecutor executor,
+                       Callback<?> callback,
+                       Callback<TimeoutControls> timeoutRunnable, int timeout, TimeUnit timeUnit);
 }

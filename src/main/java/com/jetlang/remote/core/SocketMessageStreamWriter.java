@@ -44,11 +44,19 @@ public class SocketMessageStreamWriter implements MessageStreamWriter {
     };
 
     public void write(String topic, Object msg) throws IOException {
+        writeData(MsgTypes.Data, topic, msg);
+    }
+
+    public void writeRequest(String reqTopic, Object req) throws IOException {
+        writeData(MsgTypes.DataRequest, reqTopic, req);
+    }
+
+    private void writeData(int msgType, String topic, Object req) throws IOException {
         byte[] topicBytes = topic.getBytes(charset);
-        socket.getOutputStream().write(MsgTypes.Data);
+        socket.getOutputStream().write(msgType);
         socket.getOutputStream().write(topicBytes.length);
         socket.getOutputStream().write(topicBytes);
-        writer.write(topic, msg, byteMessageWriter);
+        writer.write(topic, req, byteMessageWriter);
     }
 
     public void writeBytes(byte[] bytes) throws IOException {

@@ -10,6 +10,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static junit.framework.Assert.fail;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -47,7 +48,7 @@ public class EventAssert<T> {
         channel.subscribe(new SynchronousDisposingExecutor(), r);
     }
 
-    private Callback<T> createCallback() {
+    public Callback<T> createCallback() {
         return new Callback<T>() {
             public void onMessage(T message) {
                 receiveCount.incrementAndGet();
@@ -87,5 +88,21 @@ public class EventAssert<T> {
 
     public void onMessage(Callback<T> onTopic) {
         onRcv.subscribe(new SynchronousDisposingExecutor(), onTopic);
+    }
+
+    public static <T> Callback<T> callbackNever() {
+        return new Callback<T>(){
+            public void onMessage(T message) {
+                fail("should never be called: " + message);
+            }
+        };
+    }
+
+    public static Runnable runNever() {
+        return new Runnable(){
+            public void run() {
+                fail("should never be called: ");
+            }
+        };
     }
 }
