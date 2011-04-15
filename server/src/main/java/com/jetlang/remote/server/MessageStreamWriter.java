@@ -12,9 +12,11 @@ public interface MessageStreamWriter {
     void writeByteAsInt(int byteToWrite) throws IOException;
 
     void write(String topic, Object msg) throws IOException;
+    void writeRequest(String reqTopic, Object req) throws IOException;
 
     void writeBytes(byte[] bytes) throws IOException;
 
     boolean tryClose();
+
 
 }

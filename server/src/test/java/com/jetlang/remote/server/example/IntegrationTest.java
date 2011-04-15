@@ -143,6 +143,32 @@ public class IntegrationTest {
         acceptor.stop();
     }
 
+    @Test
+    public void requestReplyTimeout() throws IOException {
+
+        Acceptor acceptor = createAcceptor();
+
+        Thread runner = new Thread(acceptor);
+        runner.start();
+
+        EventAssert<TimeoutControls> timeoutEvent = new EventAssert<TimeoutControls>(1);
+        JetlangClient client = createClient();
+        client.start();
+
+
+        client.request("reqTopic",
+                "requestObject",
+                new SynchronousDisposingExecutor(), //target fiber
+                EventAssert.<Object>callbackNever(), //on reploy
+                timeoutEvent.createCallback(),
+                10, TimeUnit.MILLISECONDS); //timeout
+
+        timeoutEvent.assertEvent();
+
+        acceptor.stop();
+    }
+
+
 
     @Test
     public void regression() throws IOException, InterruptedException {

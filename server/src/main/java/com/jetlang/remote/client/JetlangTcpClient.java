@@ -13,11 +13,13 @@ import java.io.IOException;
 import java.net.Socket;
 import java.net.SocketTimeoutException;
 import java.nio.charset.Charset;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  */
@@ -42,6 +44,8 @@ public class JetlangTcpClient implements JetlangClient {
     private final CountDownLatch logoutLatch = new CountDownLatch(1);
     private Disposable hbSchedule;
     public final Channel<HeartbeatEvent> Heartbeat = new MemoryChannel<HeartbeatEvent>();
+    private AtomicInteger reqId = new AtomicInteger();
+    private final Map<Integer, Req> pendingRequests = new HashMap<Integer, Req>();
 
     public interface ErrorHandler {
 
@@ -286,6 +290,72 @@ public class JetlangTcpClient implements JetlangClient {
             return closedLatch;
         }
         throw new RuntimeException("Already closed.");
+    }
+
+    private class Req {
+        final DisposingExecutor fiber;
+        final Callback<?> cb;
+
+        public Req(DisposingExecutor fiber, Callback<?> cb, AtomicBoolean disposed){
+            this.fiber = fiber;
+            this.cb = cb;
+        }
+    }
+
+    public Disposable request(final String reqTopic,
+                              final Object req,
+                              final DisposingExecutor executor, final Callback<?> callback,
+                              final Callback<TimeoutControls> timeoutRunnable, int timeout, TimeUnit timeUnit) {
+        final AtomicBoolean disposed = new AtomicBoolean(false);
+        final int id = reqId.incrementAndGet();
+        Runnable reqSend = new Runnable() {
+            public void run() {
+                if (!disposed.get()) {
+                    if (socket != null) {
+                        pendingRequests.put(id, new Req(executor, callback, disposed));
+                        try {
+                            socket.writeRequest(reqTopic, req);
+                        } catch (IOException e) {
+                            pendingRequests.remove(id);
+                            handleDisconnect(false, e);
+                        }
+                    }
+                }
+            }
+        };
+        sendFiber.execute(reqSend);
+        if (timeout > 0 && callback != null) {
+            Runnable onTimeout = new Runnable(){
+                final TimeoutControls controls = new TimeoutControls() {
+                    public void cancelRequest(){
+                        disposed.set(true);
+                        Runnable removeId = new Runnable(){
+                            public void run() {
+                                pendingRequests.remove(id);
+                            }
+                        };
+                        sendFiber.execute(removeId);
+                    }
+                };
+                public void run() {
+                    timeoutRunnable.onMessage(controls);
+                }
+            };
+           final Disposable d = sendFiber.schedule(onTimeout, timeout, timeUnit);
+           return new Disposable() {
+               public void dispose() {
+                   disposed.set(true);
+                   d.dispose();
+               }
+           };
+        }
+        else {
+            return new Disposable() {
+                public void dispose() {
+                    disposed.set(true);
+                }
+            };
+        }
     }
 
 

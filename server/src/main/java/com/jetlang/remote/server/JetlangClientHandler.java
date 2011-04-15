@@ -217,6 +217,14 @@ public class JetlangClientHandler implements Acceptor.ClientHandler, ClientPubli
                 Object msg = input.readObject(msgTopic, msgSize);
                 session.onMessage(msgTopic, msg);
                 break;
+            case MsgTypes.DataRequest:
+                int reqtopicSize = input.readByteAsInt();
+                String reqmsgTopic = input.readString(reqtopicSize);
+                int reqmsgSize = input.readInt();
+                Object reqmsg = input.readObject(reqmsgTopic, reqmsgSize);
+                session.onMessage(reqmsgTopic, reqmsg);
+                //TODO
+                break;
             default:
                 System.err.println("Unknown message type: " + read);
                 return false;
