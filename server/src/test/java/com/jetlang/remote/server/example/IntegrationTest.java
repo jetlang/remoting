@@ -178,6 +178,8 @@ public class IntegrationTest {
                 Callback<SessionRequest> onRequest = new Callback<SessionRequest>() {
 
                     public void onMessage(SessionRequest sessionRequest) {
+                        assertEquals(sessionRequest.getTopic(), "reqTopic");
+                        assertEquals(sessionRequest.getRequest(), "requestObject");
                         sessionRequest.reply("replyMsg");
                     }
                 };
