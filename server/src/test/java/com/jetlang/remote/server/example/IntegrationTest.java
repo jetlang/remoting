@@ -58,7 +58,7 @@ public class IntegrationTest {
         EventAssert<ReadTimeoutEvent> timeout = EventAssert.expect(0, client.getReadTimeoutChannel());
         client.start();
         hb.assertEvent();
-        client.close(true);
+        close(client);
         acceptor.stop();
         timeout.assertEvent();
     }
@@ -86,7 +86,7 @@ public class IntegrationTest {
         JetlangClient client = createClient();
         client.start();
         serverSessionTimeout.assertEvent();
-        client.close(true);
+        close(client);
         acceptor.stop();
     }
 
@@ -117,8 +117,15 @@ public class IntegrationTest {
     }
 
     @Test
-    public void globalPublishToTwoClients() throws IOException {
+    public void globalPublishToTwoClients() throws IOException, InterruptedException {
         final EventAssert<JetlangSession> openEvent = EventAssert.expect(2, sessions.SessionOpen);
+        final EventAssert<SessionTopic> subscriptions = EventAssert.create(2);
+        Callback<JetlangSession> sessionCallback = new Callback<JetlangSession>() {
+            public void onMessage(JetlangSession session) {
+                subscriptions.subscribe(session.getSubscriptionRequestChannel());
+            }
+        };
+        sessions.SessionOpen.subscribe(new SynchronousDisposingExecutor(), sessionCallback);
 
         Acceptor acceptor = createAcceptor();
 
@@ -135,12 +142,22 @@ public class IntegrationTest {
         client2.start();
 
         openEvent.assertEvent();
+        subscriptions.assertEvent();
 
         handler.publishToAllSubscribedClients("topic", "mymsg");
 
         msgReceived.assertEvent();
-
+        close(client);
+        close(client2);
         acceptor.stop();
+    }
+
+    private void close(JetlangClient client) {
+        try {
+            assertTrue(client.close(true).await(1, TimeUnit.SECONDS));
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     @Test
@@ -155,7 +172,6 @@ public class IntegrationTest {
         JetlangClient client = createClient();
         client.start();
 
-
         client.request("reqTopic",
                 "requestObject",
                 new SynchronousDisposingExecutor(), //target fiber
@@ -164,7 +180,7 @@ public class IntegrationTest {
                 10, TimeUnit.MILLISECONDS); //timeout
 
         timeoutEvent.assertEvent();
-
+        close(client);
         acceptor.stop();
     }
 
@@ -207,7 +223,7 @@ public class IntegrationTest {
         reply.assertEvent();
         assertEquals("replyMsg", reply.takeFromReceived());
         assertEquals(0, timeout.received.size());
-
+        close(client);
         acceptor.stop();
     }
 
