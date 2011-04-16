@@ -91,7 +91,7 @@ public class EventAssert<T> {
     }
 
     public static <T> Callback<T> callbackNever() {
-        return new Callback<T>(){
+        return new Callback<T>() {
             public void onMessage(T message) {
                 fail("should never be called: " + message);
             }
@@ -99,10 +99,14 @@ public class EventAssert<T> {
     }
 
     public static Runnable runNever() {
-        return new Runnable(){
+        return new Runnable() {
             public void run() {
                 fail("should never be called: ");
             }
         };
+    }
+
+    public static <T> EventAssert<T> create(int i) {
+        return new EventAssert<T>(i);
     }
 }
