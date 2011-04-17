@@ -1,4 +1,4 @@
-package com.jetlang.remote.server.example;
+package com.jetlang.remote;
 
 import org.jetlang.channels.*;
 import org.jetlang.core.Callback;

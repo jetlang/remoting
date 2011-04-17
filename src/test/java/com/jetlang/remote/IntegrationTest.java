@@ -1,4 +1,4 @@
-package com.jetlang.remote.server.example;
+package com.jetlang.remote;
 
 import com.jetlang.remote.client.*;
 import com.jetlang.remote.core.HeartbeatEvent;
