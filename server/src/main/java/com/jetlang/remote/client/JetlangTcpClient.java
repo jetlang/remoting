@@ -1,8 +1,8 @@
 package com.jetlang.remote.client;
 
+import com.jetlang.remote.acceptor.MessageStreamWriter;
+import com.jetlang.remote.acceptor.TcpSocket;
 import com.jetlang.remote.core.*;
-import com.jetlang.remote.server.MessageStreamWriter;
-import com.jetlang.remote.server.TcpSocket;
 import org.jetlang.channels.*;
 import org.jetlang.core.Callback;
 import org.jetlang.core.Disposable;

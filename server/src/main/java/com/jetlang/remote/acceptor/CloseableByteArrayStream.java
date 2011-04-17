@@ -1,4 +1,4 @@
-package com.jetlang.remote.server;
+package com.jetlang.remote.acceptor;
 
 import com.jetlang.remote.core.ClosableOutputStream;
 
