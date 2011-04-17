@@ -1,4 +1,4 @@
-package com.jetlang.remote.server;
+package com.jetlang.remote.acceptor;
 
 import org.jetlang.core.Callback;
 import org.jetlang.core.SynchronousDisposingExecutor;

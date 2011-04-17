@@ -1,10 +1,10 @@
 package com.jetlang.remote;
 
+import com.jetlang.remote.acceptor.*;
 import com.jetlang.remote.client.*;
 import com.jetlang.remote.core.HeartbeatEvent;
 import com.jetlang.remote.core.JavaSerializer;
 import com.jetlang.remote.core.ReadTimeoutEvent;
-import com.jetlang.remote.server.*;
 import org.jetlang.core.Callback;
 import org.jetlang.core.Disposable;
 import org.jetlang.core.SynchronousDisposingExecutor;

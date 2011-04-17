@@ -1,4 +1,4 @@
-package com.jetlang.remote.server;
+package com.jetlang.remote.acceptor;
 
 import org.jetlang.channels.Channel;
 import org.jetlang.channels.MemoryChannel;

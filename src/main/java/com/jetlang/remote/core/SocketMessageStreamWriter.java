@@ -1,6 +1,6 @@
 package com.jetlang.remote.core;
 
-import com.jetlang.remote.server.MessageStreamWriter;
+import com.jetlang.remote.acceptor.MessageStreamWriter;
 
 import java.io.DataOutputStream;
 import java.io.IOException;
