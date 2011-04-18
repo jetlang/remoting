@@ -16,7 +16,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class JetlangClientHandler implements Acceptor.ClientHandler, ClientPublisher {
 
     private final SerializerFactory ser;
-    private final JetlangSessionChannels channels;
+    private final NewSessionHandler channels;
     private final Executor exec;
     private final JetlangSessionConfig config;
     private final FiberFactory fiberFactory;
@@ -59,7 +59,7 @@ public class JetlangClientHandler implements Acceptor.ClientHandler, ClientPubli
     }
 
     public JetlangClientHandler(SerializerFactory ser,
-                                JetlangSessionChannels channels,
+                                NewSessionHandler channels,
                                 Executor exec,
                                 JetlangSessionConfig config,
                                 FiberFactory fiberFactory,
@@ -158,7 +158,7 @@ public class JetlangClientHandler implements Acceptor.ClientHandler, ClientPubli
                     };
                     final StreamReader input = new StreamReader(socket.getInputStream(), charset, serializer.getReader(), onReadTimeout);
                     clientTcpSocket.setSession(session);
-                    channels.publishNewSession(session);
+                    channels.onNewSession(session);
                     session.startHeartbeat(config.getHeartbeatIntervalInMs(), TimeUnit.MILLISECONDS);
                     sendFiber.start();
                     while (readFromStream(input, session)) {

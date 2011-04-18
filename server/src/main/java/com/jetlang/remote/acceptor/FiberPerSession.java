@@ -5,9 +5,9 @@ import org.jetlang.core.SynchronousDisposingExecutor;
 import org.jetlang.fibers.Fiber;
 import org.jetlang.fibers.ThreadFiber;
 
-public class FiberPerSession {
+public class FiberPerSession implements NewSessionHandler {
 
-    private final NewSessionHandler fact;
+    private final NewFiberSessionHandler fact;
     private final FiberPerSession.FiberFactory fiberFactory;
 
     public static interface FiberFactory {
@@ -23,36 +23,30 @@ public class FiberPerSession {
 
     }
 
-    public FiberPerSession(JetlangSessionChannels channels, NewSessionHandler fact, FiberPerSession.FiberFactory fiberFactory) {
+    public FiberPerSession(NewFiberSessionHandler fact, FiberPerSession.FiberFactory fiberFactory) {
         this.fact = fact;
         this.fiberFactory = fiberFactory;
-        channels.SessionOpen.subscribe(new SynchronousDisposingExecutor(), onOpen());
     }
 
-    private Callback<JetlangSession> onOpen() {
-        return new Callback<JetlangSession>() {
+    public void onNewSession(JetlangSession jetlangSession) {
+        final Fiber fiber = fiberFactory.createForSession(jetlangSession);
 
-            public void onMessage(JetlangSession jetlangSession) {
-                final Fiber fiber = fiberFactory.createForSession(jetlangSession);
+        fact.onNewSession(jetlangSession, fiber);
 
-                fact.onNewSession(jetlangSession, fiber);
+        //start fiber after session is initialized.
+        fiber.start();
 
-                //start fiber after session is initialized.
-                fiber.start();
+        Callback<SessionCloseEvent> onClose = new Callback<SessionCloseEvent>() {
 
-                Callback<SessionCloseEvent> onClose = new Callback<SessionCloseEvent>() {
-
-                    public void onMessage(SessionCloseEvent sessionCloseEvent) {
-                        Runnable stopFiber = new Runnable() {
-                            public void run() {
-                                fiber.dispose();
-                            }
-                        };
-                        fiber.execute(stopFiber);
+            public void onMessage(SessionCloseEvent sessionCloseEvent) {
+                Runnable stopFiber = new Runnable() {
+                    public void run() {
+                        fiber.dispose();
                     }
                 };
-                jetlangSession.getSessionCloseChannel().subscribe(new SynchronousDisposingExecutor(), onClose);
+                fiber.execute(stopFiber);
             }
         };
+        jetlangSession.getSessionCloseChannel().subscribe(new SynchronousDisposingExecutor(), onClose);
     }
 }
