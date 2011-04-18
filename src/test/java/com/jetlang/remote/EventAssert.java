@@ -51,16 +51,20 @@ public class EventAssert<T> {
     public Callback<T> createCallback() {
         return new Callback<T>() {
             public void onMessage(T message) {
-                receiveCount.incrementAndGet();
-                latch.countDown();
-                try {
-                    received.put(message);
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
-                onRcv.publish(message);
+                receiveMessage(message);
             }
         };
+    }
+
+    public void receiveMessage(T message) {
+        receiveCount.incrementAndGet();
+        latch.countDown();
+        try {
+            received.put(message);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        onRcv.publish(message);
     }
 
     public void assertEvent() {

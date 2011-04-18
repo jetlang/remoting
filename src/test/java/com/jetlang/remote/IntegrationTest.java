@@ -24,15 +24,12 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 public class IntegrationTest {
-    JetlangSessionChannels sessions = new JetlangSessionChannels();
     ExecutorService service = Executors.newCachedThreadPool();
     JetlangSessionConfig sessionConfig = new JetlangSessionConfig();
-    JetlangClientHandler handler = new JetlangClientHandler(new JavaSerializer.Factory(), sessions,
-            service, sessionConfig, new JetlangClientHandler.FiberFactory.ThreadFiberFactory(),
-            new JetlangClientHandler.ClientErrorHandler.SysOutClientErrorHandler());
     JetlangClientConfig clientConfig = new JetlangClientConfig();
 
     SocketConnector conn = new SocketConnector("localhost", 8081);
+    JetlangClientHandler handler;
 
     @After
     public void shutdown() {
@@ -43,13 +40,12 @@ public class IntegrationTest {
     public void heartbeat() throws IOException {
         final EventAssert<HeartbeatEvent> hb = new EventAssert<HeartbeatEvent>(3);
 
-        Callback<JetlangSession> sessionCallback = new Callback<JetlangSession>() {
-            public void onMessage(JetlangSession message) {
+        NewSessionHandler sessionCallback = new NewSessionHandler() {
+            public void onNewSession(JetlangSession message) {
                 hb.subscribe(message.getHeartbeatChannel());
             }
         };
-        sessions.SessionOpen.subscribe(new SynchronousDisposingExecutor(), sessionCallback);
-        Acceptor acceptor = createAcceptor();
+        Acceptor acceptor = createAcceptor(sessionCallback);
 
         Thread runner = new Thread(acceptor);
         runner.start();
@@ -67,16 +63,14 @@ public class IntegrationTest {
     public void serverHeartbeatTimeout() throws IOException {
         final EventAssert<ReadTimeoutEvent> serverSessionTimeout = new EventAssert<ReadTimeoutEvent>(1);
 
-        Callback<JetlangSession> sessionCallback = new Callback<JetlangSession>() {
-            public void onMessage(JetlangSession session) {
+        NewSessionHandler sessionCallback = new NewSessionHandler() {
+            public void onNewSession(JetlangSession session) {
                 serverSessionTimeout.subscribe(session.getReadTimeoutChannel());
             }
         };
-        sessions.SessionOpen.subscribe(new SynchronousDisposingExecutor(), sessionCallback);
-
         //short read timeout.
         sessionConfig.setReadTimeoutInMs(10);
-        Acceptor acceptor = createAcceptor();
+        Acceptor acceptor = createAcceptor(sessionCallback);
 
         Thread runner = new Thread(acceptor);
         runner.start();
@@ -94,16 +88,15 @@ public class IntegrationTest {
     public void disconnect() throws IOException {
         final EventAssert<SessionCloseEvent> closeEvent = new EventAssert<SessionCloseEvent>(1);
 
-        Callback<JetlangSession> sessionCallback = new Callback<JetlangSession>() {
-            public void onMessage(JetlangSession session) {
+        NewSessionHandler sessionCallback = new NewSessionHandler() {
+            public void onNewSession(JetlangSession session) {
                 closeEvent.subscribe(session.getSessionCloseChannel());
                 //immediate forced disconnect.
                 session.disconnect();
             }
         };
-        sessions.SessionOpen.subscribe(new SynchronousDisposingExecutor(), sessionCallback);
 
-        Acceptor acceptor = createAcceptor();
+        Acceptor acceptor = createAcceptor(sessionCallback);
 
         Thread runner = new Thread(acceptor);
         runner.start();
@@ -118,16 +111,16 @@ public class IntegrationTest {
 
     @Test
     public void globalPublishToTwoClients() throws IOException, InterruptedException {
-        final EventAssert<JetlangSession> openEvent = EventAssert.expect(2, sessions.SessionOpen);
+        final EventAssert<JetlangSession> openEvent = new EventAssert(2);
         final EventAssert<SessionTopic> subscriptions = EventAssert.create(2);
-        Callback<JetlangSession> sessionCallback = new Callback<JetlangSession>() {
-            public void onMessage(JetlangSession session) {
+        NewSessionHandler sessionCallback = new NewSessionHandler() {
+            public void onNewSession(JetlangSession session) {
                 subscriptions.subscribe(session.getSubscriptionRequestChannel());
+                openEvent.receiveMessage(session);
             }
         };
-        sessions.SessionOpen.subscribe(new SynchronousDisposingExecutor(), sessionCallback);
 
-        Acceptor acceptor = createAcceptor();
+        Acceptor acceptor = createAcceptor(sessionCallback);
 
         Thread runner = new Thread(acceptor);
         runner.start();
@@ -163,7 +156,11 @@ public class IntegrationTest {
     @Test
     public void requestReplyTimeout() throws IOException {
 
-        Acceptor acceptor = createAcceptor();
+        NewSessionHandler sessionCallback = new NewSessionHandler() {
+            public void onNewSession(JetlangSession session) {
+            }
+        };
+        Acceptor acceptor = createAcceptor(sessionCallback);
 
         Thread runner = new Thread(acceptor);
         runner.start();
@@ -187,10 +184,8 @@ public class IntegrationTest {
     @Test
     public void requestReply() throws IOException {
 
-        Acceptor acceptor = createAcceptor();
-        Callback<JetlangSession> sessionCallback = new Callback<JetlangSession>() {
-
-            public void onMessage(JetlangSession jetlangSession) {
+        NewSessionHandler sessionCallback = new NewSessionHandler() {
+            public void onNewSession(JetlangSession jetlangSession) {
                 Callback<SessionRequest> onRequest = new Callback<SessionRequest>() {
 
                     public void onMessage(SessionRequest sessionRequest) {
@@ -202,7 +197,8 @@ public class IntegrationTest {
                 jetlangSession.getSessionRequestChannel().subscribe(new SynchronousDisposingExecutor(), onRequest);
             }
         };
-        sessions.SessionOpen.subscribe(new SynchronousDisposingExecutor(), sessionCallback);
+
+        Acceptor acceptor = createAcceptor(sessionCallback);
 
         Thread runner = new Thread(acceptor);
         runner.start();
@@ -230,7 +226,6 @@ public class IntegrationTest {
 
     @Test
     public void regression() throws IOException, InterruptedException {
-        EventAssert serverSessionOpen = EventAssert.expect(1, sessions.SessionOpen);
         final EventAssert<SessionTopic> subscriptionReceived = new EventAssert<SessionTopic>(1);
         Callback<SessionTopic> onTopic = new Callback<SessionTopic>() {
             public void onMessage(SessionTopic message) {
@@ -243,7 +238,7 @@ public class IntegrationTest {
         final EventAssert<String> unsubscribeReceive = new EventAssert<String>(1);
         final EventAssert<SessionCloseEvent> serverSessionClose = new EventAssert<SessionCloseEvent>(1);
 
-        NewSessionHandler handlerFactory = new NewSessionHandler() {
+        NewFiberSessionHandler handlerFactory = new NewFiberSessionHandler() {
             public void onNewSession(JetlangSession session, Fiber fiber) {
                 subscriptionReceived.subscribe(session.getSubscriptionRequestChannel(), fiber);
                 logoutEvent.subscribe(session.getLogoutChannel(), fiber);
@@ -253,9 +248,9 @@ public class IntegrationTest {
                 assertEquals(session.getSessionId(), session.getSessionId());
             }
         };
-        FiberPerSession fiberPer = new FiberPerSession(sessions, handlerFactory, new FiberPerSession.FiberFactory.ThreadFiberFactory());
+        FiberPerSession fiberPer = new FiberPerSession(handlerFactory, new FiberPerSession.FiberFactory.ThreadFiberFactory());
 
-        Acceptor acceptor = createAcceptor();
+        Acceptor acceptor = createAcceptor(fiberPer);
 
         Thread runner = new Thread(acceptor);
         runner.start();
@@ -270,7 +265,6 @@ public class IntegrationTest {
         Disposable unsubscribe = client.subscribe("newtopic", clientMsgReceive.asSubscribable());
         client.start();
 
-        serverSessionOpen.assertEvent();
         subscriptionReceived.assertEvent();
         assertEquals("newtopic", subscriptionReceived.takeFromReceived().getTopic());
         clientConnect.assertEvent();
@@ -300,7 +294,10 @@ public class IntegrationTest {
         return new JetlangTcpClient(conn, new ThreadFiber(), clientConfig, new JavaSerializer(), new JetlangTcpClient.ErrorHandler.SysOut());
     }
 
-    private Acceptor createAcceptor() throws IOException {
+    private Acceptor createAcceptor(NewSessionHandler newSession) throws IOException {
+        handler = new JetlangClientHandler(new JavaSerializer.Factory(), newSession,
+                service, sessionConfig, new JetlangClientHandler.FiberFactory.ThreadFiberFactory(),
+                new JetlangClientHandler.ClientErrorHandler.SysOutClientErrorHandler());
         return new Acceptor(
                 new ServerSocket(8081),
                 new Acceptor.ErrorHandler.SysOut(),
