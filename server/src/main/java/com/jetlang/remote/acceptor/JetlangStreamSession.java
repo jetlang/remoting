@@ -16,13 +16,13 @@ import java.util.concurrent.TimeUnit;
 public class JetlangStreamSession implements JetlangSession {
 
     private final CloseableChannel.Group allChannels = new CloseableChannel.Group();
-    private final CloseableChannel<SessionTopic> SubscriptionRequest = newChannel();
-    private final CloseableChannel<String> UnsubscribeRequest = newChannel();
 
     private <T> CloseableChannel<T> newChannel() {
         return allChannels.add(new MemoryChannel<T>());
     }
 
+    private final CloseableChannel<SessionTopic> SubscriptionRequest = newChannel();
+    private final CloseableChannel<String> UnsubscribeRequest = newChannel();
     private final CloseableChannel<LogoutEvent> Logout = newChannel();
     private final CloseableChannel<HeartbeatEvent> Heartbeat = newChannel();
     private final CloseableChannel<SessionMessage<?>> Messages = newChannel();
