@@ -3,7 +3,6 @@ package com.jetlang.remote.acceptor;
 import com.jetlang.remote.core.HeartbeatEvent;
 import com.jetlang.remote.core.MsgTypes;
 import com.jetlang.remote.core.ReadTimeoutEvent;
-import org.jetlang.channels.Channel;
 import org.jetlang.channels.MemoryChannel;
 import org.jetlang.channels.Subscriber;
 import org.jetlang.fibers.Fiber;
@@ -16,14 +15,20 @@ import java.util.concurrent.TimeUnit;
 
 public class JetlangStreamSession implements JetlangSession {
 
-    public final Channel<SessionTopic> SubscriptionRequest = new MemoryChannel<SessionTopic>();
-    public final Channel<String> UnsubscribeRequest = new MemoryChannel<String>();
-    public final Channel<LogoutEvent> Logout = new MemoryChannel<LogoutEvent>();
-    public final Channel<HeartbeatEvent> Heartbeat = new MemoryChannel<HeartbeatEvent>();
-    public final Channel<SessionMessage<?>> Messages = new MemoryChannel<SessionMessage<?>>();
-    public final Channel<ReadTimeoutEvent> ReadTimeout = new MemoryChannel<ReadTimeoutEvent>();
-    public final Channel<SessionCloseEvent> SessionClose = new MemoryChannel<SessionCloseEvent>();
-    public final Channel<SessionRequest> SessionRequest = new MemoryChannel<SessionRequest>();
+    private final CloseableChannel.Group allChannels = new CloseableChannel.Group();
+    private final CloseableChannel<SessionTopic> SubscriptionRequest = newChannel();
+    private final CloseableChannel<String> UnsubscribeRequest = newChannel();
+
+    private <T> CloseableChannel<T> newChannel() {
+        return allChannels.add(new MemoryChannel<T>());
+    }
+
+    private final CloseableChannel<LogoutEvent> Logout = newChannel();
+    private final CloseableChannel<HeartbeatEvent> Heartbeat = newChannel();
+    private final CloseableChannel<SessionMessage<?>> Messages = newChannel();
+    private final CloseableChannel<ReadTimeoutEvent> ReadTimeout = newChannel();
+    private final CloseableChannel<SessionCloseEvent> SessionClose = newChannel();
+    private final CloseableChannel<SessionRequest> SessionRequest = newChannel();
 
     private final Object id;
     private final MessageStreamWriter socket;
@@ -173,4 +178,15 @@ public class JetlangStreamSession implements JetlangSession {
         SessionRequest.publish(new SessionRequest(reqId, reqmsgTopic, reqmsg, this));
     }
 
+    public void onClose(SessionCloseEvent sessionCloseEvent) {
+        try {
+            SessionClose.publish(sessionCloseEvent);
+        } finally {
+            allChannels.closeAndClear();
+        }
+    }
+
+    public void onReadTimeout(ReadTimeoutEvent readTimeoutEvent) {
+        ReadTimeout.publish(readTimeoutEvent);
+    }
 }
