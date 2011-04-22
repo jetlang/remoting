@@ -158,7 +158,7 @@ public class JetlangClientHandler implements Acceptor.ClientHandler, ClientPubli
                     };
                     final StreamReader input = new StreamReader(socket.getInputStream(), charset, serializer.getReader(), onReadTimeout);
                     clientTcpSocket.setSession(session);
-                    channels.onNewSession(session);
+                    channels.onNewSession(JetlangClientHandler.this, session);
                     session.startHeartbeat(config.getHeartbeatIntervalInMs(), TimeUnit.MILLISECONDS);
                     sendFiber.start();
                     while (readFromStream(input, session)) {

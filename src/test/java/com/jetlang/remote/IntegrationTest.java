@@ -41,7 +41,7 @@ public class IntegrationTest {
         final EventAssert<HeartbeatEvent> hb = new EventAssert<HeartbeatEvent>(3);
 
         NewSessionHandler sessionCallback = new NewSessionHandler() {
-            public void onNewSession(JetlangSession message) {
+            public void onNewSession(ClientPublisher pub, JetlangSession message) {
                 hb.subscribe(message.getHeartbeatChannel());
             }
         };
@@ -64,7 +64,7 @@ public class IntegrationTest {
         final EventAssert<ReadTimeoutEvent> serverSessionTimeout = new EventAssert<ReadTimeoutEvent>(1);
 
         NewSessionHandler sessionCallback = new NewSessionHandler() {
-            public void onNewSession(JetlangSession session) {
+            public void onNewSession(ClientPublisher pub, JetlangSession session) {
                 serverSessionTimeout.subscribe(session.getReadTimeoutChannel());
             }
         };
@@ -89,7 +89,7 @@ public class IntegrationTest {
         final EventAssert<SessionCloseEvent> closeEvent = new EventAssert<SessionCloseEvent>(1);
 
         NewSessionHandler sessionCallback = new NewSessionHandler() {
-            public void onNewSession(JetlangSession session) {
+            public void onNewSession(ClientPublisher pub, JetlangSession session) {
                 closeEvent.subscribe(session.getSessionCloseChannel());
                 //immediate forced disconnect.
                 session.disconnect();
@@ -111,10 +111,10 @@ public class IntegrationTest {
 
     @Test
     public void globalPublishToTwoClients() throws IOException, InterruptedException {
-        final EventAssert<JetlangSession> openEvent = new EventAssert(2);
+        final EventAssert<JetlangSession> openEvent = new EventAssert<JetlangSession>(2);
         final EventAssert<SessionTopic> subscriptions = EventAssert.create(2);
         NewSessionHandler sessionCallback = new NewSessionHandler() {
-            public void onNewSession(JetlangSession session) {
+            public void onNewSession(ClientPublisher pub, JetlangSession session) {
                 subscriptions.subscribe(session.getSubscriptionRequestChannel());
                 openEvent.receiveMessage(session);
             }
@@ -157,7 +157,7 @@ public class IntegrationTest {
     public void requestReplyTimeout() throws IOException {
 
         NewSessionHandler sessionCallback = new NewSessionHandler() {
-            public void onNewSession(JetlangSession session) {
+            public void onNewSession(ClientPublisher pub, JetlangSession session) {
             }
         };
         Acceptor acceptor = createAcceptor(sessionCallback);
@@ -185,7 +185,7 @@ public class IntegrationTest {
     public void requestReply() throws IOException {
 
         NewSessionHandler sessionCallback = new NewSessionHandler() {
-            public void onNewSession(JetlangSession jetlangSession) {
+            public void onNewSession(ClientPublisher pub, JetlangSession jetlangSession) {
                 Callback<SessionRequest> onRequest = new Callback<SessionRequest>() {
 
                     public void onMessage(SessionRequest sessionRequest) {
@@ -239,7 +239,7 @@ public class IntegrationTest {
         final EventAssert<SessionCloseEvent> serverSessionClose = new EventAssert<SessionCloseEvent>(1);
 
         NewFiberSessionHandler handlerFactory = new NewFiberSessionHandler() {
-            public void onNewSession(JetlangSession session, Fiber fiber) {
+            public void onNewSession(ClientPublisher pub, JetlangSession session, Fiber fiber) {
                 subscriptionReceived.subscribe(session.getSubscriptionRequestChannel(), fiber);
                 logoutEvent.subscribe(session.getLogoutChannel(), fiber);
                 serverMessageReceive.subscribe(session.getSessionMessageChannel(), fiber);
