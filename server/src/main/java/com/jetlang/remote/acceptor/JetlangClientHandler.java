@@ -153,7 +153,7 @@ public class JetlangClientHandler implements Acceptor.ClientHandler, ClientPubli
                 try {
                     final Runnable onReadTimeout = new Runnable() {
                         public void run() {
-                            session.ReadTimeout.publish(new ReadTimeoutEvent());
+                            session.onReadTimeout(new ReadTimeoutEvent());
                         }
                     };
                     final StreamReader input = new StreamReader(socket.getInputStream(), charset, serializer.getReader(), onReadTimeout);
@@ -171,7 +171,7 @@ public class JetlangClientHandler implements Acceptor.ClientHandler, ClientPubli
                 } finally {
                     sendFiber.dispose();
                     stopAndRemove(clientTcpSocket);
-                    session.SessionClose.publish(new SessionCloseEvent());
+                    session.onClose(new SessionCloseEvent());
                 }
             }
         };
