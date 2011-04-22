@@ -28,10 +28,10 @@ public class FiberPerSession implements NewSessionHandler {
         this.fiberFactory = fiberFactory;
     }
 
-    public void onNewSession(JetlangSession jetlangSession) {
+    public void onNewSession(ClientPublisher publisher, JetlangSession jetlangSession) {
         final Fiber fiber = fiberFactory.createForSession(jetlangSession);
 
-        fact.onNewSession(jetlangSession, fiber);
+        fact.onNewSession(publisher, jetlangSession, fiber);
 
         //start fiber after session is initialized.
         fiber.start();
