@@ -33,17 +33,22 @@ public class JetlangTcpClient implements JetlangClient {
     private static final Charset charset = Charset.forName("US-ASCII");
     private final SocketConnector socketConnector;
     private Disposable pendingConnect;
-    private final Map<String, Channel> channels = new LinkedHashMap<String, Channel>();
+    private final CloseableChannel.Group channelsToClose = new CloseableChannel.Group();
+    private final Map<String, CloseableChannel> channels = new LinkedHashMap<String, CloseableChannel>();
 
-    public final Channel<ConnectEvent> Connected = new MemoryChannel<ConnectEvent>();
-    public final Channel<DisconnectEvent> Disconnected = new MemoryChannel<DisconnectEvent>();
-    public final Channel<CloseEvent> Closed = new MemoryChannel<CloseEvent>();
-    public final Channel<ReadTimeoutEvent> ReadTimeout = new MemoryChannel<ReadTimeoutEvent>();
+    private <T> CloseableChannel<T> channel() {
+        return channelsToClose.add(new MemoryChannel<T>());
+    }
+
+    private final Channel<ConnectEvent> Connected = channel();
+    private final Channel<DisconnectEvent> Disconnected = channel();
+    private final Channel<CloseEvent> Closed = channel();
+    private final Channel<ReadTimeoutEvent> ReadTimeout = channel();
 
     private final AtomicBoolean closed = new AtomicBoolean(false);
     private final CountDownLatch logoutLatch = new CountDownLatch(1);
     private Disposable hbSchedule;
-    public final Channel<HeartbeatEvent> Heartbeat = new MemoryChannel<HeartbeatEvent>();
+    private final Channel<HeartbeatEvent> Heartbeat = channel();
     private AtomicInteger reqId = new AtomicInteger();
     private final Map<Integer, Req> pendingRequests = new HashMap<Integer, Req>();
 
@@ -78,12 +83,12 @@ public class JetlangTcpClient implements JetlangClient {
     }
 
     public <T> Disposable subscribe(final String subject, final Subscribable<T> callback) {
-        Channel<T> channel;
+        CloseableChannel<T> channel;
         synchronized (channels) {
             //noinspection unchecked
-            channel = (Channel<T>) channels.get(subject);
+            channel = (CloseableChannel<T>) channels.get(subject);
             if (channel == null) {
-                channel = new MemoryChannel<T>();
+                channel = channel();
                 channels.put(subject, channel);
             } else {
                 throw new RuntimeException("Subscription Already Exists: " + subject);
@@ -96,6 +101,7 @@ public class JetlangTcpClient implements JetlangClient {
             }
         };
         sendFiber.execute(sub);
+        final CloseableChannel<T> toRemove = channel;
         return new Disposable() {
             public void dispose() {
                 //unsubscribe immediately
@@ -105,6 +111,8 @@ public class JetlangTcpClient implements JetlangClient {
                     public void run() {
                         synchronized (channels) {
                             channels.remove(subject);
+                            toRemove.close();
+                            channelsToClose.remove(toRemove);
                             sendSubscription(subject, MsgTypes.Unsubscribe);
                         }
                     }
@@ -296,6 +304,7 @@ public class JetlangTcpClient implements JetlangClient {
                     closeIfNeeded(true, null);
                     closedLatch.countDown();
                     sendFiber.dispose();
+                    channelsToClose.closeAndClear();
                 }
             };
             sendFiber.execute(disconnect);

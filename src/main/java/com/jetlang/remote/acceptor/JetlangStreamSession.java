@@ -1,5 +1,6 @@
 package com.jetlang.remote.acceptor;
 
+import com.jetlang.remote.core.CloseableChannel;
 import com.jetlang.remote.core.HeartbeatEvent;
 import com.jetlang.remote.core.MsgTypes;
 import com.jetlang.remote.core.ReadTimeoutEvent;
