@@ -1,4 +1,4 @@
-package com.jetlang.remote.acceptor;
+package com.jetlang.remote.core;
 
 import org.jetlang.channels.Channel;
 import org.jetlang.channels.Subscribable;
@@ -71,20 +71,32 @@ public class CloseableChannel<T> implements Channel<T> {
     }
 
     public static class Group {
+        private boolean closed;
         private final List<CloseableChannel<?>> allChannels = new ArrayList<CloseableChannel<?>>();
 
         public <T> CloseableChannel<T> add(Channel<T> c) {
-            CloseableChannel<T> closeable = CloseableChannel.wrap(c);
-            allChannels.add(closeable);
-            return closeable;
+            synchronized (allChannels) {
+                if (closed) throw new RuntimeException("Closed");
+                CloseableChannel<T> closeable = CloseableChannel.wrap(c);
+                allChannels.add(closeable);
+                return closeable;
+            }
         }
 
         public void closeAndClear() {
-            for (CloseableChannel<?> allChannel : allChannels) {
-                allChannel.close();
+            synchronized (allChannels) {
+                closed = true;
+                for (CloseableChannel<?> allChannel : allChannels) {
+                    allChannel.close();
+                }
+                allChannels.clear();
             }
-            allChannels.clear();
         }
 
+        public void remove(CloseableChannel<?> toRemove) {
+            synchronized (allChannels) {
+                allChannels.remove(toRemove);
+            }
+        }
     }
 }
