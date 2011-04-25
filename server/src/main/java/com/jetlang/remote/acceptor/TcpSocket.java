@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.Socket;
+import java.net.SocketAddress;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
@@ -17,9 +18,11 @@ public class TcpSocket implements ClosableOutputStream {
 
     private final AtomicBoolean closed = new AtomicBoolean(false);
     private final Socket socket;
+    private final SocketAddress remoteSocketAddress;
 
     public TcpSocket(Socket socket) {
         this.socket = socket;
+        this.remoteSocketAddress = socket.getRemoteSocketAddress();
     }
 
     public boolean close() {
@@ -39,7 +42,7 @@ public class TcpSocket implements ClosableOutputStream {
     }
 
     public Object getId() {
-        return socket.getInetAddress();
+        return remoteSocketAddress;
     }
 
     public OutputStream getOutputStream() throws IOException {
