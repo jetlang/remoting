@@ -147,7 +147,7 @@ public class JetlangClientHandler implements Acceptor.ClientHandler, ClientPubli
         final TcpSocket socket = clientTcpSocket.getSocket();
         final Fiber sendFiber = fiberFactory.createSendFiber(socket.getSocket());
         final Serializer serializer = ser.createForSocket(socket.getSocket());
-        final JetlangStreamSession session = new JetlangStreamSession(socket.getId(), new SocketMessageStreamWriter(socket, charset, serializer.getWriter()), sendFiber);
+        final JetlangStreamSession session = new JetlangStreamSession(socket.getRemoteSocketAddress(), new SocketMessageStreamWriter(socket, charset, serializer.getWriter()), sendFiber);
         return new Runnable() {
             public void run() {
                 try {
