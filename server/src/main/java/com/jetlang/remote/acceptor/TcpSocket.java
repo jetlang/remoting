@@ -41,7 +41,7 @@ public class TcpSocket implements ClosableOutputStream {
         return socket;
     }
 
-    public Object getId() {
+    public SocketAddress getRemoteSocketAddress() {
         return remoteSocketAddress;
     }
 
