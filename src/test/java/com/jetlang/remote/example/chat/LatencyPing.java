@@ -7,6 +7,8 @@ import org.jetlang.core.SynchronousDisposingExecutor;
 import org.jetlang.fibers.ThreadFiber;
 
 import java.io.Serializable;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
@@ -17,6 +19,7 @@ import java.util.concurrent.TimeUnit;
  */
 public class LatencyPing {
 
+    private static int globalId;
     private static volatile CountDownLatch latch;
 
     private static byte[] createMsg() {
@@ -26,9 +29,10 @@ public class LatencyPing {
 
     public static class Msg implements Serializable, Runnable {
 
-        private long create = System.nanoTime();
+        private final long create = System.nanoTime();
         private final byte[] payload = createMsg();
         private final int sleepTime;
+        public final String id = "MSGID" + String.valueOf(globalId++);
 
         public Msg(int sleepTime) {
             this.sleepTime = sleepTime;
@@ -42,7 +46,8 @@ public class LatencyPing {
             long sendTime = System.nanoTime() - create;
             long ms = TimeUnit.NANOSECONDS.toMillis(sendTime);
             if (ms > 2) {
-                System.out.println(send + " ms = " + ms + " size: " + payload.length + " sleep: " + sleepTime);
+                SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS");
+                System.out.println(format.format(new Date()) + " " + send + " ms = " + ms + " size: " + payload.length + " sleep: " + sleepTime);
             }
         }
 
@@ -62,6 +67,7 @@ public class LatencyPing {
         if (args.length >= 3) {
             iteration = Integer.parseInt(args[2]);
         }
+        System.out.println("iterations = " + iteration);
         latch = new CountDownLatch(iteration * 2);
         SocketConnector conn = new SocketConnector(host, port);
         JetlangClientConfig clientConfig = new JetlangClientConfig();
