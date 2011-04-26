@@ -1,7 +1,7 @@
 package com.jetlang.remote.example.chat;
 
 import com.jetlang.remote.acceptor.*;
-import com.jetlang.remote.core.JavaSerializer;
+import com.jetlang.remote.core.ByteArraySerializer;
 import org.jetlang.core.Callback;
 import org.jetlang.core.SynchronousDisposingExecutor;
 
@@ -35,7 +35,7 @@ public class Server {
             }
         };
 
-        JetlangClientHandler handler = new JetlangClientHandler(new JavaSerializer.Factory(), sessions,
+        JetlangClientHandler handler = new JetlangClientHandler(new ByteArraySerializer.Factory(), sessions,
                 service, sessionConfig, new JetlangClientHandler.FiberFactory.ThreadFiberFactory(),
                 new JetlangClientHandler.ClientErrorHandler.SysOutClientErrorHandler());
         Acceptor acceptor = new Acceptor(

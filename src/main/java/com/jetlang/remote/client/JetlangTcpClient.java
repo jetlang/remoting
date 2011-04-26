@@ -414,11 +414,17 @@ public class JetlangTcpClient implements JetlangClient {
     }
 
     public <T> void publish(final String topic, final T msg) {
+        publish(topic, msg, null);
+    }
+
+    public <T> void publish(final String topic, final T msg, final Runnable onSend) {
         Runnable r = new Runnable() {
             public void run() {
                 if (socket != null) {
                     try {
                         socket.write(topic, msg);
+                        if (onSend != null)
+                            onSend.run();
                     } catch (IOException e) {
                         handleDisconnect(false, e);
                     }
