@@ -8,7 +8,10 @@ import org.jetlang.fibers.ThreadFiber;
 
 import java.io.Serializable;
 import java.text.SimpleDateFormat;
+import java.util.Collections;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
@@ -21,24 +24,32 @@ public class LatencyPing {
 
     private static int globalId;
     private static volatile CountDownLatch latch;
+    private static Map<String, Msg> msgs = Collections.synchronizedMap(new HashMap<String, Msg>());
 
     private static byte[] createMsg() {
         int length = (int) (Math.random() * 300);
         return new byte[length];
     }
 
+    public static class Content implements Serializable {
+        private final byte[] payload = createMsg();
+        public final String id = "MSGID" + String.valueOf(globalId++);
+    }
+
     public static class Msg implements Serializable, Runnable {
 
         private final long create = System.nanoTime();
-        private final byte[] payload = createMsg();
         private final int sleepTime;
-        public final String id = "MSGID" + String.valueOf(globalId++);
+
+        public final Content data = new Content();
+        private volatile Date sentTimeStamp;
 
         public Msg(int sleepTime) {
             this.sleepTime = sleepTime;
         }
 
         public void run() {
+            sentTimeStamp = new Date();
             log("send");
         }
 
@@ -47,7 +58,8 @@ public class LatencyPing {
             long ms = TimeUnit.NANOSECONDS.toMillis(sendTime);
             if (ms > 2) {
                 SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS");
-                System.out.println(format.format(new Date()) + " " + send + " ms = " + ms + " size: " + payload.length + " sleep: " + sleepTime);
+                String sentTime = sentTimeStamp != null ? format.format(sentTimeStamp) : "SentNotSet";
+                System.out.println(data.id + " " + format.format(new Date()) + " " + send + " ms = " + ms + " size: " + data.payload.length + " sleep: " + sleepTime + " sent: " + sentTime);
             }
         }
 
@@ -79,9 +91,10 @@ public class LatencyPing {
         tcpClient.getCloseChannel().subscribe(executor, Client.<CloseEvent>print("Closed"));
         tcpClient.start();
 
-        Callback<Msg> onMsg = new Callback<Msg>() {
-            public void onMessage(Msg message) {
-                message.logRoundTripLatency();
+        Callback<Content> onMsg = new Callback<Content>() {
+            public void onMessage(Content message) {
+                Msg m = msgs.remove(message.id);
+                m.logRoundTripLatency();
                 latch.countDown();
             }
         };
@@ -91,9 +104,11 @@ public class LatencyPing {
         for (int i = 0; i < iteration; i++) {
             Thread.sleep(sleepTime);
             Msg msg = new Msg(sleepTime);
-            tcpClient.publish("t", msg, msg);
+            msgs.put(msg.data.id, msg);
+            tcpClient.publish("t", msg.data, msg);
             Msg second = new Msg(0);
-            tcpClient.publish("t", second, second);
+            msgs.put(second.data.id, second);
+            tcpClient.publish("t", second.data, second);
             sleepTime = (int) (Math.random() * 500.00);
         }
         System.out.println("executor = " + latch.await(10, TimeUnit.SECONDS));
