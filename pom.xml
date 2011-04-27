@@ -3,14 +3,14 @@
 
     <modelVersion>4.0.0</modelVersion>
     <groupId>org.jetlang</groupId>
-    <artifactId>jetlang.server</artifactId>
+    <artifactId>jetlang.remoting</artifactId>
 
     <version>0.1.0-SNAPSHOT</version>
     <name>Jetlang</name>
     <url>http://code.google.com/p/jetlang/</url>
 
     <description>
-        The Jetlang server provides a high performance messaging server.
+        Jetlang remoting provides high performance remote messaging.
     </description>
 
     <licenses>
