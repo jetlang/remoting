@@ -144,10 +144,7 @@ public class JetlangTcpClient implements JetlangClient {
     private void sendSubscription(String subject, int msgType) {
         if (socket != null) {
             try {
-                byte[] bytes = subject.getBytes(charset);
-                socket.writeByteAsInt(msgType);
-                socket.writeByteAsInt(bytes.length);
-                socket.writeBytes(bytes);
+                socket.writeSubscription(msgType, subject, charset);
             } catch (IOException e) {
                 handleDisconnect(false, e);
             }

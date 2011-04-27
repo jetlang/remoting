@@ -1,6 +1,7 @@
 package com.jetlang.remote.acceptor;
 
 import java.io.IOException;
+import java.nio.charset.Charset;
 
 /**
  * User: mrettig
@@ -21,4 +22,7 @@ public interface MessageStreamWriter {
 
 
     void writeReply(int reqId, String reqTopic, Object replyMsg) throws IOException;
+
+    void writeSubscription(int msgType, String subject, Charset charset) throws IOException;
+
 }
