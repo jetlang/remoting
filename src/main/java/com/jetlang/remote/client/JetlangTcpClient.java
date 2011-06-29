@@ -41,7 +41,6 @@ public class JetlangTcpClient implements JetlangClient {
     }
 
     private final Channel<ConnectEvent> Connected = channel();
-    private final Channel<DisconnectEvent> Disconnected = channel();
     private final Channel<CloseEvent> Closed = channel();
     private final Channel<ReadTimeoutEvent> ReadTimeout = channel();
 
@@ -54,15 +53,9 @@ public class JetlangTcpClient implements JetlangClient {
 
     public interface ErrorHandler {
 
-        void onUnexpectedDisconnect(Exception msg);
-
         void onConnectionFailure(Exception failed);
 
         public class SysOut implements ErrorHandler {
-
-            public void onUnexpectedDisconnect(Exception msg) {
-                msg.printStackTrace();
-            }
 
             public void onConnectionFailure(Exception failed) {
                 failed.printStackTrace();
@@ -146,21 +139,23 @@ public class JetlangTcpClient implements JetlangClient {
             try {
                 socket.writeSubscription(msgType, subject, charset);
             } catch (IOException e) {
-                handleDisconnect(false, e);
+                handleDisconnect(new CloseEvent.WriteException(e));
             }
         }
     }
 
-    private void closeIfNeeded(boolean expected, Exception msg) {
+    private void closeIfNeeded(CloseEvent closeCause) {
         if (socket != null) {
             socket.tryClose();
             socket = null;
             if (hbSchedule != null) {
                 hbSchedule.dispose();
             }
-            if (!closed.get() && !expected)
-                this.errorHandler.onUnexpectedDisconnect(msg);
-            this.Closed.publish(new CloseEvent());
+            if (closed.get()) {
+                this.Closed.publish(new CloseEvent.GracefulDisconnect());
+            } else {
+                this.Closed.publish(closeCause);
+            }
         }
     }
 
@@ -183,7 +178,7 @@ public class JetlangTcpClient implements JetlangClient {
                     socket.writeByteAsInt(MsgTypes.Heartbeat);
                 }
             } catch (IOException exc) {
-                handleDisconnect(false, exc);
+                handleDisconnect(new CloseEvent.WriteException(exc));
             }
         }
     };
@@ -210,7 +205,7 @@ public class JetlangTcpClient implements JetlangClient {
                     while (read(stream)) {
                     }
                 } catch (IOException failed) {
-                    handleDisconnectOnSendFiber(failed);
+                    handleReadExceptionOnSendFiber(failed);
                 }
             }
         };
@@ -227,7 +222,6 @@ public class JetlangTcpClient implements JetlangClient {
             switch (msg) {
                 case MsgTypes.Disconnect://logout
                     logoutLatch.countDown();
-                    this.Disconnected.publish(new DisconnectEvent());
                     return false;
                 case MsgTypes.Heartbeat:
                     this.Heartbeat.publish(new HeartbeatEvent());
@@ -252,10 +246,10 @@ public class JetlangTcpClient implements JetlangClient {
         }
     }
 
-    private void handleDisconnectOnSendFiber(final Exception e) {
+    private void handleReadExceptionOnSendFiber(final IOException e) {
         Runnable exec = new Runnable() {
             public void run() {
-                handleDisconnect(false, e);
+                handleDisconnect(new CloseEvent.ReadException(e));
             }
         };
         sendFiber.execute(exec);
@@ -266,8 +260,8 @@ public class JetlangTcpClient implements JetlangClient {
         sendFiber.start();
     }
 
-    private void handleDisconnect(boolean expected, Exception msg) {
-        closeIfNeeded(expected, msg);
+    private void handleDisconnect(CloseEvent event) {
+        closeIfNeeded(event);
         if (pendingConnect == null && !closed.get()) {
             //should use fixed rate but don't want to introduce a dependency on that method.
             if (config.getReconnectDelayInMs() > 0) {
@@ -298,7 +292,7 @@ public class JetlangTcpClient implements JetlangClient {
                     if (pendingConnect != null) {
                         pendingConnect.dispose();
                     }
-                    closeIfNeeded(true, null);
+                    closeIfNeeded(new CloseEvent.GracefulDisconnect());
                     closedLatch.countDown();
                     sendFiber.dispose();
                     channelsToClose.closeAndClear();
@@ -350,7 +344,7 @@ public class JetlangTcpClient implements JetlangClient {
                             socket.writeRequest(id, reqTopic, req);
                         } catch (IOException e) {
                             pendingRequests.remove(id);
-                            handleDisconnect(false, e);
+                            handleDisconnect(new CloseEvent.WriteException(e));
                         }
                     }
                 }
@@ -394,10 +388,6 @@ public class JetlangTcpClient implements JetlangClient {
     }
 
 
-    public Subscriber<DisconnectEvent> getDisconnectChannel() {
-        return this.Disconnected;
-    }
-
     public Subscriber<CloseEvent> getCloseChannel() {
         return Closed;
     }
@@ -423,7 +413,7 @@ public class JetlangTcpClient implements JetlangClient {
                         if (onSend != null)
                             onSend.run();
                     } catch (IOException e) {
-                        handleDisconnect(false, e);
+                        handleDisconnect(new CloseEvent.WriteException(e));
                     }
                 }
             }

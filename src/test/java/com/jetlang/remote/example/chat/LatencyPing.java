@@ -87,7 +87,6 @@ public class LatencyPing {
         JetlangTcpClient tcpClient = new JetlangTcpClient(conn, new ThreadFiber(), clientConfig, new JavaSerializer(), new JetlangTcpClient.ErrorHandler.SysOut());
         SynchronousDisposingExecutor executor = new SynchronousDisposingExecutor();
         tcpClient.getConnectChannel().subscribe(executor, Client.<ConnectEvent>print("Connect"));
-        tcpClient.getDisconnectChannel().subscribe(executor, Client.<DisconnectEvent>print("Disconnect"));
         tcpClient.getCloseChannel().subscribe(executor, Client.<CloseEvent>print("Closed"));
         tcpClient.start();
 
