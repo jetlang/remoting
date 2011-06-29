@@ -23,6 +23,11 @@ public interface CloseEvent {
         public IOException getException() {
             return e;
         }
+
+        @Override
+        public String toString() {
+            return "IOExceptionEvent{" + "e=" + e + '}';
+        }
     }
 
     public static class WriteException extends IOExceptionEvent {
