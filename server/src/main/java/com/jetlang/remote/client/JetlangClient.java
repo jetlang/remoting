@@ -19,8 +19,6 @@ public interface JetlangClient {
 
     Subscriber<ConnectEvent> getConnectChannel();
 
-    Subscriber<DisconnectEvent> getDisconnectChannel();
-
     Subscriber<CloseEvent> getCloseChannel();
 
     Subscriber<ReadTimeoutEvent> getReadTimeoutChannel();

@@ -85,7 +85,7 @@ public class IntegrationTest {
     }
 
     @Test
-    public void disconnect() throws IOException {
+    public void disconnect() throws IOException, InterruptedException {
         final EventAssert<SessionCloseEvent> closeEvent = new EventAssert<SessionCloseEvent>(1);
 
         NewSessionHandler sessionCallback = new NewSessionHandler() {
@@ -104,9 +104,15 @@ public class IntegrationTest {
         //don't allow reconnects
         clientConfig.setReconnectDelayInMs(-1);
         JetlangClient client = createClient();
+        EventAssert<CloseEvent> clientClose = new EventAssert<CloseEvent>(1);
+        clientClose.subscribe(client.getCloseChannel());
         client.start();
         closeEvent.assertEvent();
         acceptor.stop();
+        clientClose.assertEvent();
+        Class closeClzz = clientClose.received.take().getClass();
+        //will receive a read or write exception when the acceptor closes
+        assertTrue(closeClzz.toString(), CloseEvent.IOExceptionEvent.class.isAssignableFrom(closeClzz));
     }
 
     @Test
@@ -258,7 +264,6 @@ public class IntegrationTest {
         JetlangClient client = createClient();
 
         EventAssert<ConnectEvent> clientConnect = EventAssert.expect(1, client.getConnectChannel());
-        EventAssert<DisconnectEvent> clientDisconnect = EventAssert.expect(1, client.getDisconnectChannel());
         EventAssert<CloseEvent> clientClose = EventAssert.expect(1, client.getCloseChannel());
 
         EventAssert<String> clientMsgReceive = new EventAssert<String>(1);
@@ -283,8 +288,8 @@ public class IntegrationTest {
         assertTrue(closeLatch.await(10, TimeUnit.SECONDS));
         logoutEvent.assertEvent();
         serverSessionClose.assertEvent();
-        clientDisconnect.assertEvent();
         clientClose.assertEvent();
+        assertEquals(CloseEvent.GracefulDisconnect.class, clientClose.received.take().getClass());
         assertEquals(0, handler.clientCount());
         acceptor.stop();
         service.shutdownNow();
