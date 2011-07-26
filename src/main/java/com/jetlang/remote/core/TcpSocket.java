@@ -1,6 +1,4 @@
-package com.jetlang.remote.acceptor;
-
-import com.jetlang.remote.core.ClosableOutputStream;
+package com.jetlang.remote.core;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -18,20 +16,26 @@ public class TcpSocket implements ClosableOutputStream {
 
     private final AtomicBoolean closed = new AtomicBoolean(false);
     private final Socket socket;
+    private final ErrorHandler errorHandler;
     private final SocketAddress remoteSocketAddress;
 
-    public TcpSocket(Socket socket) {
+    public TcpSocket(Socket socket, ErrorHandler errorHandler) {
         this.socket = socket;
+        this.errorHandler = errorHandler;
         this.remoteSocketAddress = socket.getRemoteSocketAddress();
     }
 
     public boolean close() {
         if (closed.compareAndSet(false, true)) {
-            try {
-                socket.close();
+            if (socket.isClosed()) {
                 return true;
-            } catch (IOException e) {
-                e.printStackTrace();
+            } else {
+                try {
+                    socket.close();
+                    return true;
+                } catch (IOException e) {
+                    errorHandler.onException(e);
+                }
             }
         }
         return false;

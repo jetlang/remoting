@@ -1,9 +1,6 @@
 package com.jetlang.remote.acceptor;
 
-import com.jetlang.remote.core.CloseableChannel;
-import com.jetlang.remote.core.HeartbeatEvent;
-import com.jetlang.remote.core.MsgTypes;
-import com.jetlang.remote.core.ReadTimeoutEvent;
+import com.jetlang.remote.core.*;
 import org.jetlang.channels.MemoryChannel;
 import org.jetlang.channels.Subscriber;
 import org.jetlang.fibers.Fiber;
@@ -34,12 +31,14 @@ public class JetlangStreamSession implements JetlangSession {
     private final Object id;
     private final MessageStreamWriter socket;
     private final Fiber sendFiber;
+    private final ErrorHandler errorHandler;
     private final Set<String> subscriptions = Collections.synchronizedSet(new HashSet<String>());
 
-    public JetlangStreamSession(Object id, MessageStreamWriter socket, Fiber sendFiber) {
+    public JetlangStreamSession(Object id, MessageStreamWriter socket, Fiber sendFiber, ErrorHandler errorHandler) {
         this.id = id;
         this.socket = socket;
         this.sendFiber = sendFiber;
+        this.errorHandler = errorHandler;
     }
 
     public Object getSessionId() {
@@ -83,6 +82,7 @@ public class JetlangStreamSession implements JetlangSession {
 
     private void handleDisconnect(IOException e) {
         socket.tryClose();
+        errorHandler.onException(e);
     }
 
     public boolean disconnect() {
@@ -111,7 +111,7 @@ public class JetlangStreamSession implements JetlangSession {
     }
 
     public void reply(final int reqId, final String replyTopic, final Object replyMsg) {
-        final Runnable replyRunner = new Runnable() {
+        Runnable replyRunner = new Runnable() {
             public void run() {
                 try {
                     socket.writeReply(reqId, replyTopic, replyMsg);
@@ -124,7 +124,7 @@ public class JetlangStreamSession implements JetlangSession {
     }
 
 
-    public void publishIfSubscribed(final String topic, final byte[] data) {
+    public void publishIfSubscribed(String topic, final byte[] data) {
         if (subscriptions.contains(topic)) {
             Runnable r = new Runnable() {
                 public void run() {

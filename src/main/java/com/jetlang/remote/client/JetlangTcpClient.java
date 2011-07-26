@@ -1,7 +1,6 @@
 package com.jetlang.remote.client;
 
 import com.jetlang.remote.acceptor.MessageStreamWriter;
-import com.jetlang.remote.acceptor.TcpSocket;
 import com.jetlang.remote.core.*;
 import org.jetlang.channels.*;
 import org.jetlang.core.Callback;
@@ -50,19 +49,6 @@ public class JetlangTcpClient implements JetlangClient {
     private final Channel<HeartbeatEvent> Heartbeat = channel();
     private AtomicInteger reqId = new AtomicInteger();
     private final Map<Integer, Req> pendingRequests = new HashMap<Integer, Req>();
-
-    public interface ErrorHandler {
-
-        void onConnectionFailure(Exception failed);
-
-        @SuppressWarnings({"CallToPrintStackTrace"})
-        class SysOut implements ErrorHandler {
-
-            public void onConnectionFailure(Exception failed) {
-                failed.printStackTrace();
-            }
-        }
-    }
 
     public JetlangTcpClient(SocketConnector socketConnector,
                             Fiber sendFiber,
@@ -166,7 +152,7 @@ public class JetlangTcpClient implements JetlangClient {
                 Socket socket = socketConnector.connect();
                 handleConnect(socket);
             } catch (Exception failed) {
-                errorHandler.onConnectionFailure(failed);
+                errorHandler.onException(failed);
                 socket = null;
             }
         }
@@ -193,7 +179,7 @@ public class JetlangTcpClient implements JetlangClient {
     private void handleConnect(Socket newSocket) throws IOException {
         this.pendingConnect.dispose();
         this.pendingConnect = null;
-        this.socket = new SocketMessageStreamWriter(new TcpSocket(newSocket), charset, ser.getWriter());
+        this.socket = new SocketMessageStreamWriter(new TcpSocket(newSocket, errorHandler), charset, ser.getWriter());
         for (String subscription : channels.keySet()) {
             sendSubscription(subscription, MsgTypes.Subscription);
         }
@@ -210,7 +196,7 @@ public class JetlangTcpClient implements JetlangClient {
                 }
             }
         };
-        Thread readThread = new Thread(reader);
+        Thread readThread = new Thread(reader, getClass().getSimpleName());
         readThread.start();
         if (config.getHeartbeatIntervalInMs() > 0) {
             hbSchedule = sendFiber.scheduleWithFixedDelay(hb, config.getHeartbeatIntervalInMs(), config.getHeartbeatIntervalInMs(), TimeUnit.MILLISECONDS);
@@ -286,7 +272,7 @@ public class JetlangTcpClient implements JetlangClient {
                             socket.writeByteAsInt(MsgTypes.Disconnect);
                             logoutLatch.await(1, TimeUnit.SECONDS);
                         } catch (Exception e) {
-                            e.printStackTrace();
+                            errorHandler.onException(e);
                         }
 
                     }
