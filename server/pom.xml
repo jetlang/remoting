@@ -3,10 +3,10 @@
 
     <modelVersion>4.0.0</modelVersion>
     <groupId>org.jetlang</groupId>
-    <artifactId>jetlang.remoting</artifactId>
+    <artifactId>remoting</artifactId>
 
     <version>0.2.0</version>
-    <name>Jetlang</name>
+    <name>Jetlang Remoting</name>
     <url>http://code.google.com/p/jetlang/</url>
 
     <description>
