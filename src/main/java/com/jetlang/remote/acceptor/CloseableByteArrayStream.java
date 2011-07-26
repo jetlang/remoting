@@ -23,7 +23,7 @@ public class CloseableByteArrayStream implements ClosableOutputStream {
         try {
             data.close();
             return true;
-        } catch (IOException e) {
+        } catch (IOException ignored) {
 
         }
         return false;

@@ -74,10 +74,10 @@ public class CloseableChannel<T> implements Channel<T> {
         private boolean closed;
         private final List<CloseableChannel<?>> allChannels = new ArrayList<CloseableChannel<?>>();
 
-        public <T> CloseableChannel<T> add(Channel<T> c) {
+        public <T> CloseableChannel<T> add(Channel<T> channel) {
             synchronized (allChannels) {
                 if (closed) throw new RuntimeException("Closed");
-                CloseableChannel<T> closeable = CloseableChannel.wrap(c);
+                CloseableChannel<T> closeable = CloseableChannel.wrap(channel);
                 allChannels.add(closeable);
                 return closeable;
             }

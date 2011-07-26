@@ -10,11 +10,11 @@ public class FiberPerSession implements NewSessionHandler {
     private final NewFiberSessionHandler fact;
     private final FiberPerSession.FiberFactory fiberFactory;
 
-    public static interface FiberFactory {
+    public interface FiberFactory {
 
         Fiber createForSession(JetlangSession session);
 
-        public static class ThreadFiberFactory implements FiberPerSession.FiberFactory {
+        class ThreadFiberFactory implements FiberPerSession.FiberFactory {
 
             public Fiber createForSession(JetlangSession session) {
                 return new ThreadFiber();
