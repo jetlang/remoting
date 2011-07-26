@@ -12,13 +12,14 @@ public class Acceptor implements Runnable {
     private final ClientHandler clientHandler;
     private final AtomicBoolean running = new AtomicBoolean(false);
 
-    public static interface ErrorHandler {
+    public interface ErrorHandler {
 
         void acceptError(IOException e, AtomicBoolean running);
 
         void closeError(IOException e);
 
-        public class SysOut implements ErrorHandler {
+        @SuppressWarnings({"CallToPrintStackTrace"})
+        class SysOut implements ErrorHandler {
             public void acceptError(IOException e, AtomicBoolean running) {
                 if (running.get()) {
                     e.printStackTrace();
@@ -31,14 +32,14 @@ public class Acceptor implements Runnable {
         }
     }
 
-    public static interface ClientHandler {
+    public interface ClientHandler {
 
         void startClient(Socket socket);
 
         void close();
     }
 
-    public Acceptor(final ServerSocket port, final ErrorHandler handler, final ClientHandler clientHandler) {
+    public Acceptor(ServerSocket port, ErrorHandler handler, ClientHandler clientHandler) {
         this.port = port;
         this.handler = handler;
         this.clientHandler = clientHandler;

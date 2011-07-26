@@ -8,6 +8,7 @@ import java.io.IOException;
 import java.net.Socket;
 import java.net.SocketException;
 import java.nio.charset.Charset;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
@@ -22,20 +23,20 @@ public class JetlangClientHandler implements Acceptor.ClientHandler, ClientPubli
     private final FiberFactory fiberFactory;
     private final ClientErrorHandler errorHandler;
     private final AtomicBoolean running = new AtomicBoolean(true);
-    private final HashSet<ClientTcpSocket> clients = new HashSet<ClientTcpSocket>();
+    private final Collection<ClientTcpSocket> clients = new HashSet<ClientTcpSocket>();
     private final Charset charset = Charset.forName("US-ASCII");
     private final CloseableByteArrayStream globalBuffer = new CloseableByteArrayStream();
 
     private final Fiber globalSendFiber;
     private final SocketMessageStreamWriter stream;
 
-    public static interface FiberFactory {
+    public interface FiberFactory {
 
         Fiber createGlobalSendFiber();
 
         Fiber createSendFiber(Socket socket);
 
-        public static class ThreadFiberFactory implements FiberFactory {
+        class ThreadFiberFactory implements FiberFactory {
 
             public Fiber createGlobalSendFiber() {
                 return new ThreadFiber();
@@ -47,11 +48,12 @@ public class JetlangClientHandler implements Acceptor.ClientHandler, ClientPubli
         }
     }
 
-    public static interface ClientErrorHandler {
+    public interface ClientErrorHandler {
 
         void onClientException(Exception e);
 
-        public static class SysOutClientErrorHandler implements ClientErrorHandler {
+        @SuppressWarnings({"CallToPrintStackTrace"})
+        class SysOutClientErrorHandler implements ClientErrorHandler {
             public void onClientException(Exception e) {
                 e.printStackTrace();
             }
@@ -79,7 +81,7 @@ public class JetlangClientHandler implements Acceptor.ClientHandler, ClientPubli
         }
     }
 
-    public void startClient(final Socket socket) {
+    public void startClient(Socket socket) {
         ClientTcpSocket client = new ClientTcpSocket(new TcpSocket(socket));
         synchronized (clients) {
             if (running.get()) {
@@ -94,6 +96,7 @@ public class JetlangClientHandler implements Acceptor.ClientHandler, ClientPubli
             Runnable clientReader = createRunnable(client);
             exec.execute(clientReader);
         } catch (IOException e) {
+            errorHandler.onClientException(e);
             stopAndRemove(client);
         }
     }
@@ -151,12 +154,12 @@ public class JetlangClientHandler implements Acceptor.ClientHandler, ClientPubli
         return new Runnable() {
             public void run() {
                 try {
-                    final Runnable onReadTimeout = new Runnable() {
+                    Runnable onReadTimeout = new Runnable() {
                         public void run() {
                             session.onReadTimeout(new ReadTimeoutEvent());
                         }
                     };
-                    final StreamReader input = new StreamReader(socket.getInputStream(), charset, serializer.getReader(), onReadTimeout);
+                    StreamReader input = new StreamReader(socket.getInputStream(), charset, serializer.getReader(), onReadTimeout);
                     clientTcpSocket.setSession(session);
                     channels.onNewSession(JetlangClientHandler.this, session);
                     session.startHeartbeat(config.getHeartbeatIntervalInMs(), TimeUnit.MILLISECONDS);
@@ -226,7 +229,8 @@ public class JetlangClientHandler implements Acceptor.ClientHandler, ClientPubli
                 session.onRequest(reqId, reqmsgTopic, reqmsg);
                 break;
             default:
-                System.err.println("Unknown message type: " + read);
+                errorHandler.onClientException(
+                        new RuntimeException("Unknown message type " + read + " from " + session.getSessionId()));
                 return false;
         }
         return true;

@@ -10,10 +10,10 @@ import java.io.IOException;
 public interface CloseEvent {
 
 
-    public static class GracefulDisconnect implements CloseEvent {
+    class GracefulDisconnect implements CloseEvent {
     }
 
-    public abstract static class IOExceptionEvent implements CloseEvent {
+    abstract class IOExceptionEvent implements CloseEvent {
         private final IOException e;
 
         public IOExceptionEvent(IOException e) {
@@ -30,13 +30,13 @@ public interface CloseEvent {
         }
     }
 
-    public static class WriteException extends IOExceptionEvent {
+    class WriteException extends IOExceptionEvent {
         public WriteException(IOException e) {
             super(e);
         }
     }
 
-    public static class ReadException extends IOExceptionEvent {
+    class ReadException extends IOExceptionEvent {
         public ReadException(IOException e) {
             super(e);
         }

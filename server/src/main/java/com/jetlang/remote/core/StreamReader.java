@@ -28,7 +28,7 @@ public class StreamReader {
                     throw new IOException("Read End");
                 }
                 return read;
-            } catch (SocketTimeoutException timeout) {
+            } catch (SocketTimeoutException ignored) {
                 onReadTimeout.run();
             }
         }
@@ -58,7 +58,7 @@ public class StreamReader {
                     throw new IOException("End Read");
                 }
                 return read;
-            } catch (SocketTimeoutException timeout) {
+            } catch (SocketTimeoutException ignored) {
                 onReadTimeout.run();
             }
         }

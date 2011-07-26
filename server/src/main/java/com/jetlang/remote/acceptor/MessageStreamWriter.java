@@ -20,7 +20,6 @@ public interface MessageStreamWriter {
 
     boolean tryClose();
 
-
     void writeReply(int reqId, String reqTopic, Object replyMsg) throws IOException;
 
     void writeSubscription(int msgType, String subject, Charset charset) throws IOException;

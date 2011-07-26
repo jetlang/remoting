@@ -55,7 +55,8 @@ public class JetlangTcpClient implements JetlangClient {
 
         void onConnectionFailure(Exception failed);
 
-        public class SysOut implements ErrorHandler {
+        @SuppressWarnings({"CallToPrintStackTrace"})
+        class SysOut implements ErrorHandler {
 
             public void onConnectionFailure(Exception failed) {
                 failed.printStackTrace();
@@ -75,7 +76,7 @@ public class JetlangTcpClient implements JetlangClient {
         this.errorHandler = errorHandler;
     }
 
-    public <T> Disposable subscribe(final String subject, final Subscribable<T> callback) {
+    public <T> Disposable subscribe(final String subject, Subscribable<T> callback) {
         CloseableChannel<T> channel;
         synchronized (channels) {
             //noinspection unchecked
@@ -240,7 +241,7 @@ public class JetlangTcpClient implements JetlangClient {
                 default:
                     throw new IOException("Unknown msg: " + msg);
             }
-        } catch (SocketTimeoutException readTimeout) {
+        } catch (SocketTimeoutException ignored) {
             this.ReadTimeout.publish(new ReadTimeoutEvent());
             return true;
         }
@@ -371,11 +372,11 @@ public class JetlangTcpClient implements JetlangClient {
                     }
                 }
             };
-            final Disposable d = sendFiber.schedule(onTimeout, timeout, timeUnit);
+            final Disposable disposable = sendFiber.schedule(onTimeout, timeout, timeUnit);
             return new Disposable() {
                 public void dispose() {
                     disposed.set(true);
-                    d.dispose();
+                    disposable.dispose();
                 }
             };
         } else {
@@ -400,7 +401,7 @@ public class JetlangTcpClient implements JetlangClient {
         return Connected;
     }
 
-    public <T> void publish(final String topic, final T msg) {
+    public <T> void publish(String topic, T msg) {
         publish(topic, msg, null);
     }
 
