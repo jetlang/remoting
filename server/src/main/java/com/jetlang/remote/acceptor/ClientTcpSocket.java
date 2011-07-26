@@ -1,5 +1,7 @@
 package com.jetlang.remote.acceptor;
 
+import com.jetlang.remote.core.TcpSocket;
+
 /**
  * User: mrettig
  * Date: 4/13/11

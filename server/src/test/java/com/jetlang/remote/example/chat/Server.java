@@ -2,6 +2,7 @@ package com.jetlang.remote.example.chat;
 
 import com.jetlang.remote.acceptor.*;
 import com.jetlang.remote.core.ByteArraySerializer;
+import com.jetlang.remote.core.ErrorHandler;
 import org.jetlang.core.Callback;
 import org.jetlang.core.SynchronousDisposingExecutor;
 
@@ -37,7 +38,7 @@ public class Server {
 
         JetlangClientHandler handler = new JetlangClientHandler(new ByteArraySerializer.Factory(), sessions,
                 service, sessionConfig, new JetlangClientHandler.FiberFactory.ThreadFiberFactory(),
-                new JetlangClientHandler.ClientErrorHandler.SysOutClientErrorHandler());
+                new ErrorHandler.SysOut());
         Acceptor acceptor = new Acceptor(
                 new ServerSocket(port),
                 new Acceptor.ErrorHandler.SysOut(),

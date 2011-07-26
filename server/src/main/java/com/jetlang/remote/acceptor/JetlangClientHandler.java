@@ -21,7 +21,7 @@ public class JetlangClientHandler implements Acceptor.ClientHandler, ClientPubli
     private final Executor exec;
     private final JetlangSessionConfig config;
     private final FiberFactory fiberFactory;
-    private final ClientErrorHandler errorHandler;
+    private final ErrorHandler errorHandler;
     private final AtomicBoolean running = new AtomicBoolean(true);
     private final Collection<ClientTcpSocket> clients = new HashSet<ClientTcpSocket>();
     private final Charset charset = Charset.forName("US-ASCII");
@@ -48,24 +48,12 @@ public class JetlangClientHandler implements Acceptor.ClientHandler, ClientPubli
         }
     }
 
-    public interface ClientErrorHandler {
-
-        void onClientException(Exception e);
-
-        @SuppressWarnings({"CallToPrintStackTrace"})
-        class SysOutClientErrorHandler implements ClientErrorHandler {
-            public void onClientException(Exception e) {
-                e.printStackTrace();
-            }
-        }
-    }
-
     public JetlangClientHandler(SerializerFactory ser,
                                 NewSessionHandler channels,
                                 Executor exec,
                                 JetlangSessionConfig config,
                                 FiberFactory fiberFactory,
-                                ClientErrorHandler errorHandler) {
+                                ErrorHandler errorHandler) {
         this.ser = ser;
         this.channels = channels;
         this.exec = exec;
@@ -82,7 +70,7 @@ public class JetlangClientHandler implements Acceptor.ClientHandler, ClientPubli
     }
 
     public void startClient(Socket socket) {
-        ClientTcpSocket client = new ClientTcpSocket(new TcpSocket(socket));
+        ClientTcpSocket client = new ClientTcpSocket(new TcpSocket(socket, errorHandler));
         synchronized (clients) {
             if (running.get()) {
                 clients.add(client);
@@ -96,7 +84,7 @@ public class JetlangClientHandler implements Acceptor.ClientHandler, ClientPubli
             Runnable clientReader = createRunnable(client);
             exec.execute(clientReader);
         } catch (IOException e) {
-            errorHandler.onClientException(e);
+            errorHandler.onException(e);
             stopAndRemove(client);
         }
     }
@@ -150,7 +138,7 @@ public class JetlangClientHandler implements Acceptor.ClientHandler, ClientPubli
         final TcpSocket socket = clientTcpSocket.getSocket();
         final Fiber sendFiber = fiberFactory.createSendFiber(socket.getSocket());
         final Serializer serializer = ser.createForSocket(socket.getSocket());
-        final JetlangStreamSession session = new JetlangStreamSession(socket.getRemoteSocketAddress(), new SocketMessageStreamWriter(socket, charset, serializer.getWriter()), sendFiber);
+        final JetlangStreamSession session = new JetlangStreamSession(socket.getRemoteSocketAddress(), new SocketMessageStreamWriter(socket, charset, serializer.getWriter()), sendFiber, errorHandler);
         return new Runnable() {
             public void run() {
                 try {
@@ -170,7 +158,7 @@ public class JetlangClientHandler implements Acceptor.ClientHandler, ClientPubli
                 } catch (IOException disconnect) {
                     //failed.printStackTrace();
                 } catch (Exception clientFailure) {
-                    errorHandler.onClientException(clientFailure);
+                    errorHandler.onException(clientFailure);
                 } finally {
                     sendFiber.dispose();
                     stopAndRemove(clientTcpSocket);
@@ -229,7 +217,7 @@ public class JetlangClientHandler implements Acceptor.ClientHandler, ClientPubli
                 session.onRequest(reqId, reqmsgTopic, reqmsg);
                 break;
             default:
-                errorHandler.onClientException(
+                errorHandler.onException(
                         new RuntimeException("Unknown message type " + read + " from " + session.getSessionId()));
                 return false;
         }

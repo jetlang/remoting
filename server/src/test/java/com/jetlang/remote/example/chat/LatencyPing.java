@@ -1,6 +1,7 @@
 package com.jetlang.remote.example.chat;
 
 import com.jetlang.remote.client.*;
+import com.jetlang.remote.core.ErrorHandler;
 import com.jetlang.remote.core.JavaSerializer;
 import org.jetlang.core.Callback;
 import org.jetlang.core.SynchronousDisposingExecutor;
@@ -84,7 +85,7 @@ public class LatencyPing {
         SocketConnector conn = new SocketConnector(host, port);
         JetlangClientConfig clientConfig = new JetlangClientConfig();
 
-        JetlangTcpClient tcpClient = new JetlangTcpClient(conn, new ThreadFiber(), clientConfig, new JavaSerializer(), new JetlangTcpClient.ErrorHandler.SysOut());
+        JetlangTcpClient tcpClient = new JetlangTcpClient(conn, new ThreadFiber(), clientConfig, new JavaSerializer(), new ErrorHandler.SysOut());
         SynchronousDisposingExecutor executor = new SynchronousDisposingExecutor();
         tcpClient.getConnectChannel().subscribe(executor, Client.<ConnectEvent>print("Connect"));
         tcpClient.getCloseChannel().subscribe(executor, Client.<CloseEvent>print("Closed"));

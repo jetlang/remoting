@@ -2,6 +2,7 @@ package com.jetlang.remote;
 
 import com.jetlang.remote.acceptor.*;
 import com.jetlang.remote.client.*;
+import com.jetlang.remote.core.ErrorHandler;
 import com.jetlang.remote.core.HeartbeatEvent;
 import com.jetlang.remote.core.JavaSerializer;
 import com.jetlang.remote.core.ReadTimeoutEvent;
@@ -296,13 +297,13 @@ public class IntegrationTest {
     }
 
     private JetlangClient createClient() {
-        return new JetlangTcpClient(conn, new ThreadFiber(), clientConfig, new JavaSerializer(), new JetlangTcpClient.ErrorHandler.SysOut());
+        return new JetlangTcpClient(conn, new ThreadFiber(), clientConfig, new JavaSerializer(), new ErrorHandler.SysOut());
     }
 
     private Acceptor createAcceptor(NewSessionHandler newSession) throws IOException {
         handler = new JetlangClientHandler(new JavaSerializer.Factory(), newSession,
                 service, sessionConfig, new JetlangClientHandler.FiberFactory.ThreadFiberFactory(),
-                new JetlangClientHandler.ClientErrorHandler.SysOutClientErrorHandler());
+                new ErrorHandler.SysOut());
         return new Acceptor(
                 new ServerSocket(8081),
                 new Acceptor.ErrorHandler.SysOut(),
