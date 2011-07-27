@@ -23,6 +23,8 @@ public interface JetlangClient {
 
     Subscriber<ReadTimeoutEvent> getReadTimeoutChannel();
 
+    Subscriber<DeadMessageEvent> getDeadMessageChannel();
+
     <T> void publish(String topic, T msg);
 
     <T> Disposable subscribe(String subject, Subscribable<T> callback);
@@ -37,5 +39,7 @@ public interface JetlangClient {
                            Object req,
                            DisposingExecutor executor,
                            Callback<T> callback,
-                           Callback<TimeoutControls> timeoutRunnable, int timeout, TimeUnit timeUnit);
+                           Callback<TimeoutControls> timeoutRunnable,
+                           int timeout,
+                           TimeUnit timeUnit);
 }
