@@ -42,6 +42,7 @@ public class JetlangTcpClient implements JetlangClient {
     private final Channel<ConnectEvent> Connected = channel();
     private final Channel<CloseEvent> Closed = channel();
     private final Channel<ReadTimeoutEvent> ReadTimeout = channel();
+    private final Channel<DeadMessageEvent> DeadMessage = channel();
 
     private final AtomicBoolean closed = new AtomicBoolean(false);
     private final CountDownLatch logoutLatch = new CountDownLatch(1);
@@ -261,7 +262,6 @@ public class JetlangTcpClient implements JetlangClient {
         return subscribe(topic, new ChannelSubscription<T>(clientFiber, cb));
     }
 
-
     public CountDownLatch close(final boolean sendLogoutIfStillConnected) {
         final CountDownLatch closedLatch = new CountDownLatch(1);
         if (closed.compareAndSet(false, true)) {
@@ -387,6 +387,10 @@ public class JetlangTcpClient implements JetlangClient {
         return Connected;
     }
 
+    public Subscriber<DeadMessageEvent> getDeadMessageChannel() {
+        return DeadMessage;
+    }
+
     public <T> void publish(String topic, T msg) {
         publish(topic, msg, null);
     }
@@ -400,8 +404,11 @@ public class JetlangTcpClient implements JetlangClient {
                         if (onSend != null)
                             onSend.run();
                     } catch (IOException e) {
+                        DeadMessage.publish(new DeadMessageEvent(topic, msg));
                         handleDisconnect(new CloseEvent.WriteException(e));
                     }
+                } else {
+                    DeadMessage.publish(new DeadMessageEvent(topic, msg));
                 }
             }
         };
