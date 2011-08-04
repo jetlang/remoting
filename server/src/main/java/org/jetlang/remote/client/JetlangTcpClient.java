@@ -12,6 +12,7 @@ import java.io.IOException;
 import java.net.Socket;
 import java.net.SocketTimeoutException;
 import java.nio.charset.Charset;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -49,7 +50,7 @@ public class JetlangTcpClient implements JetlangClient {
     private Disposable hbSchedule;
     private final Channel<HeartbeatEvent> Heartbeat = channel();
     private AtomicInteger reqId = new AtomicInteger();
-    private final Map<Integer, Req> pendingRequests = new HashMap<Integer, Req>();
+    private final Map<Integer, Req> pendingRequests = Collections.synchronizedMap(new HashMap<Integer, Req>());
 
     public JetlangTcpClient(SocketConnector socketConnector,
                             Fiber sendFiber,
@@ -114,7 +115,7 @@ public class JetlangTcpClient implements JetlangClient {
         }
     }
 
-    private void publicReply(int id, Object reply) {
+    private void publishReply(int id, Object reply) {
         Req r = pendingRequests.remove(id);
         if (r != null) {
             //noinspection unchecked
@@ -223,7 +224,7 @@ public class JetlangTcpClient implements JetlangClient {
                     int reqId = stream.readInt();
                     String reqTopic = stream.readStringWithSize();
                     Object reply = stream.readObjectWithSize(reqTopic);
-                    publicReply(reqId, reply);
+                    publishReply(reqId, reply);
                     return true;
                 default:
                     throw new IOException("Unknown msg: " + msg);
@@ -340,20 +341,14 @@ public class JetlangTcpClient implements JetlangClient {
         sendFiber.execute(reqSend);
         if (timeout > 0 && callback != null) {
             Runnable onTimeout = new Runnable() {
-                final TimeoutControls controls = new TimeoutControls() {
-                    public void cancelRequest() {
-                        disposed.set(true);
-                        Runnable removeId = new Runnable() {
-                            public void run() {
+                public void run() {
+                    if (!disposed.get()) {
+                        TimeoutControls controls = new TimeoutControls() {
+                            public void cancelRequest() {
+                                disposed.set(true);
                                 pendingRequests.remove(id);
                             }
                         };
-                        sendFiber.execute(removeId);
-                    }
-                };
-
-                public void run() {
-                    if (!disposed.get()) {
                         timeoutRunnable.onMessage(controls);
                     }
                 }
