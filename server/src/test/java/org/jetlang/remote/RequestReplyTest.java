@@ -48,8 +48,8 @@ public class RequestReplyTest {
                 Callback<SessionRequest> onRequest = new Callback<SessionRequest>() {
 
                     public void onMessage(SessionRequest sessionRequest) {
-                        assertEquals(sessionRequest.getTopic(), "reqTopic");
-                        assertEquals(sessionRequest.getRequest(), "requestObject");
+                        assertEquals("reqTopic", sessionRequest.getTopic());
+                        assertEquals("requestObject", sessionRequest.getRequest());
                         sessionRequest.reply("replyMsg");
                     }
                 };
@@ -80,9 +80,6 @@ public class RequestReplyTest {
             reply.assertEvent();
             assertEquals("replyMsg", reply.takeFromReceived());
             assertEquals(0, timeout.received.size());
-            if(i % 1000 == 0){
-                System.out.println("i = " + i);
-            }
         }
         close(client);
         acceptor.stop();
