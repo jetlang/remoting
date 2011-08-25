@@ -1,11 +1,11 @@
 package org.jetlang.remote.client;
 
-import org.jetlang.remote.acceptor.MessageStreamWriter;
 import org.jetlang.channels.*;
 import org.jetlang.core.Callback;
 import org.jetlang.core.Disposable;
 import org.jetlang.core.DisposingExecutor;
 import org.jetlang.fibers.Fiber;
+import org.jetlang.remote.acceptor.MessageStreamWriter;
 import org.jetlang.remote.core.*;
 
 import java.io.IOException;
@@ -182,8 +182,10 @@ public class JetlangTcpClient implements JetlangClient {
         this.pendingConnect.dispose();
         this.pendingConnect = null;
         this.socket = new SocketMessageStreamWriter(new TcpSocket(newSocket, errorHandler), charset, ser.getWriter());
-        for (String subscription : channels.keySet()) {
-            sendSubscription(subscription, MsgTypes.Subscription);
+        synchronized (channels) {
+            for (String subscription : channels.keySet()) {
+                sendSubscription(subscription, MsgTypes.Subscription);
+            }
         }
         final StreamReader stream = new StreamReader(newSocket.getInputStream(), charset, ser.getReader(), onReadTimeout);
         Runnable reader = new Runnable() {
