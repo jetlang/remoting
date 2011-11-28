@@ -25,10 +25,9 @@ public class JetlangClientHandler implements Acceptor.ClientHandler, ClientPubli
     private final AtomicBoolean running = new AtomicBoolean(true);
     private final Collection<ClientTcpSocket> clients = new HashSet<ClientTcpSocket>();
     private final Charset charset = Charset.forName("US-ASCII");
-    private final CloseableByteArrayStream globalBuffer = new CloseableByteArrayStream();
+    private final BufferedSerializer globalBuffer;
 
     private final Fiber globalSendFiber;
-    private final SocketMessageStreamWriter stream;
 
     public interface FiberFactory {
 
@@ -62,11 +61,11 @@ public class JetlangClientHandler implements Acceptor.ClientHandler, ClientPubli
         this.errorHandler = errorHandler;
         this.globalSendFiber = fiberFactory.createGlobalSendFiber();
         this.globalSendFiber.start();
-        try {
-            this.stream = new SocketMessageStreamWriter(globalBuffer, charset, ser.createForGlobalWriter());
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
+        this.globalBuffer = new BufferedSerializer(charset, ser.createForGlobalWriter());
+    }
+
+    public BufferedSerializer createSerializer(){
+        return new BufferedSerializer(charset, ser.createForGlobalWriter());
     }
 
     public void startClient(Socket socket) {
@@ -114,23 +113,30 @@ public class JetlangClientHandler implements Acceptor.ClientHandler, ClientPubli
         }
     }
 
+    /**
+     * Publishes asynchronously on a separate global fiber, so be careful of message ordering when using with other fibers.
+     *
+     * Serialization and enqueueing are done on a separate fiber.
+     */
     public void publishToAllSubscribedClients(final String topic, final Object msg) {
         Runnable toSend = new Runnable() {
             public void run() {
-                globalBuffer.reset();
-                try {
-                    stream.write(topic, msg);
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
-                }
-                synchronized (clients) {
-                    for (ClientTcpSocket client : clients) {
-                        client.publishIfSubscribed(topic, globalBuffer.data.toByteArray());
-                    }
-                }
+                byte[] copy = globalBuffer.createArray(topic, msg);
+                enqueueToAllSubscribedClients(topic, copy);
             }
         };
         globalSendFiber.execute(toSend);
+    }
+
+    /**
+     * Places the serialized bytes into the send q's for all subscribed clients.
+     */
+    public void enqueueToAllSubscribedClients(String topic, byte[] data) {
+        synchronized (clients) {
+            for (ClientTcpSocket client : clients) {
+                client.publishIfSubscribed(topic, data);
+            }
+        }
     }
 
 

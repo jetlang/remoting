@@ -24,4 +24,9 @@ public class SessionRequest {
     public void reply(Object replyMsg) {
         session.reply(reqId, reqmsgTopic, replyMsg);
     }
+
+    public void reply(Object replyMsg, String replyTopic) {
+        session.reply(reqId, replyTopic, replyMsg);
+    }
+
 }
