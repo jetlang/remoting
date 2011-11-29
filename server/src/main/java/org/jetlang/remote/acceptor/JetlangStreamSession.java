@@ -110,6 +110,23 @@ public class JetlangStreamSession implements JetlangSession {
         sendFiber.execute(r);
     }
 
+    public void publish(final byte[] data) {
+        Runnable r = new Runnable() {
+            public void run() {
+                writeBytesOnSendFiberThread(data);
+            }
+        };
+        sendFiber.execute(r);
+    }
+
+    private void writeBytesOnSendFiberThread(byte[] data) {
+        try {
+            socket.writeBytes(data);
+        } catch (IOException e) {
+            handleDisconnect(e);
+        }
+    }
+
     public void reply(final int reqId, final String replyTopic, final Object replyMsg) {
         Runnable replyRunner = new Runnable() {
             public void run() {
@@ -128,11 +145,7 @@ public class JetlangStreamSession implements JetlangSession {
         if (subscriptions.contains(topic)) {
             Runnable r = new Runnable() {
                 public void run() {
-                    try {
-                        socket.writeBytes(data);
-                    } catch (IOException e) {
-                        handleDisconnect(e);
-                    }
+                    writeBytesOnSendFiberThread(data);
                 }
             };
             sendFiber.execute(r);

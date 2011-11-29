@@ -7,7 +7,6 @@ import org.jetlang.remote.core.*;
 import java.io.IOException;
 import java.net.Socket;
 import java.net.SocketException;
-import java.nio.charset.Charset;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.concurrent.Executor;
@@ -16,7 +15,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 public class JetlangClientHandler implements Acceptor.ClientHandler, ClientPublisher {
 
-    private final SerializerFactory ser;
+    private final SerializerAdapter ser;
     private final NewSessionHandler channels;
     private final Executor exec;
     private final JetlangSessionConfig config;
@@ -24,7 +23,6 @@ public class JetlangClientHandler implements Acceptor.ClientHandler, ClientPubli
     private final ErrorHandler errorHandler;
     private final AtomicBoolean running = new AtomicBoolean(true);
     private final Collection<ClientTcpSocket> clients = new HashSet<ClientTcpSocket>();
-    private final Charset charset = Charset.forName("US-ASCII");
     private final BufferedSerializer globalBuffer;
 
     private final Fiber globalSendFiber;
@@ -47,7 +45,15 @@ public class JetlangClientHandler implements Acceptor.ClientHandler, ClientPubli
         }
     }
 
-    public JetlangClientHandler(SerializerFactory ser,
+    public JetlangClientHandler(SerializerFactory fact, NewSessionHandler channels,
+                                Executor exec,
+                                JetlangSessionConfig config,
+                                FiberFactory fiberFactory,
+                                ErrorHandler errorHandler){
+        this(new SerializerAdapter(fact), channels, exec, config, fiberFactory, errorHandler);
+    }
+
+    public JetlangClientHandler(SerializerAdapter ser,
                                 NewSessionHandler channels,
                                 Executor exec,
                                 JetlangSessionConfig config,
@@ -61,11 +67,7 @@ public class JetlangClientHandler implements Acceptor.ClientHandler, ClientPubli
         this.errorHandler = errorHandler;
         this.globalSendFiber = fiberFactory.createGlobalSendFiber();
         this.globalSendFiber.start();
-        this.globalBuffer = new BufferedSerializer(charset, ser.createForGlobalWriter());
-    }
-
-    public BufferedSerializer createSerializer(){
-        return new BufferedSerializer(charset, ser.createForGlobalWriter());
+        this.globalBuffer = ser.createBuffered();
     }
 
     public void startClient(Socket socket) {
@@ -114,7 +116,7 @@ public class JetlangClientHandler implements Acceptor.ClientHandler, ClientPubli
     }
 
     /**
-     * Publishes asynchronously on a separate global fiber, so be careful of message ordering when using with other fibers.
+     * Publishes asynchronously on a separate global fiber, so be careful of message ordering when using with other fibers/threads.
      *
      * Serialization and enqueueing are done on a separate fiber.
      */
@@ -130,6 +132,8 @@ public class JetlangClientHandler implements Acceptor.ClientHandler, ClientPubli
 
     /**
      * Places the serialized bytes into the send q's for all subscribed clients.
+     *
+     * Subscriptions are made on another thread so it is possible that this will enqueue a message to a client that hasn't been handled in a new session callback.
      */
     public void enqueueToAllSubscribedClients(String topic, byte[] data) {
         synchronized (clients) {
@@ -143,8 +147,8 @@ public class JetlangClientHandler implements Acceptor.ClientHandler, ClientPubli
     private Runnable createRunnable(final ClientTcpSocket clientTcpSocket) throws IOException {
         final TcpSocket socket = clientTcpSocket.getSocket();
         final Fiber sendFiber = fiberFactory.createSendFiber(socket.getSocket());
-        final Serializer serializer = ser.createForSocket(socket.getSocket());
-        final JetlangStreamSession session = new JetlangStreamSession(socket.getRemoteSocketAddress(), new SocketMessageStreamWriter(socket, charset, serializer.getWriter()), sendFiber, errorHandler);
+        final Serializer serializer = ser.createForSocket(socket);
+        final JetlangStreamSession session = new JetlangStreamSession(socket.getRemoteSocketAddress(), new SocketMessageStreamWriter(socket, ser.getCharset(), serializer.getWriter()), sendFiber, errorHandler);
         return new Runnable() {
             public void run() {
                 try {
@@ -153,7 +157,7 @@ public class JetlangClientHandler implements Acceptor.ClientHandler, ClientPubli
                             session.onReadTimeout(new ReadTimeoutEvent());
                         }
                     };
-                    StreamReader input = new StreamReader(socket.getInputStream(), charset, serializer.getReader(), onReadTimeout);
+                    StreamReader input = new StreamReader(socket.getInputStream(), ser.getCharset(), serializer.getReader(), onReadTimeout);
                     clientTcpSocket.setSession(session);
                     channels.onNewSession(JetlangClientHandler.this, session);
                     session.startHeartbeat(config.getHeartbeatIntervalInMs(), TimeUnit.MILLISECONDS);
