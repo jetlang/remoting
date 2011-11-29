@@ -35,4 +35,10 @@ public interface JetlangSession {
      * @return true if close succeeds
      */
     boolean disconnect();
+
+    /**
+     * publish raw bytes. The bytes should be correctly formatted with the topic included. The bytes will
+     * be published asynchronously, so the byte array should be a thread safe copy of the data.
+     */
+    void publish(byte[] data);
 }
