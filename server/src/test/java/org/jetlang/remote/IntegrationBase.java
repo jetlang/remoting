@@ -3,7 +3,6 @@ package org.jetlang.remote;
 import org.jetlang.core.Callback;
 import org.jetlang.core.Disposable;
 import org.jetlang.core.SynchronousDisposingExecutor;
-import org.jetlang.fibers.Fiber;
 import org.jetlang.fibers.ThreadFiber;
 import org.jetlang.remote.acceptor.*;
 import org.jetlang.remote.client.*;
@@ -46,7 +45,7 @@ public abstract class IntegrationBase {
         final EventAssert<HeartbeatEvent> hb = new EventAssert<HeartbeatEvent>(3);
 
         NewSessionHandler sessionCallback = wrap(new NewFiberSessionHandler() {
-            public void onNewSession(ClientPublisher pub, JetlangSession message, Fiber f) {
+            public void onNewSession(ClientPublisher pub, JetlangFiberSession message) {
                 hb.subscribe(message.getHeartbeatChannel());
             }
         });
@@ -69,7 +68,7 @@ public abstract class IntegrationBase {
         final EventAssert<ReadTimeoutEvent> serverSessionTimeout = new EventAssert<ReadTimeoutEvent>(1);
 
         NewSessionHandler sessionCallback = wrap(new NewFiberSessionHandler() {
-            public void onNewSession(ClientPublisher pub, JetlangSession session, Fiber f) {
+            public void onNewSession(ClientPublisher pub, JetlangFiberSession session) {
                 serverSessionTimeout.subscribe(session.getReadTimeoutChannel());
             }
         });
@@ -96,7 +95,7 @@ public abstract class IntegrationBase {
         final EventAssert<SessionCloseEvent> closeEvent = new EventAssert<SessionCloseEvent>(1);
 
         NewSessionHandler sessionCallback = wrap(new NewFiberSessionHandler() {
-            public void onNewSession(ClientPublisher pub, JetlangSession session, Fiber f) {
+            public void onNewSession(ClientPublisher pub, JetlangFiberSession session) {
                 closeEvent.subscribe(session.getSessionCloseChannel());
                 //immediate forced disconnect.
                 session.disconnect();
@@ -127,7 +126,7 @@ public abstract class IntegrationBase {
         final EventAssert<JetlangSession> openEvent = new EventAssert<JetlangSession>(2);
         final EventAssert<SessionTopic> subscriptions = EventAssert.create(2);
         NewSessionHandler sessionCallback = wrap(new NewFiberSessionHandler() {
-            public void onNewSession(ClientPublisher pub, JetlangSession session, Fiber f) {
+            public void onNewSession(ClientPublisher pub, JetlangFiberSession session) {
                 subscriptions.subscribe(session.getSubscriptionRequestChannel());
                 openEvent.receiveMessage(session);
             }
@@ -170,7 +169,7 @@ public abstract class IntegrationBase {
     public void requestReplyTimeout() throws IOException {
 
         NewSessionHandler sessionCallback = wrap(new NewFiberSessionHandler() {
-            public void onNewSession(ClientPublisher pub, JetlangSession session, Fiber f) {
+            public void onNewSession(ClientPublisher pub, JetlangFiberSession session) {
             }
         });
         Acceptor acceptor = createAcceptor(sessionCallback);
@@ -252,12 +251,12 @@ public abstract class IntegrationBase {
         final EventAssert<SessionCloseEvent> serverSessionClose = new EventAssert<SessionCloseEvent>(1);
 
         NewFiberSessionHandler handlerFactory = new NewFiberSessionHandler() {
-            public void onNewSession(ClientPublisher pub, JetlangSession session, Fiber fiber) {
-                subscriptionReceived.subscribe(session.getSubscriptionRequestChannel(), fiber);
-                logoutEvent.subscribe(session.getLogoutChannel(), fiber);
-                serverMessageReceive.subscribe(session.getSessionMessageChannel(), fiber);
-                unsubscribeReceive.subscribe(session.getUnsubscribeChannel(), fiber);
-                serverSessionClose.subscribe(session.getSessionCloseChannel(), fiber);
+            public void onNewSession(ClientPublisher pub, JetlangFiberSession session) {
+                subscriptionReceived.subscribe(session.getSubscriptionRequestChannel(), session.getFiber());
+                logoutEvent.subscribe(session.getLogoutChannel(), session.getFiber());
+                serverMessageReceive.subscribe(session.getSessionMessageChannel(), session.getFiber());
+                unsubscribeReceive.subscribe(session.getUnsubscribeChannel(), session.getFiber());
+                serverSessionClose.subscribe(session.getSessionCloseChannel(), session.getFiber());
                 assertEquals(session.getSessionId(), session.getSessionId());
             }
         };
