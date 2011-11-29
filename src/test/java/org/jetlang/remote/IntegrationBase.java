@@ -1,16 +1,16 @@
 package org.jetlang.remote;
 
-import org.jetlang.remote.acceptor.*;
-import org.jetlang.remote.client.*;
-import org.jetlang.remote.core.ErrorHandler;
-import org.jetlang.remote.core.JavaSerializer;
-import org.jetlang.remote.core.ReadTimeoutEvent;
 import org.jetlang.core.Callback;
 import org.jetlang.core.Disposable;
 import org.jetlang.core.SynchronousDisposingExecutor;
 import org.jetlang.fibers.Fiber;
 import org.jetlang.fibers.ThreadFiber;
+import org.jetlang.remote.acceptor.*;
+import org.jetlang.remote.client.*;
+import org.jetlang.remote.core.ErrorHandler;
 import org.jetlang.remote.core.HeartbeatEvent;
+import org.jetlang.remote.core.JavaSerializer;
+import org.jetlang.remote.core.ReadTimeoutEvent;
 import org.junit.After;
 import org.junit.Test;
 
@@ -24,10 +24,14 @@ import java.util.concurrent.TimeUnit;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-public class IntegrationTest {
+public abstract class IntegrationBase {
+
     ExecutorService service = Executors.newCachedThreadPool();
     JetlangSessionConfig sessionConfig = new JetlangSessionConfig();
     JetlangClientConfig clientConfig = new JetlangClientConfig();
+    JavaSerializer.Factory serializerFactory = new JavaSerializer.Factory();
+    SerializerAdapter serAdapter = new SerializerAdapter(serializerFactory);
+
 
     SocketConnector conn = new SocketConnector("localhost", 8081);
     JetlangClientHandler handler;
@@ -41,11 +45,11 @@ public class IntegrationTest {
     public void heartbeat() throws IOException {
         final EventAssert<HeartbeatEvent> hb = new EventAssert<HeartbeatEvent>(3);
 
-        NewSessionHandler sessionCallback = new NewSessionHandler() {
-            public void onNewSession(ClientPublisher pub, JetlangSession message) {
+        NewSessionHandler sessionCallback = wrap(new NewFiberSessionHandler() {
+            public void onNewSession(ClientPublisher pub, JetlangSession message, Fiber f) {
                 hb.subscribe(message.getHeartbeatChannel());
             }
-        };
+        });
         Acceptor acceptor = createAcceptor(sessionCallback);
 
         Thread runner = new Thread(acceptor);
@@ -64,11 +68,11 @@ public class IntegrationTest {
     public void serverHeartbeatTimeout() throws IOException {
         final EventAssert<ReadTimeoutEvent> serverSessionTimeout = new EventAssert<ReadTimeoutEvent>(1);
 
-        NewSessionHandler sessionCallback = new NewSessionHandler() {
-            public void onNewSession(ClientPublisher pub, JetlangSession session) {
+        NewSessionHandler sessionCallback = wrap(new NewFiberSessionHandler() {
+            public void onNewSession(ClientPublisher pub, JetlangSession session, Fiber f) {
                 serverSessionTimeout.subscribe(session.getReadTimeoutChannel());
             }
-        };
+        });
         //short read timeout.
         sessionConfig.setReadTimeoutInMs(10);
         Acceptor acceptor = createAcceptor(sessionCallback);
@@ -85,17 +89,19 @@ public class IntegrationTest {
         acceptor.stop();
     }
 
+    protected abstract NewSessionHandler wrap(NewFiberSessionHandler newFiberSessionHandler);
+
     @Test
     public void disconnect() throws IOException, InterruptedException {
         final EventAssert<SessionCloseEvent> closeEvent = new EventAssert<SessionCloseEvent>(1);
 
-        NewSessionHandler sessionCallback = new NewSessionHandler() {
-            public void onNewSession(ClientPublisher pub, JetlangSession session) {
+        NewSessionHandler sessionCallback = wrap(new NewFiberSessionHandler() {
+            public void onNewSession(ClientPublisher pub, JetlangSession session, Fiber f) {
                 closeEvent.subscribe(session.getSessionCloseChannel());
                 //immediate forced disconnect.
                 session.disconnect();
             }
-        };
+        });
 
         Acceptor acceptor = createAcceptor(sessionCallback);
 
@@ -120,12 +126,12 @@ public class IntegrationTest {
     public void globalPublishToTwoClients() throws IOException, InterruptedException {
         final EventAssert<JetlangSession> openEvent = new EventAssert<JetlangSession>(2);
         final EventAssert<SessionTopic> subscriptions = EventAssert.create(2);
-        NewSessionHandler sessionCallback = new NewSessionHandler() {
-            public void onNewSession(ClientPublisher pub, JetlangSession session) {
+        NewSessionHandler sessionCallback = wrap(new NewFiberSessionHandler() {
+            public void onNewSession(ClientPublisher pub, JetlangSession session, Fiber f) {
                 subscriptions.subscribe(session.getSubscriptionRequestChannel());
                 openEvent.receiveMessage(session);
             }
-        };
+        });
 
         Acceptor acceptor = createAcceptor(sessionCallback);
 
@@ -163,10 +169,10 @@ public class IntegrationTest {
     @Test
     public void requestReplyTimeout() throws IOException {
 
-        NewSessionHandler sessionCallback = new NewSessionHandler() {
-            public void onNewSession(ClientPublisher pub, JetlangSession session) {
+        NewSessionHandler sessionCallback = wrap(new NewFiberSessionHandler() {
+            public void onNewSession(ClientPublisher pub, JetlangSession session, Fiber f) {
             }
-        };
+        });
         Acceptor acceptor = createAcceptor(sessionCallback);
 
         Thread runner = new Thread(acceptor);
@@ -255,9 +261,8 @@ public class IntegrationTest {
                 assertEquals(session.getSessionId(), session.getSessionId());
             }
         };
-        FiberPerSession fiberPer = new FiberPerSession(handlerFactory, new FiberPerSession.FiberFactory.ThreadFiberFactory());
 
-        Acceptor acceptor = createAcceptor(fiberPer);
+        Acceptor acceptor = createAcceptor(wrap(handlerFactory));
 
         Thread runner = new Thread(acceptor);
         runner.start();
@@ -301,7 +306,7 @@ public class IntegrationTest {
     }
 
     private Acceptor createAcceptor(NewSessionHandler newSession) throws IOException {
-        handler = new JetlangClientHandler(new JavaSerializer.Factory(), newSession,
+        handler = new JetlangClientHandler(serializerFactory, newSession,
                 service, sessionConfig, new JetlangClientHandler.FiberFactory.ThreadFiberFactory(),
                 new ErrorHandler.SysOut());
         return new Acceptor(
