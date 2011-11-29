@@ -18,7 +18,7 @@ public class FiberForAllSessions implements NewSessionHandler, ClientPublisher {
     private final NewFiberSessionHandler fact;
     private final Fiber fiber;
     private final BufferedSerializer serializer;
-    private Map<JetlangSession, State> sessions = new HashMap<JetlangSession, State>();
+    private Map<JetlangSession, JetlangFiberSession> sessions = new HashMap<JetlangSession, JetlangFiberSession>();
 
     public FiberForAllSessions(NewFiberSessionHandler fact, Fiber fiber, BufferedSerializer serializer) {
         this.fact = fact;
@@ -28,23 +28,8 @@ public class FiberForAllSessions implements NewSessionHandler, ClientPublisher {
 
     public void onNewSession(ClientPublisher _, final JetlangSession jetlangSession) {
 
-        final State state = new State(jetlangSession);
-        sessions.put(jetlangSession, state);
-
-        Callback<SessionTopic> onSubscriber = new Callback<SessionTopic>() {
-            public void onMessage(SessionTopic message) {
-                state.subscribe(message);
-            }
-        };
-        jetlangSession.getSubscriptionRequestChannel().subscribe(fiber, onSubscriber);
-
-        Callback<String> onUnSub = new Callback<String>() {
-            public void onMessage(String message) {
-                state.unsubscribe(message);
-            }
-        };
-        jetlangSession.getUnsubscribeChannel().subscribe(fiber, onUnSub);
-
+        JetlangFiberSession fiberSession = new JetlangFiberSession(jetlangSession, fiber);
+        sessions.put(jetlangSession, fiberSession);
         Callback<SessionCloseEvent> onClose = new Callback<SessionCloseEvent>() {
             public void onMessage(SessionCloseEvent sessionCloseEvent) {
                 sessions.remove(jetlangSession);
@@ -52,7 +37,7 @@ public class FiberForAllSessions implements NewSessionHandler, ClientPublisher {
         };
         jetlangSession.getSessionCloseChannel().subscribe(fiber, onClose);
 
-        fact.onNewSession(this, jetlangSession, fiber);
+        fact.onNewSession(this, fiberSession);
     }
 
     /**
@@ -62,39 +47,13 @@ public class FiberForAllSessions implements NewSessionHandler, ClientPublisher {
      */
     public void publishToAllSubscribedClients(String topic, Object msg) {
         byte[] data = null;
-        for (State state : sessions.values()) {
+        for (JetlangFiberSession state : sessions.values()) {
             if (state.isSubscribed(topic)) {
                 if (data == null) {
                     data = serializer.createArray(topic, msg);
                 }
                 state.publish(data);
             }
-        }
-    }
-
-    private static class State {
-
-        private final JetlangSession session;
-        private final Map<String, SessionTopic> subscriptions = new HashMap<String, SessionTopic>();
-
-        public State(JetlangSession session) {
-            this.session = session;
-        }
-
-        public void subscribe(SessionTopic message) {
-            subscriptions.put(message.getTopic(), message);
-        }
-
-        public void unsubscribe(String message) {
-            subscriptions.remove(message);
-        }
-
-        public boolean isSubscribed(String topic) {
-            return subscriptions.containsKey(topic);
-        }
-
-        public void publish(byte[] data) {
-            session.publish(data);
         }
     }
 }

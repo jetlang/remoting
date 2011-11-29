@@ -23,15 +23,15 @@ public class Server {
         JetlangSessionConfig sessionConfig = new JetlangSessionConfig();
 
         NewFiberSessionHandler sessions = new NewFiberSessionHandler() {
-            public void onNewSession(final ClientPublisher pub, JetlangSession session, Fiber fiber) {
+            public void onNewSession(final ClientPublisher pub, JetlangFiberSession session) {
                 System.out.println("Connect:" + session.getSessionId());
                 Callback<SessionMessage<?>> onMsg = new Callback<SessionMessage<?>>() {
                     public void onMessage(SessionMessage sessionMessage) {
                         pub.publishToAllSubscribedClients(sessionMessage.getTopic(), sessionMessage.getMessage());
                     }
                 };
-                session.getSessionMessageChannel().subscribe(fiber, onMsg);
-                session.getSessionCloseChannel().subscribe(fiber,
+                session.getSessionMessageChannel().subscribe(session.getFiber(), onMsg);
+                session.getSessionCloseChannel().subscribe(session.getFiber(),
                         Client.<SessionCloseEvent>print("Close: " + session.getSessionId()));
             }
         };
