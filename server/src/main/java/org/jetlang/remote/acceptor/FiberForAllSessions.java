@@ -1,30 +1,26 @@
 package org.jetlang.remote.acceptor;
 
 import org.jetlang.core.Callback;
-import org.jetlang.core.SynchronousDisposingExecutor;
 import org.jetlang.fibers.Fiber;
-import org.jetlang.fibers.ThreadFiber;
 
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
-import java.util.Set;
 
 /**
  * Maintains all subscription state on a single fiber.
- *
+ * <p/>
  * Should be used if ordering of messages is critical. To guarantee message delivery
  * ordering, the same fiber should be used for all session callbacks and for sending
  * to sessions.
  */
-public class SingleFiberForAllSessions implements NewSessionHandler, ClientPublisher {
+public class FiberForAllSessions implements NewSessionHandler, ClientPublisher {
 
     private final NewFiberSessionHandler fact;
     private final Fiber fiber;
     private final BufferedSerializer serializer;
     private Map<JetlangSession, State> sessions = new HashMap<JetlangSession, State>();
 
-    public SingleFiberForAllSessions(NewFiberSessionHandler fact, Fiber fiber, BufferedSerializer serializer) {
+    public FiberForAllSessions(NewFiberSessionHandler fact, Fiber fiber, BufferedSerializer serializer) {
         this.fact = fact;
         this.fiber = fiber;
         this.serializer = serializer;
@@ -37,7 +33,7 @@ public class SingleFiberForAllSessions implements NewSessionHandler, ClientPubli
 
         Callback<SessionTopic> onSubscriber = new Callback<SessionTopic>() {
             public void onMessage(SessionTopic message) {
-                 state.subscribe(message);
+                state.subscribe(message);
             }
         };
         jetlangSession.getSubscriptionRequestChannel().subscribe(fiber, onSubscriber);
@@ -61,14 +57,14 @@ public class SingleFiberForAllSessions implements NewSessionHandler, ClientPubli
 
     /**
      * Should be invoked from the single fiber that maintains the sessions. This method is only safe if invoked from that single fiber.
-     *
+     * <p/>
      * The message is serialized at most once.
      */
     public void publishToAllSubscribedClients(String topic, Object msg) {
-       byte[] data = null;
+        byte[] data = null;
         for (State state : sessions.values()) {
-            if(state.isSubscribed(topic)){
-                if(data == null){
+            if (state.isSubscribed(topic)) {
+                if (data == null) {
                     data = serializer.createArray(topic, msg);
                 }
                 state.publish(data);
@@ -81,7 +77,7 @@ public class SingleFiberForAllSessions implements NewSessionHandler, ClientPubli
         private final JetlangSession session;
         private final Map<String, SessionTopic> subscriptions = new HashMap<String, SessionTopic>();
 
-        public State(JetlangSession session){
+        public State(JetlangSession session) {
             this.session = session;
         }
 
