@@ -3,6 +3,7 @@ package org.jetlang.remote.acceptor;
 import org.jetlang.core.Callback;
 import org.jetlang.fibers.Fiber;
 
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -38,6 +39,10 @@ public class FiberForAllSessions implements NewSessionHandler, ClientPublisher {
         jetlangSession.getSessionCloseChannel().subscribe(fiber, onClose);
 
         fact.onNewSession(this, fiberSession);
+    }
+
+    public Collection<JetlangFiberSession> getAllSessions() {
+        return sessions.values();
     }
 
     /**
