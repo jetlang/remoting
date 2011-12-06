@@ -157,6 +157,36 @@ public abstract class IntegrationBase {
         acceptor.stop();
     }
 
+    @Test
+    public void subscribeAfterStart() throws IOException, InterruptedException {
+        final EventAssert<JetlangSession> openEvent = new EventAssert<JetlangSession>(1);
+        final EventAssert<SessionTopic> subscriptions = EventAssert.create(1);
+        NewSessionHandler sessionCallback = wrap(new NewFiberSessionHandler() {
+            public void onNewSession(ClientPublisher pub, JetlangFiberSession session) {
+                subscriptions.subscribe(session.getSubscriptionRequestChannel());
+                openEvent.receiveMessage(session);
+            }
+        });
+
+        Acceptor acceptor = createAcceptor(sessionCallback);
+
+        Thread runner = new Thread(acceptor);
+        runner.start();
+
+        EventAssert<Object> msgReceived = new EventAssert<Object>(1);
+        JetlangClient client = createClient();
+        client.subscribe("topic", msgReceived.asSubscribable());
+
+        client.start();
+
+        openEvent.assertEvent();
+        subscriptions.assertEvent();
+        handler.publishToAllSubscribedClients("topic", "mymsg");
+        msgReceived.assertEvent();
+        close(client);
+        acceptor.stop();
+    }
+
     private void close(JetlangClient client) {
         try {
             assertTrue(client.close(true).await(1, TimeUnit.SECONDS));
