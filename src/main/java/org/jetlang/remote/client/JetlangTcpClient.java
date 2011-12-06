@@ -34,7 +34,7 @@ public class JetlangTcpClient implements JetlangClient {
     private final SocketConnector socketConnector;
     private Disposable pendingConnect;
     private final CloseableChannel.Group channelsToClose = new CloseableChannel.Group();
-    private final Map<String, CloseableChannel> channels = new LinkedHashMap<String, CloseableChannel>();
+    private final Map<String, State> channels = new LinkedHashMap<String, State>();
 
     private <T> CloseableChannel<T> channel() {
         return channelsToClose.add(new MemoryChannel<T>());
@@ -64,26 +64,50 @@ public class JetlangTcpClient implements JetlangClient {
         this.errorHandler = errorHandler;
     }
 
-    public <T> Disposable subscribe(final String subject, Subscribable<T> callback) {
-        CloseableChannel<T> channel;
-        synchronized (channels) {
-            //noinspection unchecked
-            channel = (CloseableChannel<T>) channels.get(subject);
-            if (channel == null) {
-                channel = channel();
-                channels.put(subject, channel);
-            } else {
-                throw new RuntimeException("Subscription Already Exists: " + subject);
+    private class State<T> {
+        private final CloseableChannel<T> c = channel();
+        private boolean subscriptionSent = false;
+        private final String topic;
+
+        public State(String topic) {
+            this.topic = topic;
+        }
+
+        public Disposable subscribe(Subscribable<T> callback) {
+            return c.subscribe(callback);
+        }
+
+        public void unsubscribe() {
+            c.close();
+            channelsToClose.remove(c);
+            if (subscriptionSent)
+                sendSubscription(topic, MsgTypes.Unsubscribe);
+        }
+
+        public void publish(Object object) {
+            c.publish((T) object);
+        }
+
+        public void sendSubscriptionToServer() {
+            if (!subscriptionSent) {
+                subscriptionSent = sendSubscription(topic, MsgTypes.Subscription);
             }
         }
+
+        public void onConnect() {
+            subscriptionSent = sendSubscription(topic, MsgTypes.Subscription);
+        }
+    }
+
+    public <T> Disposable subscribe(final String subject, Subscribable<T> callback) {
+        final State<T> channel = getState(subject);
         final Disposable unSub = channel.subscribe(callback);
         Runnable sub = new Runnable() {
             public void run() {
-                sendSubscription(subject, MsgTypes.Subscription);
+                channel.sendSubscriptionToServer();
             }
         };
         sendFiber.execute(sub);
-        final CloseableChannel<T> toRemove = channel;
         return new Disposable() {
             public void dispose() {
                 //unsubscribe immediately
@@ -93,9 +117,7 @@ public class JetlangTcpClient implements JetlangClient {
                     public void run() {
                         synchronized (channels) {
                             channels.remove(subject);
-                            toRemove.close();
-                            channelsToClose.remove(toRemove);
-                            sendSubscription(subject, MsgTypes.Unsubscribe);
+                            channel.unsubscribe();
                         }
                     }
                 };
@@ -104,8 +126,23 @@ public class JetlangTcpClient implements JetlangClient {
         };
     }
 
+    private <T> State<T> getState(String subject) {
+        State<T> channel;
+        synchronized (channels) {
+            //noinspection unchecked
+            channel = (State<T>) channels.get(subject);
+            if (channel == null) {
+                channel = new State<T>(subject);
+                channels.put(subject, channel);
+            } else {
+                throw new RuntimeException("Subscription Already Exists: " + subject);
+            }
+        }
+        return channel;
+    }
+
     private void publishData(String topic, Object object) {
-        Channel channel;
+        State channel;
         synchronized (channels) {
             channel = channels.get(topic);
         }
@@ -123,14 +160,16 @@ public class JetlangTcpClient implements JetlangClient {
         }
     }
 
-    private void sendSubscription(String subject, int msgType) {
+    private boolean sendSubscription(String subject, int msgType) {
         if (socket != null) {
             try {
                 socket.writeSubscription(msgType, subject, charset);
+                return true;
             } catch (IOException e) {
                 handleDisconnect(new CloseEvent.WriteException(e));
             }
         }
+        return false;
     }
 
     private void closeIfNeeded(CloseEvent closeCause) {
@@ -183,8 +222,8 @@ public class JetlangTcpClient implements JetlangClient {
         this.pendingConnect = null;
         this.socket = new SocketMessageStreamWriter(new TcpSocket(newSocket, errorHandler), charset, ser.getWriter());
         synchronized (channels) {
-            for (String subscription : channels.keySet()) {
-                sendSubscription(subscription, MsgTypes.Subscription);
+            for (State subscription : channels.values()) {
+                subscription.onConnect();
             }
         }
         final StreamReader stream = new StreamReader(newSocket.getInputStream(), charset, ser.getReader(), onReadTimeout);
