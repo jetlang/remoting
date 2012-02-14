@@ -34,7 +34,7 @@ public class JetlangTcpClient implements JetlangClient {
     private final SocketConnector socketConnector;
     private Disposable pendingConnect;
     private final CloseableChannel.Group channelsToClose = new CloseableChannel.Group();
-    private final Map<String, State> channels = new LinkedHashMap<String, State>();
+    private final Map<String, RemoteSubscription> remoteSubscriptions = new LinkedHashMap<String, RemoteSubscription>();
 
     private <T> CloseableChannel<T> channel() {
         return channelsToClose.add(new MemoryChannel<T>());
@@ -64,34 +64,55 @@ public class JetlangTcpClient implements JetlangClient {
         this.errorHandler = errorHandler;
     }
 
-    private class State<T> {
-        private final CloseableChannel<T> c = channel();
-        private boolean subscriptionSent = false;
+    private class RemoteSubscription<T> {
+        private final CloseableChannel<T> channel = channel();
         private final String topic;
+        private boolean subscriptionSent = false;
 
-        public State(String topic) {
+        public RemoteSubscription(String topic) {
             this.topic = topic;
         }
 
         public Disposable subscribe(Subscribable<T> callback) {
-            return c.subscribe(callback);
+            final Disposable channelDisposable = channel.subscribe(callback);
+
+            sendFiber.execute(new Runnable() {
+                public void run() {
+                    if (!subscriptionSent) {
+                        subscriptionSent = sendSubscription(topic, MsgTypes.Subscription);
+                    }
+                }
+            });
+            
+            return new Disposable() {
+                public void dispose() {
+                    channelDisposable.dispose();
+
+                    sendFiber.execute(new Runnable() {
+                        public void run() {
+                            unsubscribeIfNecessary();
+                        }
+                    });
+                }
+            };
         }
 
-        public void unsubscribe() {
-            c.close();
-            channelsToClose.remove(c);
-            if (subscriptionSent)
-                sendSubscription(topic, MsgTypes.Unsubscribe);
-        }
+        private void unsubscribeIfNecessary() {
+            synchronized (remoteSubscriptions) {
+                if (channel.subscriptionCount() == 0 && !channel.isClosed()) {
+                    channel.close();
+                    channelsToClose.remove(channel);
+                    if (subscriptionSent) {
+                        sendSubscription(topic, MsgTypes.Unsubscribe);
+                    }
 
-        public void publish(Object object) {
-            c.publish((T) object);
-        }
-
-        public void sendSubscriptionToServer() {
-            if (!subscriptionSent) {
-                subscriptionSent = sendSubscription(topic, MsgTypes.Subscription);
+                    remoteSubscriptions.remove(topic);
+                }
             }
+        }
+
+        public void publish(T object) {
+            channel.publish(object);
         }
 
         public void onConnect() {
@@ -100,51 +121,23 @@ public class JetlangTcpClient implements JetlangClient {
     }
 
     public <T> Disposable subscribe(final String subject, Subscribable<T> callback) {
-        final State<T> channel = getState(subject);
-        final Disposable unSub = channel.subscribe(callback);
-        Runnable sub = new Runnable() {
-            public void run() {
-                channel.sendSubscriptionToServer();
-            }
-        };
-        sendFiber.execute(sub);
-        return new Disposable() {
-            public void dispose() {
-                //unsubscribe immediately
-                unSub.dispose();
-                Runnable sendUnsub = new Runnable() {
-
-                    public void run() {
-                        synchronized (channels) {
-                            channels.remove(subject);
-                            channel.unsubscribe();
-                        }
-                    }
-                };
-                sendFiber.execute(sendUnsub);
-            }
-        };
-    }
-
-    private <T> State<T> getState(String subject) {
-        State<T> channel;
-        synchronized (channels) {
-            //noinspection unchecked
-            channel = (State<T>) channels.get(subject);
-            if (channel == null) {
-                channel = new State<T>(subject);
-                channels.put(subject, channel);
+        synchronized (remoteSubscriptions) {
+            final RemoteSubscription<T> remoteSubscription;
+            if (remoteSubscriptions.containsKey(subject)) {
+                //noinspection unchecked
+                remoteSubscription = (RemoteSubscription<T>) remoteSubscriptions.get(subject);
             } else {
-                throw new RuntimeException("Subscription Already Exists: " + subject);
+                remoteSubscription = new RemoteSubscription<T>(subject);
+                remoteSubscriptions.put(subject, remoteSubscription);
             }
+            return remoteSubscription.subscribe(callback);
         }
-        return channel;
     }
 
     private void publishData(String topic, Object object) {
-        State channel;
-        synchronized (channels) {
-            channel = channels.get(topic);
+        RemoteSubscription channel;
+        synchronized (remoteSubscriptions) {
+            channel = remoteSubscriptions.get(topic);
         }
         if (channel != null) {
             //noinspection unchecked
@@ -221,8 +214,8 @@ public class JetlangTcpClient implements JetlangClient {
         this.pendingConnect.dispose();
         this.pendingConnect = null;
         this.socket = new SocketMessageStreamWriter(new TcpSocket(newSocket, errorHandler), charset, ser.getWriter());
-        synchronized (channels) {
-            for (State subscription : channels.values()) {
+        synchronized (remoteSubscriptions) {
+            for (RemoteSubscription subscription : remoteSubscriptions.values()) {
                 subscription.onConnect();
             }
         }

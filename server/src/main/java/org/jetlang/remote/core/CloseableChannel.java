@@ -52,8 +52,22 @@ public class CloseableChannel<T> implements Channel<T> {
                 }
             }
         };
-        subscriptions.add(subscribe);
+        synchronized (subscriptions) {
+            subscriptions.add(subscribe);
+        }
         return remove;
+    }
+    
+    public int subscriptionCount() {
+        synchronized (lock) {
+            return subscriptions.size();
+        }
+    }
+    
+    public boolean isClosed() {
+        synchronized (lock) {
+            return closed;
+        }
     }
 
     public void close() {

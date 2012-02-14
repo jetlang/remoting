@@ -11,6 +11,7 @@ import org.jetlang.remote.core.HeartbeatEvent;
 import org.jetlang.remote.core.JavaSerializer;
 import org.jetlang.remote.core.ReadTimeoutEvent;
 import org.junit.After;
+import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -154,6 +155,121 @@ public abstract class IntegrationBase {
         msgReceived.assertEvent();
         close(client);
         close(client2);
+        acceptor.stop();
+    }
+
+    @Test
+    public void shouldAllowTwoSubscriptionsToTheSameTopicOnAClient() throws IOException, InterruptedException {
+        final EventAssert<SessionTopic> subscriptions = EventAssert.create(1);
+        NewSessionHandler sessionCallback = wrap(new NewFiberSessionHandler() {
+            public void onNewSession(ClientPublisher pub, JetlangFiberSession session) {
+                subscriptions.subscribe(session.getSubscriptionRequestChannel());
+            }
+        });
+
+        Acceptor acceptor = createAcceptor(sessionCallback);
+
+        Thread runner = new Thread(acceptor);
+        runner.start();
+
+        EventAssert<Object> msgReceived = new EventAssert<Object>(2);
+        JetlangClient client = createClient();
+        client.subscribe("topic", msgReceived.asSubscribable());
+        client.subscribe("topic", msgReceived.asSubscribable());
+        client.start();
+
+        subscriptions.assertEvent();
+
+        handler.publishToAllSubscribedClients("topic", "mymsg");
+
+        msgReceived.assertEvent();
+        close(client);
+        acceptor.stop();
+    }
+
+    @Test
+    public void shouldUnsubscribeFromRemoteOnlyAfterAllClientUnsubscribed() throws IOException {
+        final EventAssert<SessionTopic> subscriptionReceived = new EventAssert<SessionTopic>(1);
+        Callback<SessionTopic> onTopic = new Callback<SessionTopic>() {
+            public void onMessage(SessionTopic message) {
+                message.publish("mymsg");
+            }
+        };
+        subscriptionReceived.onMessage(onTopic);
+        final EventAssert<String> unsubscribeReceive = new EventAssert<String>(1);
+
+        NewFiberSessionHandler handlerFactory = new NewFiberSessionHandler() {
+            public void onNewSession(ClientPublisher pub, JetlangFiberSession session) {
+                subscriptionReceived.subscribe(session.getSubscriptionRequestChannel(), session.getFiber());
+                unsubscribeReceive.subscribe(session.getUnsubscribeChannel(), session.getFiber());
+            }
+        };
+
+        Acceptor acceptor = createAcceptor(wrap(handlerFactory));
+
+        Thread runner = new Thread(acceptor);
+        runner.start();
+
+        JetlangClient client = createClient();
+
+        EventAssert<String> clientMsgReceive = new EventAssert<String>(2);
+        Disposable unsubscribe1 = client.subscribe("newtopic", clientMsgReceive.asSubscribable());
+        Disposable unsubscribe2 = client.subscribe("newtopic", clientMsgReceive.asSubscribable());
+        client.start();
+
+        subscriptionReceived.assertEvent();
+        handler.publishToAllSubscribedClients("newtopic", "myclientmessage");
+        clientMsgReceive.assertEvent();
+
+        unsubscribe1.dispose();
+        unsubscribe2.dispose();
+        unsubscribeReceive.assertEvent();
+
+        close(client);
+        acceptor.stop();
+    }
+
+    @Test
+    public void shouldContinueToReceiveMessagesAfterOneSubscriberLeaves() throws IOException {
+        final EventAssert<SessionTopic> subscriptionReceived = new EventAssert<SessionTopic>(1);
+        Callback<SessionTopic> onTopic = new Callback<SessionTopic>() {
+            public void onMessage(SessionTopic message) {
+                message.publish("mymsg");
+            }
+        };
+        subscriptionReceived.onMessage(onTopic);
+        final EventAssert<String> unsubscribeReceive = new EventAssert<String>(1);
+
+        NewFiberSessionHandler handlerFactory = new NewFiberSessionHandler() {
+            public void onNewSession(ClientPublisher pub, JetlangFiberSession session) {
+                subscriptionReceived.subscribe(session.getSubscriptionRequestChannel(), session.getFiber());
+                unsubscribeReceive.subscribe(session.getUnsubscribeChannel(), session.getFiber());
+            }
+        };
+
+        Acceptor acceptor = createAcceptor(wrap(handlerFactory));
+
+        Thread runner = new Thread(acceptor);
+        runner.start();
+
+        JetlangClient client = createClient();
+
+        EventAssert<String> clientMsgReceive = new EventAssert<String>(1);
+        Disposable unsubscribe1 = client.subscribe("newtopic", clientMsgReceive.asSubscribable());
+        Disposable unsubscribe2 = client.subscribe("newtopic", clientMsgReceive.asSubscribable());
+        client.start();
+
+        subscriptionReceived.assertEvent();
+
+        unsubscribe1.dispose();
+
+        handler.publishToAllSubscribedClients("newtopic", "myclientmessage");
+
+        clientMsgReceive.assertEvent();
+        unsubscribe2.dispose();
+        unsubscribeReceive.assertEvent();
+
+        close(client);
         acceptor.stop();
     }
 
