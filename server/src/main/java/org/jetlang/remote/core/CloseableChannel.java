@@ -52,9 +52,7 @@ public class CloseableChannel<T> implements Channel<T> {
                 }
             }
         };
-        synchronized (subscriptions) {
-            subscriptions.add(subscribe);
-        }
+        subscriptions.add(subscribe);
         return remove;
     }
     
