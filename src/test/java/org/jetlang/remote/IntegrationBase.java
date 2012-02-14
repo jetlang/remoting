@@ -11,7 +11,6 @@ import org.jetlang.remote.core.HeartbeatEvent;
 import org.jetlang.remote.core.JavaSerializer;
 import org.jetlang.remote.core.ReadTimeoutEvent;
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -20,8 +19,10 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 public abstract class IntegrationBase {
@@ -190,12 +191,6 @@ public abstract class IntegrationBase {
     @Test
     public void shouldUnsubscribeFromRemoteOnlyAfterAllClientUnsubscribed() throws IOException {
         final EventAssert<SessionTopic> subscriptionReceived = new EventAssert<SessionTopic>(1);
-        Callback<SessionTopic> onTopic = new Callback<SessionTopic>() {
-            public void onMessage(SessionTopic message) {
-                message.publish("mymsg");
-            }
-        };
-        subscriptionReceived.onMessage(onTopic);
         final EventAssert<String> unsubscribeReceive = new EventAssert<String>(1);
 
         NewFiberSessionHandler handlerFactory = new NewFiberSessionHandler() {
@@ -232,12 +227,6 @@ public abstract class IntegrationBase {
     @Test
     public void shouldContinueToReceiveMessagesAfterOneSubscriberLeaves() throws IOException {
         final EventAssert<SessionTopic> subscriptionReceived = new EventAssert<SessionTopic>(1);
-        Callback<SessionTopic> onTopic = new Callback<SessionTopic>() {
-            public void onMessage(SessionTopic message) {
-                message.publish("mymsg");
-            }
-        };
-        subscriptionReceived.onMessage(onTopic);
         final EventAssert<String> unsubscribeReceive = new EventAssert<String>(1);
 
         NewFiberSessionHandler handlerFactory = new NewFiberSessionHandler() {
@@ -247,28 +236,33 @@ public abstract class IntegrationBase {
             }
         };
 
-        Acceptor acceptor = createAcceptor(wrap(handlerFactory));
+        final Acceptor acceptor = createAcceptor(wrap(handlerFactory));
 
         Thread runner = new Thread(acceptor);
         runner.start();
 
-        JetlangClient client = createClient();
+        final JetlangClient client = createClient();
 
-        EventAssert<String> clientMsgReceive = new EventAssert<String>(1);
-        Disposable unsubscribe1 = client.subscribe("newtopic", clientMsgReceive.asSubscribable());
-        Disposable unsubscribe2 = client.subscribe("newtopic", clientMsgReceive.asSubscribable());
+        final AtomicBoolean firstReceivedAMessage = new AtomicBoolean();
+        final EventAssert<String> secondSubscriber = new EventAssert<String>(0);
+        final Disposable unsubscribe1 = client.subscribe("newtopic", new SynchronousDisposingExecutor(), new Callback<Object>() {
+            public void onMessage(Object message) {
+                firstReceivedAMessage.set(true);
+            }
+        });
+        Disposable unsubscribe2 = client.subscribe("newtopic", secondSubscriber.asSubscribable());
         client.start();
 
         subscriptionReceived.assertEvent();
 
         unsubscribe1.dispose();
 
-        handler.publishToAllSubscribedClients("newtopic", "myclientmessage");
+        handler.publishToAllSubscribedClients("newtopic", "shouldContinueToReceiveMessagesAfterOneSubscriberLeaves");
 
-        clientMsgReceive.assertEvent();
+        secondSubscriber.assertEvent();
         unsubscribe2.dispose();
         unsubscribeReceive.assertEvent();
-
+        assertFalse(firstReceivedAMessage.get());
         close(client);
         acceptor.stop();
     }

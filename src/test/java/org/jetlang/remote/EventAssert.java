@@ -4,6 +4,7 @@ import org.jetlang.channels.*;
 import org.jetlang.core.Callback;
 import org.jetlang.core.DisposingExecutor;
 import org.jetlang.core.SynchronousDisposingExecutor;
+import org.jetlang.remote.acceptor.SessionTopic;
 
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -70,7 +71,7 @@ public class EventAssert<T> {
     public void assertEvent() {
         try {
             assertTrue(latch.await(10, TimeUnit.SECONDS));
-            assertEquals(expected, receiveCount.get());
+            assertEquals(received.toString(), expected, receiveCount.get());
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
         }
