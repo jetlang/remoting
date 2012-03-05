@@ -2,6 +2,7 @@ package org.jetlang.remote.acceptor;
 
 import org.jetlang.channels.MemoryChannel;
 import org.jetlang.channels.Subscriber;
+import org.jetlang.core.Disposable;
 import org.jetlang.fibers.Fiber;
 import org.jetlang.remote.core.*;
 
@@ -10,6 +11,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class JetlangStreamSession implements JetlangSession {
 
@@ -34,6 +36,11 @@ public class JetlangStreamSession implements JetlangSession {
     private final ErrorHandler errorHandler;
     private final Set<String> subscriptions = Collections.synchronizedSet(new HashSet<String>());
 
+    private volatile Runnable hbStopper = new Runnable() {
+        public void run() {
+        }
+    };
+
     public JetlangStreamSession(Object id, MessageStreamWriter socket, Fiber sendFiber, ErrorHandler errorHandler) {
         this.id = id;
         this.socket = socket;
@@ -53,7 +60,16 @@ public class JetlangStreamSession implements JetlangSession {
                     write(MsgTypes.Heartbeat);
                 }
             };
-            sendFiber.scheduleWithFixedDelay(send, interval, interval, unit);
+            final Disposable disposeHb = sendFiber.scheduleWithFixedDelay(send, interval, interval, unit);
+            hbStopper = new Runnable() {
+                AtomicBoolean stopped = new AtomicBoolean(false);
+
+                public void run() {
+                    if (stopped.compareAndSet(false, true)) {
+                        disposeHb.dispose();
+                    }
+                }
+            };
         }
     }
 
@@ -90,6 +106,7 @@ public class JetlangStreamSession implements JetlangSession {
     }
 
     public void onLogout() {
+        hbStopper.run();
         Logout.publish(new LogoutEvent());
     }
 
