@@ -4,8 +4,9 @@ import org.jetlang.core.Callback;
 import org.jetlang.fibers.Fiber;
 
 import java.util.Collection;
-import java.util.HashMap;
+import java.util.IdentityHashMap;
 import java.util.Map;
+import java.util.concurrent.CountDownLatch;
 
 /**
  * Maintains all subscription state on a single fiber.
@@ -19,7 +20,7 @@ public class FiberForAllSessions implements NewSessionHandler, ClientPublisher {
     private final NewFiberSessionHandler fact;
     private final Fiber fiber;
     private final BufferedSerializer serializer;
-    private Map<JetlangSession, JetlangFiberSession> sessions = new HashMap<JetlangSession, JetlangFiberSession>();
+    private final Map<JetlangSession, JetlangFiberSession> sessions = new IdentityHashMap<JetlangSession, JetlangFiberSession>();
 
     public FiberForAllSessions(NewFiberSessionHandler fact, Fiber fiber, BufferedSerializer serializer) {
         this.fact = fact;
@@ -29,16 +30,33 @@ public class FiberForAllSessions implements NewSessionHandler, ClientPublisher {
 
     public void onNewSession(ClientPublisher _, final JetlangSession jetlangSession) {
 
-        JetlangFiberSession fiberSession = new JetlangFiberSession(jetlangSession, fiber);
-        sessions.put(jetlangSession, fiberSession);
-        Callback<SessionCloseEvent> onClose = new Callback<SessionCloseEvent>() {
-            public void onMessage(SessionCloseEvent sessionCloseEvent) {
-                sessions.remove(jetlangSession);
+        final CountDownLatch latch = new CountDownLatch(1);
+        //create the new session on the fiber.
+        //must wait for session to be created before continuing to prevent racing socket read thread events vs session fiber events.
+        Runnable newSub = new Runnable() {
+            public void run() {
+                try {
+                    JetlangFiberSession fiberSession = new JetlangFiberSession(jetlangSession, fiber);
+                    sessions.put(jetlangSession, fiberSession);
+                    Callback<SessionCloseEvent> onClose = new Callback<SessionCloseEvent>() {
+                        public void onMessage(SessionCloseEvent sessionCloseEvent) {
+                            sessions.remove(jetlangSession);
+                        }
+                    };
+                    jetlangSession.getSessionCloseChannel().subscribe(fiber, onClose);
+
+                    fact.onNewSession(FiberForAllSessions.this, fiberSession);
+                } finally {
+                    latch.countDown();
+                }
             }
         };
-        jetlangSession.getSessionCloseChannel().subscribe(fiber, onClose);
-
-        fact.onNewSession(this, fiberSession);
+        fiber.execute(newSub);
+        try {
+            latch.await();
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     public Collection<JetlangFiberSession> getAllSessions() {
