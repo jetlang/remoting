@@ -191,7 +191,7 @@ public abstract class IntegrationBase {
     @Test
     public void shouldUnsubscribeFromRemoteOnlyAfterAllClientUnsubscribed() throws IOException {
         final EventAssert<SessionTopic> subscriptionReceived = new EventAssert<SessionTopic>(1);
-        final EventAssert<String> unsubscribeReceive = new EventAssert<String>(1);
+        final EventAssert<UnsubscribeEvent> unsubscribeReceive = new EventAssert<UnsubscribeEvent>(1);
 
         NewFiberSessionHandler handlerFactory = new NewFiberSessionHandler() {
             public void onNewSession(ClientPublisher pub, JetlangFiberSession session) {
@@ -227,7 +227,7 @@ public abstract class IntegrationBase {
     @Test
     public void shouldContinueToReceiveMessagesAfterOneSubscriberLeaves() throws IOException {
         final EventAssert<SessionTopic> subscriptionReceived = new EventAssert<SessionTopic>(1);
-        final EventAssert<String> unsubscribeReceive = new EventAssert<String>(1);
+        final EventAssert<UnsubscribeEvent> unsubscribeReceive = new EventAssert<UnsubscribeEvent>(1);
 
         NewFiberSessionHandler handlerFactory = new NewFiberSessionHandler() {
             public void onNewSession(ClientPublisher pub, JetlangFiberSession session) {
@@ -387,7 +387,7 @@ public abstract class IntegrationBase {
         subscriptionReceived.onMessage(onTopic);
         final EventAssert<LogoutEvent> logoutEvent = new EventAssert<LogoutEvent>(1);
         final EventAssert<SessionMessage<?>> serverMessageReceive = new EventAssert<SessionMessage<?>>(1);
-        final EventAssert<String> unsubscribeReceive = new EventAssert<String>(1);
+        final EventAssert<UnsubscribeEvent> unsubscribeReceive = new EventAssert<UnsubscribeEvent>(1);
         final EventAssert<SessionCloseEvent> serverSessionClose = new EventAssert<SessionCloseEvent>(1);
 
         NewFiberSessionHandler handlerFactory = new NewFiberSessionHandler() {
@@ -426,7 +426,7 @@ public abstract class IntegrationBase {
         assertEquals("myclientmessage", sessionMessage.getMessage());
         unsubscribe.dispose();
         unsubscribeReceive.assertEvent();
-        assertEquals("newtopic", unsubscribeReceive.takeFromReceived());
+        assertEquals("newtopic", unsubscribeReceive.takeFromReceived().getTopic());
 
         CountDownLatch closeLatch = client.close(true);
 
