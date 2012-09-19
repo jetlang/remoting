@@ -22,7 +22,7 @@ public class JetlangStreamSession implements JetlangSession {
     }
 
     private final CloseableChannel<SessionTopic> SubscriptionRequest = newChannel();
-    private final CloseableChannel<UnsubscribeEvent> UnsubscribeRequest = newChannel();
+    private final CloseableChannel<String> UnsubscribeRequest = newChannel();
     private final CloseableChannel<LogoutEvent> Logout = newChannel();
     private final CloseableChannel<HeartbeatEvent> Heartbeat = newChannel();
     private final CloseableChannel<SessionMessage<?>> Messages = newChannel();
@@ -80,7 +80,7 @@ public class JetlangStreamSession implements JetlangSession {
 
     public void onUnsubscribeRequest(String top) {
         subscriptions.remove(top);
-        UnsubscribeRequest.publish(new UnsubscribeEvent(top));
+        UnsubscribeRequest.publish(top);
     }
 
     public void write(final int byteToWrite) {
@@ -197,7 +197,7 @@ public class JetlangStreamSession implements JetlangSession {
         Messages.publish(new SessionMessage<Object>(topic, msg));
     }
 
-    public Subscriber<UnsubscribeEvent> getUnsubscribeChannel() {
+    public Subscriber<String> getUnsubscribeChannel() {
         return UnsubscribeRequest;
     }
 
