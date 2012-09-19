@@ -15,7 +15,7 @@ public interface JetlangSession {
 
     Subscriber<SessionTopic> getSubscriptionRequestChannel();
 
-    Subscriber<UnsubscribeEvent> getUnsubscribeChannel();
+    Subscriber<String> getUnsubscribeChannel();
 
     Subscriber<LogoutEvent> getLogoutChannel();
 
