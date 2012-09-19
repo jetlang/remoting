@@ -28,9 +28,9 @@ public class JetlangFiberSession implements JetlangSession {
                 subscribed.put(message.getTopic(), message);
             }
         });
-        session.getUnsubscribeChannel().subscribe(targetFiber, new Callback<String>() {
-            public void onMessage(String message) {
-                subscribed.remove(message);
+        session.getUnsubscribeChannel().subscribe(targetFiber, new Callback<UnsubscribeEvent>() {
+            public void onMessage(UnsubscribeEvent event) {
+                subscribed.remove(event.getTopic());
             }
         });
     }
@@ -55,7 +55,7 @@ public class JetlangFiberSession implements JetlangSession {
         return session.getSubscriptionRequestChannel();
     }
 
-    public Subscriber<String> getUnsubscribeChannel() {
+    public Subscriber<UnsubscribeEvent> getUnsubscribeChannel() {
         return session.getUnsubscribeChannel();
     }
 
