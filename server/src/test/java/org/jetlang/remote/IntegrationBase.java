@@ -4,8 +4,27 @@ import org.jetlang.core.Callback;
 import org.jetlang.core.Disposable;
 import org.jetlang.core.SynchronousDisposingExecutor;
 import org.jetlang.fibers.ThreadFiber;
-import org.jetlang.remote.acceptor.*;
-import org.jetlang.remote.client.*;
+import org.jetlang.remote.acceptor.Acceptor;
+import org.jetlang.remote.acceptor.ClientPublisher;
+import org.jetlang.remote.acceptor.JetlangClientHandler;
+import org.jetlang.remote.acceptor.JetlangFiberSession;
+import org.jetlang.remote.acceptor.JetlangSession;
+import org.jetlang.remote.acceptor.JetlangSessionConfig;
+import org.jetlang.remote.acceptor.LogoutEvent;
+import org.jetlang.remote.acceptor.NewFiberSessionHandler;
+import org.jetlang.remote.acceptor.NewSessionHandler;
+import org.jetlang.remote.acceptor.SerializerAdapter;
+import org.jetlang.remote.acceptor.SessionCloseEvent;
+import org.jetlang.remote.acceptor.SessionMessage;
+import org.jetlang.remote.acceptor.SessionRequest;
+import org.jetlang.remote.acceptor.SessionTopic;
+import org.jetlang.remote.client.CloseEvent;
+import org.jetlang.remote.client.ConnectEvent;
+import org.jetlang.remote.client.JetlangClient;
+import org.jetlang.remote.client.JetlangClientConfig;
+import org.jetlang.remote.client.JetlangTcpClient;
+import org.jetlang.remote.client.SocketConnector;
+import org.jetlang.remote.client.TimeoutControls;
 import org.jetlang.remote.core.ErrorHandler;
 import org.jetlang.remote.core.HeartbeatEvent;
 import org.jetlang.remote.core.JavaSerializer;
@@ -15,15 +34,15 @@ import org.junit.Test;
 
 import java.io.IOException;
 import java.net.ServerSocket;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 
 public abstract class IntegrationBase {
 
@@ -221,6 +240,41 @@ public abstract class IntegrationBase {
         unsubscribeReceive.assertEvent();
 
         close(client);
+        acceptor.stop();
+    }
+
+    @Test
+    public void manyClientDisconnectWithoutReadTimeout() throws IOException, InterruptedException {
+        final EventAssert<ReadTimeoutEvent> readTimeout = new EventAssert<ReadTimeoutEvent>(0);
+
+        NewFiberSessionHandler handlerFactory = new NewFiberSessionHandler() {
+            public void onNewSession(ClientPublisher pub, JetlangFiberSession session) {
+                readTimeout.subscribe(session.getReadTimeoutChannel(), session.getFiber());
+            }
+        };
+
+        Acceptor acceptor = createAcceptor(wrap(handlerFactory));
+        Thread runner = new Thread(acceptor);
+        runner.start();
+
+        int numClient = 10;
+        final EventAssert<ConnectEvent> conected = new EventAssert<ConnectEvent>(numClient);
+        final EventAssert<CloseEvent> closed = new EventAssert<CloseEvent>(numClient);
+        List<JetlangClient> clients = new ArrayList<JetlangClient>();
+        for(int i = 0; i < numClient; i++){
+            final JetlangClient client = createClient();
+            conected.subscribe(client.getConnectChannel());
+            closed.subscribe(client.getCloseChannel());
+            readTimeout.subscribe(client.getReadTimeoutChannel());
+            clients.add(client);
+            client.start();
+        }
+        conected.assertEvent();
+        for (JetlangClient client : clients) {
+            assertTrue(client.close(true).await(30, TimeUnit.SECONDS));
+        }
+        closed.assertEvent();
+        readTimeout.assertEvent();
         acceptor.stop();
     }
 
