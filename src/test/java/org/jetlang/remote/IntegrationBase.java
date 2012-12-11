@@ -4,27 +4,8 @@ import org.jetlang.core.Callback;
 import org.jetlang.core.Disposable;
 import org.jetlang.core.SynchronousDisposingExecutor;
 import org.jetlang.fibers.ThreadFiber;
-import org.jetlang.remote.acceptor.Acceptor;
-import org.jetlang.remote.acceptor.ClientPublisher;
-import org.jetlang.remote.acceptor.JetlangClientHandler;
-import org.jetlang.remote.acceptor.JetlangFiberSession;
-import org.jetlang.remote.acceptor.JetlangSession;
-import org.jetlang.remote.acceptor.JetlangSessionConfig;
-import org.jetlang.remote.acceptor.LogoutEvent;
-import org.jetlang.remote.acceptor.NewFiberSessionHandler;
-import org.jetlang.remote.acceptor.NewSessionHandler;
-import org.jetlang.remote.acceptor.SerializerAdapter;
-import org.jetlang.remote.acceptor.SessionCloseEvent;
-import org.jetlang.remote.acceptor.SessionMessage;
-import org.jetlang.remote.acceptor.SessionRequest;
-import org.jetlang.remote.acceptor.SessionTopic;
-import org.jetlang.remote.client.CloseEvent;
-import org.jetlang.remote.client.ConnectEvent;
-import org.jetlang.remote.client.JetlangClient;
-import org.jetlang.remote.client.JetlangClientConfig;
-import org.jetlang.remote.client.JetlangTcpClient;
-import org.jetlang.remote.client.SocketConnector;
-import org.jetlang.remote.client.TimeoutControls;
+import org.jetlang.remote.acceptor.*;
+import org.jetlang.remote.client.*;
 import org.jetlang.remote.core.ErrorHandler;
 import org.jetlang.remote.core.HeartbeatEvent;
 import org.jetlang.remote.core.JavaSerializer;
@@ -36,7 +17,6 @@ import java.io.IOException;
 import java.net.ServerSocket;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -261,7 +241,7 @@ public abstract class IntegrationBase {
         final EventAssert<ConnectEvent> conected = new EventAssert<ConnectEvent>(numClient);
         final EventAssert<CloseEvent> closed = new EventAssert<CloseEvent>(numClient);
         List<JetlangClient> clients = new ArrayList<JetlangClient>();
-        for(int i = 0; i < numClient; i++){
+        for (int i = 0; i < numClient; i++) {
             final JetlangClient client = createClient();
             conected.subscribe(client.getConnectChannel());
             closed.subscribe(client.getCloseChannel());
@@ -482,7 +462,7 @@ public abstract class IntegrationBase {
         unsubscribeReceive.assertEvent();
         assertEquals("newtopic", unsubscribeReceive.takeFromReceived());
 
-        CountDownLatch closeLatch = client.close(true);
+        LogoutResult closeLatch = client.close(true);
 
         assertTrue(closeLatch.await(10, TimeUnit.SECONDS));
         logoutEvent.assertEvent();
