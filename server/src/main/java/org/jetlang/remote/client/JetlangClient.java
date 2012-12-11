@@ -1,13 +1,12 @@
 package org.jetlang.remote.client;
 
-import org.jetlang.remote.core.ReadTimeoutEvent;
 import org.jetlang.channels.Subscribable;
 import org.jetlang.channels.Subscriber;
 import org.jetlang.core.Callback;
 import org.jetlang.core.Disposable;
 import org.jetlang.core.DisposingExecutor;
+import org.jetlang.remote.core.ReadTimeoutEvent;
 
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -33,7 +32,7 @@ public interface JetlangClient {
 
     void start();
 
-    CountDownLatch close(boolean sendLogoutIfStillConnected);
+    LogoutResult close(boolean sendLogoutIfStillConnected);
 
     <T> Disposable request(String reqTopic,
                            Object req,

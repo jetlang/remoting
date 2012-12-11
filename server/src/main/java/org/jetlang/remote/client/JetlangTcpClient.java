@@ -83,7 +83,7 @@ public class JetlangTcpClient implements JetlangClient {
                     }
                 }
             });
-            
+
             return new Disposable() {
                 public void dispose() {
                     channelDisposable.dispose();
@@ -297,15 +297,17 @@ public class JetlangTcpClient implements JetlangClient {
         return subscribe(topic, new ChannelSubscription<T>(clientFiber, cb));
     }
 
-    public CountDownLatch close(final boolean sendLogoutIfStillConnected) {
+    public LogoutResult close(final boolean sendLogoutIfStillConnected) {
         final CountDownLatch closedLatch = new CountDownLatch(1);
+        final AtomicBoolean logoutLatchComplete = new AtomicBoolean(false);
         if (closed.compareAndSet(false, true)) {
             Runnable disconnect = new Runnable() {
                 public void run() {
                     if (socket != null && sendLogoutIfStillConnected) {
                         try {
                             socket.writeByteAsInt(MsgTypes.Disconnect);
-                            logoutLatch.await(1, TimeUnit.SECONDS);
+                            boolean result = logoutLatch.await(config.getLogoutLatchTimeout(), config.getLogoutLatchTimeoutUnit());
+                            logoutLatchComplete.set(result);
                         } catch (Exception e) {
                             errorHandler.onException(e);
                         }
@@ -321,7 +323,7 @@ public class JetlangTcpClient implements JetlangClient {
                 }
             };
             sendFiber.execute(disconnect);
-            return closedLatch;
+            return new LogoutResult(logoutLatchComplete, closedLatch);
         }
         throw new RuntimeException("Already closed.");
     }
