@@ -49,7 +49,7 @@ public class JetlangClientHandler implements Acceptor.ClientHandler, ClientPubli
                                 Executor exec,
                                 JetlangSessionConfig config,
                                 FiberFactory fiberFactory,
-                                ErrorHandler errorHandler){
+                                ErrorHandler errorHandler) {
         this(new SerializerAdapter(fact), channels, exec, config, fiberFactory, errorHandler);
     }
 
@@ -117,7 +117,7 @@ public class JetlangClientHandler implements Acceptor.ClientHandler, ClientPubli
 
     /**
      * Publishes asynchronously on a separate global fiber, so be careful of message ordering when using with other fibers/threads.
-     *
+     * <p/>
      * Serialization and enqueueing are done on a separate fiber.
      */
     public void publishToAllSubscribedClients(final String topic, final Object msg) {
@@ -132,13 +132,28 @@ public class JetlangClientHandler implements Acceptor.ClientHandler, ClientPubli
 
     /**
      * Places the serialized bytes into the send q's for all subscribed clients.
-     *
+     * <p/>
      * Subscriptions are made on another thread so it is possible that this will enqueue a message to a client that hasn't been handled in a new session callback.
      */
     public void enqueueToAllSubscribedClients(String topic, byte[] data) {
         synchronized (clients) {
             for (ClientTcpSocket client : clients) {
                 client.publishIfSubscribed(topic, data);
+            }
+        }
+    }
+
+    private static class ReadTimeoutHandler implements Runnable {
+        private final JetlangStreamSession session;
+        public boolean userLoggedOut;
+
+        public ReadTimeoutHandler(JetlangStreamSession session) {
+            this.session = session;
+        }
+
+        public void run() {
+            if (!userLoggedOut) {
+                session.onReadTimeout(new ReadTimeoutEvent());
             }
         }
     }
@@ -152,17 +167,13 @@ public class JetlangClientHandler implements Acceptor.ClientHandler, ClientPubli
         return new Runnable() {
             public void run() {
                 try {
-                    Runnable onReadTimeout = new Runnable() {
-                        public void run() {
-                            session.onReadTimeout(new ReadTimeoutEvent());
-                        }
-                    };
+                    ReadTimeoutHandler onReadTimeout = new ReadTimeoutHandler(session);
                     StreamReader input = new StreamReader(socket.getInputStream(), ser.getCharset(), serializer.getReader(), onReadTimeout);
                     clientTcpSocket.setSession(session);
                     channels.onNewSession(JetlangClientHandler.this, session);
                     session.startHeartbeat(config.getHeartbeatIntervalInMs(), TimeUnit.MILLISECONDS);
                     sendFiber.start();
-                    while (readFromStream(input, session)) {
+                    while (readFromStream(input, session, onReadTimeout)) {
 
                     }
                 } catch (IOException disconnect) {
@@ -188,7 +199,7 @@ public class JetlangClientHandler implements Acceptor.ClientHandler, ClientPubli
             socket.setSoTimeout(config.getReadTimeoutInMs());
     }
 
-    private boolean readFromStream(StreamReader input, JetlangStreamSession session) throws IOException {
+    private boolean readFromStream(StreamReader input, JetlangStreamSession session, ReadTimeoutHandler onReadTimeout) throws IOException {
         int read = input.readByteAsInt();
         if (read < 0) {
             return false;
@@ -208,6 +219,7 @@ public class JetlangClientHandler implements Acceptor.ClientHandler, ClientPubli
                 session.onUnsubscribeRequest(top);
                 break;
             case MsgTypes.Disconnect:
+                onReadTimeout.userLoggedOut = true;
                 session.write(MsgTypes.Disconnect);
                 session.onLogout();
                 break;
