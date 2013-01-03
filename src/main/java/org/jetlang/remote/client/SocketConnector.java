@@ -47,10 +47,11 @@ public class SocketConnector {
     }
 
     public Socket connect() throws IOException {
+        InetSocketAddress endpoint = new InetSocketAddress(host, port);
         Socket socket = new Socket();
         socket.setTcpNoDelay(tcpNoDelay);
         socket.setSoTimeout(readTimeoutInMs);
-        socket.connect(new InetSocketAddress(host, port), connectTimeoutInMs);
+        socket.connect(endpoint, connectTimeoutInMs);
         return socket;
     }
 }
