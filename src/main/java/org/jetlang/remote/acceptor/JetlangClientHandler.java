@@ -220,7 +220,6 @@ public class JetlangClientHandler implements Acceptor.ClientHandler, ClientPubli
                 break;
             case MsgTypes.Disconnect:
                 onReadTimeout.userLoggedOut = true;
-                session.write(MsgTypes.Disconnect);
                 session.onLogout();
                 break;
             case MsgTypes.Data:

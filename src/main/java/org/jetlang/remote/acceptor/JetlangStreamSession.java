@@ -35,6 +35,7 @@ public class JetlangStreamSession implements JetlangSession {
     private final Fiber sendFiber;
     private final ErrorHandler errorHandler;
     private final Set<String> subscriptions = Collections.synchronizedSet(new HashSet<String>());
+    private volatile boolean loggedOut;
 
     private volatile Runnable hbStopper = new Runnable() {
         public void run() {
@@ -98,7 +99,9 @@ public class JetlangStreamSession implements JetlangSession {
 
     private void handleDisconnect(IOException e) {
         socket.tryClose();
-        errorHandler.onException(e);
+        if (!loggedOut) {
+            errorHandler.onException(e);
+        }
     }
 
     public boolean disconnect() {
@@ -106,6 +109,8 @@ public class JetlangStreamSession implements JetlangSession {
     }
 
     public void onLogout() {
+        loggedOut = true;
+        write(MsgTypes.Disconnect);
         hbStopper.run();
         Logout.publish(new LogoutEvent());
     }
