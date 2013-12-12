@@ -4,7 +4,7 @@
     <groupId>org.jetlang</groupId>
     <artifactId>jetlang.remoting</artifactId>
 
-    <version>0.5.2</version>
+    <version>0.5.3-SNAPSHOT</version>
     <name>Jetlang Remoting</name>
     <url>http://code.google.com/p/jetlang/</url>
 
@@ -22,9 +22,9 @@
     </licenses>
 
     <scm>
-        <connection>scm:svn:http://jetlang.googlecode.com/svn/tags/jetlang.remoting-0.5.2</connection>
-        <developerConnection>scm:svn:https://jetlang.googlecode.com/svn/tags/jetlang.remoting-0.5.2</developerConnection>
-        <url>scm:svn:https://jetlang.googlecode.com/svn/tags/jetlang.remoting-0.5.2</url>
+        <connection>scm:svn:http://jetlang.googlecode.com/svn/server/</connection>
+        <developerConnection>scm:svn:https://jetlang.googlecode.com/svn/server/</developerConnection>
+        <url>http://code.google.com/p/jetlang/source/browse/</url>
     </scm>
 
     <build>
