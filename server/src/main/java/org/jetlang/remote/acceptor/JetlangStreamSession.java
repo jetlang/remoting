@@ -56,9 +56,13 @@ public class JetlangStreamSession implements JetlangSession {
     public void startHeartbeat(int interval, TimeUnit unit) {
         if (interval > 0) {
             Runnable send = new Runnable() {
-
                 public void run() {
                     write(MsgTypes.Heartbeat);
+                }
+
+                @Override
+                public String toString() {
+                    return "JetlangStreamSession.writeHeartbeat()";
                 }
             };
             final Disposable disposeHb = sendFiber.scheduleWithFixedDelay(send, interval, interval, unit);
@@ -127,6 +131,10 @@ public class JetlangStreamSession implements JetlangSession {
                 } catch (IOException e) {
                     handleDisconnect(e);
                 }
+            }
+
+            public String toString() {
+                return "JetlangStreamSession.publish(" + topic + ", " + msg + ")";
             }
         };
         sendFiber.execute(r);
