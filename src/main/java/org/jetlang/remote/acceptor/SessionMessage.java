@@ -22,4 +22,12 @@ public class SessionMessage<T> {
     public T getMessage() {
         return msg;
     }
+
+    @Override
+    public String toString() {
+        return "SessionMessage{" +
+                "topic='" + topic + '\'' +
+                ", msg=" + msg +
+                '}';
+    }
 }
