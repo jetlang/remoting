@@ -4,7 +4,7 @@
     <groupId>org.jetlang</groupId>
     <artifactId>jetlang.remoting</artifactId>
 
-    <version>0.5.3-SNAPSHOT</version>
+    <version>0.5.4</version>
     <name>Jetlang Remoting</name>
     <url>http://code.google.com/p/jetlang/</url>
 
