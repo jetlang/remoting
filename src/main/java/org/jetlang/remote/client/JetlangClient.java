@@ -41,4 +41,6 @@ public interface JetlangClient {
                            Callback<TimeoutControls> timeoutRunnable,
                            int timeout,
                            TimeUnit timeUnit);
+
+    void execOnSendThread(Callback<SocketWriter> cb);
 }

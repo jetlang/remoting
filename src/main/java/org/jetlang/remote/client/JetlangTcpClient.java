@@ -52,6 +52,23 @@ public class JetlangTcpClient implements JetlangClient {
     private AtomicInteger reqId = new AtomicInteger();
     private final Map<Integer, Req> pendingRequests = Collections.synchronizedMap(new HashMap<Integer, Req>());
 
+    private final SocketWriter socketWriter = new SocketWriter() {
+        public <T> boolean send(final String topic, final T msg){
+            if (socket != null) {
+                try {
+                    socket.write(topic, msg);
+                    return true;
+                } catch (IOException e) {
+                    DeadMessage.publish(new DeadMessageEvent(topic, msg));
+                    handleDisconnect(new CloseEvent.WriteException(e));
+                }
+            } else {
+                DeadMessage.publish(new DeadMessageEvent(topic, msg));
+            }
+            return false;
+        }
+    };
+
     public JetlangTcpClient(SocketConnector socketConnector,
                             Fiber sendFiber,
                             JetlangClientConfig config,
@@ -429,18 +446,19 @@ public class JetlangTcpClient implements JetlangClient {
     public <T> void publish(final String topic, final T msg, final Runnable onSend) {
         Runnable r = new Runnable() {
             public void run() {
-                if (socket != null) {
-                    try {
-                        socket.write(topic, msg);
-                        if (onSend != null)
-                            onSend.run();
-                    } catch (IOException e) {
-                        DeadMessage.publish(new DeadMessageEvent(topic, msg));
-                        handleDisconnect(new CloseEvent.WriteException(e));
-                    }
-                } else {
-                    DeadMessage.publish(new DeadMessageEvent(topic, msg));
+                if(socketWriter.send(topic, msg)){
+                    if (onSend != null)
+                        onSend.run();
                 }
+            }
+        };
+        sendFiber.execute(r);
+    }
+
+    public void execOnSendThread(final Callback<SocketWriter> cb){
+        Runnable r = new Runnable() {
+            public void run() {
+                cb.onMessage(socketWriter);
             }
         };
         sendFiber.execute(r);
