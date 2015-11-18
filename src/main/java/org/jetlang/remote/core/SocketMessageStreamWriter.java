@@ -12,22 +12,23 @@ import java.nio.charset.Charset;
  * Time: 8:52 AM
  */
 public class SocketMessageStreamWriter implements MessageStreamWriter {
-    private final ClosableOutputStream socket;
     private final Charset charset;
     private final ObjectByteWriter writer;
     private final ByteArrayBuffer buffer;
-    private final OutputStream socketOutputStream;
+    private final Out socketOutputStream;
 
-    public SocketMessageStreamWriter(ClosableOutputStream socket, Charset charset, ObjectByteWriter writer) throws IOException {
-        this.socket = socket;
+    public SocketMessageStreamWriter(Out socket, Charset charset, ObjectByteWriter writer) {
         this.charset = charset;
         this.writer = writer;
-        this.socketOutputStream = socket.getOutputStream();
-        this.buffer = new ByteArrayBuffer();
+        this.socketOutputStream = socket;
+        this.buffer = socketOutputStream.getBuffer();
+    }
+
+    public SocketMessageStreamWriter(ClosableOutputStream socket, Charset charset, ObjectByteWriter writer) throws IOException {
+        this(new BufferedStream(new ByteArrayBuffer(), socket), charset, writer);
     }
 
     public void writeByteAsInt(int byteToWrite) throws IOException {
-        //write directly. no need for buffer.
         socketOutputStream.write(byteToWrite);
     }
 
@@ -36,11 +37,11 @@ public class SocketMessageStreamWriter implements MessageStreamWriter {
         buffer.appendIntAsByte(msgType);
         buffer.appendIntAsByte(bytes.length);
         buffer.append(bytes);
-        buffer.flushTo(socketOutputStream);
+        socketOutputStream.flush();
     }
 
     public boolean tryClose() {
-        return socket.close();
+        return socketOutputStream.close();
     }
 
     private final ByteMessageWriter byteMessageWriter = new ByteMessageWriter() {
@@ -72,12 +73,57 @@ public class SocketMessageStreamWriter implements MessageStreamWriter {
         buffer.appendIntAsByte(topicBytes.length);
         buffer.append(topicBytes);
         writer.write(topic, req, byteMessageWriter);
-        buffer.flushTo(socketOutputStream);
+        socketOutputStream.flush();
     }
 
     public void writeBytes(byte[] bytes) throws IOException {
-        //no need to buffer.
-        socket.getOutputStream().write(bytes);
+        socketOutputStream.writeBytes(bytes);
+    }
+
+    public interface Out {
+        ByteArrayBuffer getBuffer();
+
+        void flush() throws IOException;
+
+        void write(int byteToWrite) throws IOException;
+
+        void writeBytes(byte[] bytes) throws IOException;
+
+        boolean close();
+    }
+
+    public static class BufferedStream implements Out {
+        private final ByteArrayBuffer buffer;
+        private final ClosableOutputStream closable;
+        private final OutputStream output;
+
+        public BufferedStream(ByteArrayBuffer buffer, ClosableOutputStream closable) throws IOException {
+            this.buffer = buffer;
+            this.closable = closable;
+            this.output = closable.getOutputStream();
+        }
+
+        public ByteArrayBuffer getBuffer() {
+            return buffer;
+        }
+
+        public void flush() throws IOException {
+            buffer.flushTo(closable.getOutputStream());
+        }
+
+        public void write(int byteToWrite) throws IOException {
+            //write directly. no need for buffer.
+            output.write(byteToWrite);
+        }
+
+        public void writeBytes(byte[] bytes) throws IOException {
+            //write directly. no need for buffer.
+            output.write(bytes);
+        }
+
+        public boolean close() {
+            return closable.close();
+        }
     }
 
 }
