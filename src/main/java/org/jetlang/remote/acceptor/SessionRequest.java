@@ -4,9 +4,9 @@ public class SessionRequest {
     private final int reqId;
     private final String reqmsgTopic;
     private final Object reqmsg;
-    private final JetlangStreamSession session;
+    private final JetlangMessagePublisher session;
 
-    public SessionRequest(int reqId, String reqmsgTopic, Object reqmsg, JetlangStreamSession session) {
+    public SessionRequest(int reqId, String reqmsgTopic, Object reqmsg, JetlangMessagePublisher session) {
         this.reqId = reqId;
         this.reqmsgTopic = reqmsgTopic;
         this.reqmsg = reqmsg;

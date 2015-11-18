@@ -1,10 +1,9 @@
 package org.jetlang.remote.acceptor;
 
-import org.jetlang.channels.MemoryChannel;
-import org.jetlang.channels.Subscriber;
 import org.jetlang.core.Disposable;
 import org.jetlang.fibers.Fiber;
-import org.jetlang.remote.core.*;
+import org.jetlang.remote.core.ErrorHandler;
+import org.jetlang.remote.core.MsgTypes;
 
 import java.io.IOException;
 import java.util.Collections;
@@ -13,24 +12,8 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-public class JetlangStreamSession implements JetlangSession, JetlangMessagePublisher {
+public class JetlangStreamSession extends JetlangBaseSession {
 
-    private final CloseableChannel.Group allChannels = new CloseableChannel.Group();
-
-    private <T> CloseableChannel<T> newChannel() {
-        return allChannels.add(new MemoryChannel<T>());
-    }
-
-    private final CloseableChannel<SessionTopic> SubscriptionRequest = newChannel();
-    private final CloseableChannel<String> UnsubscribeRequest = newChannel();
-    private final CloseableChannel<LogoutEvent> Logout = newChannel();
-    private final CloseableChannel<HeartbeatEvent> Heartbeat = newChannel();
-    private final CloseableChannel<SessionMessage<?>> Messages = newChannel();
-    private final CloseableChannel<ReadTimeoutEvent> ReadTimeout = newChannel();
-    private final CloseableChannel<SessionCloseEvent> SessionClose = newChannel();
-    private final CloseableChannel<SessionRequest> SessionRequest = newChannel();
-
-    private final Object id;
     private final MessageStreamWriter socket;
     private final Fiber sendFiber;
     private final ErrorHandler errorHandler;
@@ -43,14 +26,10 @@ public class JetlangStreamSession implements JetlangSession, JetlangMessagePubli
     };
 
     public JetlangStreamSession(Object id, MessageStreamWriter socket, Fiber sendFiber, ErrorHandler errorHandler) {
-        this.id = id;
+        super(id);
         this.socket = socket;
         this.sendFiber = sendFiber;
         this.errorHandler = errorHandler;
-    }
-
-    public Object getSessionId() {
-        return id;
     }
 
     public void startHeartbeat(int interval, TimeUnit unit) {
@@ -112,17 +91,13 @@ public class JetlangStreamSession implements JetlangSession, JetlangMessagePubli
         return socket.tryClose();
     }
 
-    public void onLogout() {
+    @Override
+    public void afterLogout() {
         loggedOut = true;
-        write(MsgTypes.Disconnect);
         hbStopper.run();
-        Logout.publish(new LogoutEvent());
     }
 
-    public void onHb() {
-        Heartbeat.publish(new HeartbeatEvent());
-    }
-
+    @Override
     public <T> void publish(final String topic, final T msg) {
         Runnable r = new Runnable() {
             public void run() {
@@ -140,6 +115,7 @@ public class JetlangStreamSession implements JetlangSession, JetlangMessagePubli
         sendFiber.execute(r);
     }
 
+    @Override
     public void publish(final byte[] data) {
         Runnable r = new Runnable() {
             public void run() {
@@ -157,6 +133,7 @@ public class JetlangStreamSession implements JetlangSession, JetlangMessagePubli
         }
     }
 
+    @Override
     public void reply(final int reqId, final String replyTopic, final Object replyMsg) {
         Runnable replyRunner = new Runnable() {
             public void run() {
@@ -171,6 +148,7 @@ public class JetlangStreamSession implements JetlangSession, JetlangMessagePubli
     }
 
 
+    @Override
     public void publishIfSubscribed(String topic, final byte[] data) {
         if (subscriptions.contains(topic)) {
             Runnable r = new Runnable() {
@@ -180,57 +158,5 @@ public class JetlangStreamSession implements JetlangSession, JetlangMessagePubli
             };
             sendFiber.execute(r);
         }
-    }
-
-    public Subscriber<SessionTopic> getSubscriptionRequestChannel() {
-        return SubscriptionRequest;
-    }
-
-    public Subscriber<LogoutEvent> getLogoutChannel() {
-        return Logout;
-    }
-
-    public Subscriber<HeartbeatEvent> getHeartbeatChannel() {
-        return Heartbeat;
-    }
-
-    public Subscriber<SessionMessage<?>> getSessionMessageChannel() {
-        return Messages;
-    }
-
-    public Subscriber<ReadTimeoutEvent> getReadTimeoutChannel() {
-        return ReadTimeout;
-    }
-
-    public Subscriber<SessionCloseEvent> getSessionCloseChannel() {
-        return SessionClose;
-    }
-
-    public void onMessage(String topic, Object msg) {
-        Messages.publish(new SessionMessage<Object>(topic, msg));
-    }
-
-    public Subscriber<String> getUnsubscribeChannel() {
-        return UnsubscribeRequest;
-    }
-
-    public Subscriber<SessionRequest> getSessionRequestChannel() {
-        return SessionRequest;
-    }
-
-    public void onRequest(int reqId, String reqmsgTopic, Object reqmsg) {
-        SessionRequest.publish(new SessionRequest(reqId, reqmsgTopic, reqmsg, this));
-    }
-
-    public void onClose(SessionCloseEvent sessionCloseEvent) {
-        try {
-            SessionClose.publish(sessionCloseEvent);
-        } finally {
-            allChannels.closeAndClear();
-        }
-    }
-
-    public void onReadTimeout(ReadTimeoutEvent readTimeoutEvent) {
-        ReadTimeout.publish(readTimeoutEvent);
     }
 }
