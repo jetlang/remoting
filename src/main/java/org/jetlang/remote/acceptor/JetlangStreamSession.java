@@ -13,7 +13,7 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-public class JetlangStreamSession implements JetlangSession {
+public class JetlangStreamSession implements JetlangSession, JetlangMessagePublisher {
 
     private final CloseableChannel.Group allChannels = new CloseableChannel.Group();
 

@@ -7,9 +7,9 @@ package org.jetlang.remote.acceptor;
  */
 public class SessionTopic {
     private final String topic;
-    private final JetlangStreamSession session;
+    private final JetlangMessagePublisher session;
 
-    public SessionTopic(String topic, JetlangStreamSession session) {
+    public SessionTopic(String topic, JetlangMessagePublisher session) {
         this.topic = topic;
         this.session = session;
     }
