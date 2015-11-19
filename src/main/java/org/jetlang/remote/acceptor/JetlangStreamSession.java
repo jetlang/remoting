@@ -57,16 +57,19 @@ public class JetlangStreamSession extends JetlangBaseSession {
         }
     }
 
-    void onSubscriptionRequest(String topic) {
+    @Override
+    public void onSubscriptionRequest(String topic) {
         subscriptions.add(topic);
         SubscriptionRequest.publish(new SessionTopic(topic, this));
     }
 
+    @Override
     public void onUnsubscribeRequest(String top) {
         subscriptions.remove(top);
         UnsubscribeRequest.publish(top);
     }
 
+    @Override
     public void write(final int byteToWrite) {
         Runnable r = new Runnable() {
             public void run() {

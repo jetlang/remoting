@@ -44,6 +44,10 @@ public abstract class JetlangBaseSession implements JetlangSession, JetlangMessa
 
     protected abstract void afterLogout();
 
+    public abstract void onSubscriptionRequest(String topic);
+
+    public abstract void onUnsubscribeRequest(String topic);
+
     public void onHb() {
         Heartbeat.publish(new HeartbeatEvent());
     }
