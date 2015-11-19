@@ -10,7 +10,6 @@ import java.util.concurrent.CountDownLatch;
 
 /**
  * Maintains all subscription state on a single fiber.
- * <p/>
  * Should be used if ordering of messages is critical. To guarantee message delivery
  * ordering, the same fiber should be used for all session callbacks and for sending
  * to sessions.
@@ -28,7 +27,7 @@ public class FiberForAllSessions implements NewSessionHandler, ClientPublisher {
         this.serializer = serializer;
     }
 
-    public void onNewSession(ClientPublisher _, final JetlangSession jetlangSession) {
+    public void onNewSession(ClientPublisher unused, final JetlangSession jetlangSession) {
 
         final CountDownLatch latch = new CountDownLatch(1);
         //create the new session on the fiber.
@@ -65,7 +64,6 @@ public class FiberForAllSessions implements NewSessionHandler, ClientPublisher {
 
     /**
      * Should be invoked from the single fiber that maintains the sessions. This method is only safe if invoked from that single fiber.
-     * <p/>
      * The message is serialized at most once.
      */
     public void publishToAllSubscribedClients(String topic, Object msg) {

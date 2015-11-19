@@ -2,7 +2,14 @@ package org.jetlang.remote.acceptor;
 
 import org.jetlang.fibers.Fiber;
 import org.jetlang.fibers.ThreadFiber;
-import org.jetlang.remote.core.*;
+import org.jetlang.remote.core.ErrorHandler;
+import org.jetlang.remote.core.MsgTypes;
+import org.jetlang.remote.core.ReadTimeoutEvent;
+import org.jetlang.remote.core.Serializer;
+import org.jetlang.remote.core.SerializerFactory;
+import org.jetlang.remote.core.SocketMessageStreamWriter;
+import org.jetlang.remote.core.StreamReader;
+import org.jetlang.remote.core.TcpSocket;
 
 import java.io.IOException;
 import java.net.Socket;
@@ -117,7 +124,6 @@ public class JetlangClientHandler implements Acceptor.ClientHandler, ClientPubli
 
     /**
      * Publishes asynchronously on a separate global fiber, so be careful of message ordering when using with other fibers/threads.
-     * <p/>
      * Serialization and enqueueing are done on a separate fiber.
      */
     public void publishToAllSubscribedClients(final String topic, final Object msg) {
@@ -132,7 +138,6 @@ public class JetlangClientHandler implements Acceptor.ClientHandler, ClientPubli
 
     /**
      * Places the serialized bytes into the send q's for all subscribed clients.
-     * <p/>
      * Subscriptions are made on another thread so it is possible that this will enqueue a message to a client that hasn't been handled in a new session callback.
      */
     public void enqueueToAllSubscribedClients(String topic, byte[] data) {
