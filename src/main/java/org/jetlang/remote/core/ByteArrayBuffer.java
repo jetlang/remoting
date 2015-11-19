@@ -10,9 +10,8 @@ import java.io.OutputStream;
  */
 public class ByteArrayBuffer {
 
-    private byte[] buffer = new byte[1024];
-    private int position;
-
+    protected byte[] buffer = new byte[1024];
+    protected int position;
 
     public void reset() {
         position = 0;
@@ -28,7 +27,12 @@ public class ByteArrayBuffer {
             byte[] newBuffer = new byte[buffer.length + i];
             System.arraycopy(buffer, 0, newBuffer, 0, position);
             buffer = newBuffer;
+            afterResize();
         }
+    }
+
+    protected void afterResize() {
+
     }
 
     public void appendInt(int v) {
