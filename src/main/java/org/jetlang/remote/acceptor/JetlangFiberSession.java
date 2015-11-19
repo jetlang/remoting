@@ -91,4 +91,7 @@ public class JetlangFiberSession implements JetlangSession {
         session.publish(data);
     }
 
+    public <T> void publish(String topic, T msg) {
+        session.publish(topic, msg);
+    }
 }

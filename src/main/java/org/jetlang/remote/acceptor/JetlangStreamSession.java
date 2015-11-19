@@ -100,14 +100,15 @@ public class JetlangStreamSession extends JetlangBaseSession {
         hbStopper.run();
     }
 
-    @Override
     public <T> void publish(final String topic, final T msg) {
         Runnable r = new Runnable() {
             public void run() {
-                try {
-                    socket.write(topic, msg);
-                } catch (IOException e) {
-                    handleDisconnect(e);
+                if (subscriptions.contains(topic)) {
+                    try {
+                        socket.write(topic, msg);
+                    } catch (IOException e) {
+                        handleDisconnect(e);
+                    }
                 }
             }
 

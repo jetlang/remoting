@@ -52,8 +52,6 @@ public abstract class JetlangBaseSession implements JetlangSession, JetlangMessa
         Heartbeat.publish(new HeartbeatEvent());
     }
 
-    public abstract <T> void publish(final String topic, final T msg);
-
     public abstract void publish(final byte[] data);
 
     public abstract void reply(final int reqId, final String replyTopic, final Object replyMsg);

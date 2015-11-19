@@ -1,8 +1,8 @@
 package org.jetlang.remote.acceptor;
 
+import org.jetlang.channels.Subscriber;
 import org.jetlang.remote.core.HeartbeatEvent;
 import org.jetlang.remote.core.ReadTimeoutEvent;
-import org.jetlang.channels.Subscriber;
 
 /**
  * User: mrettig
@@ -41,4 +41,6 @@ public interface JetlangSession {
      * be published asynchronously, so the byte array should be a thread safe copy of the data.
      */
     void publish(byte[] data);
+
+    <T> void publish(final String topic, final T msg);
 }
