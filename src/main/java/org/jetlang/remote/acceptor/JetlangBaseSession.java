@@ -4,7 +4,6 @@ import org.jetlang.channels.MemoryChannel;
 import org.jetlang.channels.Subscriber;
 import org.jetlang.remote.core.CloseableChannel;
 import org.jetlang.remote.core.HeartbeatEvent;
-import org.jetlang.remote.core.MsgTypes;
 import org.jetlang.remote.core.ReadTimeoutEvent;
 
 public abstract class JetlangBaseSession implements JetlangSession, JetlangMessagePublisher {
@@ -34,15 +33,7 @@ public abstract class JetlangBaseSession implements JetlangSession, JetlangMessa
         return id;
     }
 
-    public abstract void write(final int byteToWrite);
-
-    public final void onLogout() {
-        write(MsgTypes.Disconnect);
-        Logout.publish(new LogoutEvent());
-        afterLogout();
-    }
-
-    protected abstract void afterLogout();
+    public abstract void onLogout();
 
     public abstract void onSubscriptionRequest(String topic);
 

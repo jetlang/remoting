@@ -69,8 +69,7 @@ public class JetlangStreamSession extends JetlangBaseSession {
         UnsubscribeRequest.publish(top);
     }
 
-    @Override
-    public void write(final int byteToWrite) {
+    private void write(final int byteToWrite) {
         Runnable r = new Runnable() {
             public void run() {
                 try {
@@ -95,7 +94,9 @@ public class JetlangStreamSession extends JetlangBaseSession {
     }
 
     @Override
-    public void afterLogout() {
+    public void onLogout() {
+        write(MsgTypes.Disconnect);
+        Logout.publish(new LogoutEvent());
         loggedOut = true;
         hbStopper.run();
     }
