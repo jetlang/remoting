@@ -56,6 +56,17 @@ public class SocketMessageStreamWriter implements MessageStreamWriter {
         writeData(topic, msg);
     }
 
+    public int writeWithoutFlush(String topic, Object msg) throws IOException {
+        buffer.appendIntAsByte(MsgTypes.Data);
+        writeIntoBuffer(topic, msg);
+        return buffer.position;
+    }
+
+    public void setPositionAndFlush(int position) throws IOException {
+        buffer.position = position;
+        socketOutputStream.flush();
+    }
+
     public void writeRequest(int id, String reqTopic, Object req) throws IOException {
         buffer.appendIntAsByte(MsgTypes.DataRequest);
         buffer.appendInt(id);
@@ -69,11 +80,15 @@ public class SocketMessageStreamWriter implements MessageStreamWriter {
     }
 
     private void writeData(String topic, Object req) throws IOException {
+        writeIntoBuffer(topic, req);
+        socketOutputStream.flush();
+    }
+
+    public void writeIntoBuffer(String topic, Object req) throws IOException {
         byte[] topicBytes = topic.getBytes(charset);
         buffer.appendIntAsByte(topicBytes.length);
         buffer.append(topicBytes);
         writer.write(topic, req, byteMessageWriter);
-        socketOutputStream.flush();
     }
 
     public void writeBytes(byte[] bytes) throws IOException {
