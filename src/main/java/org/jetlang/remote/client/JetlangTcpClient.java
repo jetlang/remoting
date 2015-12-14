@@ -22,6 +22,7 @@ import org.jetlang.remote.core.SocketMessageStreamWriter;
 import org.jetlang.remote.core.TcpSocket;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.Socket;
 import java.nio.charset.Charset;
 import java.util.Collections;
@@ -248,11 +249,11 @@ public class JetlangTcpClient implements JetlangClient {
                 subscription.onConnect();
             }
         }
-        final JetlangRemotingProtocol protocol = new JetlangRemotingProtocol(protocolHandler, ser.getReader(), charset);
-        final JetlangRemotingInputStream inputStream = new JetlangRemotingInputStream(newSocket.getInputStream(), protocol, onReadTimeout);
+        final InputStream stream = newSocket.getInputStream();
         final Runnable reader = new Runnable() {
-
             public void run() {
+                final JetlangRemotingProtocol protocol = new JetlangRemotingProtocol(protocolHandler, ser.getReader(), charset);
+                final JetlangRemotingInputStream inputStream = new JetlangRemotingInputStream(stream, protocol, onReadTimeout);
                 try {
                     Connected.publish(new ConnectEvent());
                     while (inputStream.readFromStream()) {
