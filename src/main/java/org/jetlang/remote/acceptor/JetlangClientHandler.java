@@ -3,17 +3,19 @@ package org.jetlang.remote.acceptor;
 import org.jetlang.fibers.Fiber;
 import org.jetlang.fibers.ThreadFiber;
 import org.jetlang.remote.core.ErrorHandler;
-import org.jetlang.remote.core.MsgTypes;
+import org.jetlang.remote.core.JetlangRemotingProtocol;
 import org.jetlang.remote.core.ReadTimeoutEvent;
 import org.jetlang.remote.core.Serializer;
 import org.jetlang.remote.core.SerializerFactory;
 import org.jetlang.remote.core.SocketMessageStreamWriter;
-import org.jetlang.remote.core.StreamReader;
 import org.jetlang.remote.core.TcpSocket;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.Socket;
 import java.net.SocketException;
+import java.net.SocketTimeoutException;
+import java.nio.ByteBuffer;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.concurrent.Executor;
@@ -173,12 +175,13 @@ public class JetlangClientHandler implements Acceptor.ClientHandler, ClientPubli
             public void run() {
                 try {
                     ReadTimeoutHandler onReadTimeout = new ReadTimeoutHandler(session);
-                    StreamReader input = new StreamReader(socket.getInputStream(), ser.getCharset(), serializer.getReader(), onReadTimeout);
                     clientTcpSocket.setSession(session);
                     channels.onNewSession(JetlangClientHandler.this, session);
                     session.startHeartbeat(config.getHeartbeatIntervalInMs(), TimeUnit.MILLISECONDS);
                     sendFiber.start();
-                    while (readFromStream(input, session, onReadTimeout)) {
+                    JetlangRemotingProtocol protocol = new JetlangRemotingProtocol(session, serializer.getReader());
+                    ReadState state = new ReadState(socket.getInputStream(), protocol, onReadTimeout);
+                    while (state.readFromStream()) {
 
                     }
                 } catch (IOException disconnect) {
@@ -194,6 +197,49 @@ public class JetlangClientHandler implements Acceptor.ClientHandler, ClientPubli
         };
     }
 
+    private static class ReadState {
+        private final InputStream inputStream;
+        private final JetlangRemotingProtocol protocol;
+        private final ReadTimeoutHandler onReadTimeout;
+        JetlangRemotingProtocol.State nextCommand;
+
+        public ReadState(InputStream inputStream, JetlangRemotingProtocol protocol, ReadTimeoutHandler onReadTimeout) {
+            this.inputStream = inputStream;
+            this.protocol = protocol;
+            this.onReadTimeout = onReadTimeout;
+            nextCommand = protocol.root;
+        }
+
+        public boolean readFromStream() throws IOException {
+            final ByteBuffer buffer = protocol.buffer;
+            int read = attemptRead();
+            if (read < 0) {
+                return false;
+            }
+            protocol.buffer.position(protocol.buffer.position() + read);
+            buffer.flip();
+            while (buffer.remaining() >= nextCommand.getRequiredBytes()) {
+                nextCommand = nextCommand.run();
+            }
+            buffer.compact();
+            if (nextCommand.getRequiredBytes() > buffer.capacity()) {
+                protocol.resizeBuffer(nextCommand.getRequiredBytes());
+            }
+            return true;
+        }
+
+        private int attemptRead() throws IOException {
+            final ByteBuffer buffer = protocol.buffer;
+            while (true) {
+                try {
+                    return inputStream.read(protocol.bufferArray, buffer.position(), buffer.remaining());
+                } catch (SocketTimeoutException timeout) {
+                    onReadTimeout.run();
+                }
+            }
+        }
+    }
+
     private void configureClientSocketAfterAccept(Socket socket) throws SocketException {
         socket.setTcpNoDelay(config.getTcpNoDelay());
         if (config.getReceiveBufferSize() > 0)
@@ -203,51 +249,4 @@ public class JetlangClientHandler implements Acceptor.ClientHandler, ClientPubli
         if (config.getReadTimeoutInMs() > 0)
             socket.setSoTimeout(config.getReadTimeoutInMs());
     }
-
-    private boolean readFromStream(StreamReader input, JetlangStreamSession session, ReadTimeoutHandler onReadTimeout) throws IOException {
-        int read = input.readByteAsInt();
-        if (read < 0) {
-            return false;
-        }
-        switch (read) {
-            case MsgTypes.Heartbeat:
-                session.onHb();
-                break;
-            case MsgTypes.Subscription:
-                int topicSizeInBytes = input.readByteAsInt();
-                String topic = input.readString(topicSizeInBytes);
-                session.onSubscriptionRequest(topic);
-                break;
-            case MsgTypes.Unsubscribe:
-                int unsubSize = input.readByteAsInt();
-                String top = input.readString(unsubSize);
-                session.onUnsubscribeRequest(top);
-                break;
-            case MsgTypes.Disconnect:
-                onReadTimeout.userLoggedOut = true;
-                session.onLogout();
-                break;
-            case MsgTypes.Data:
-                int topicSize = input.readByteAsInt();
-                String msgTopic = input.readString(topicSize);
-                int msgSize = input.readInt();
-                Object msg = input.readObject(msgTopic, msgSize);
-                session.onMessage(msgTopic, msg);
-                break;
-            case MsgTypes.DataRequest:
-                int reqId = input.readInt();
-                int reqtopicSize = input.readByteAsInt();
-                String reqmsgTopic = input.readString(reqtopicSize);
-                int reqmsgSize = input.readInt();
-                Object reqmsg = input.readObject(reqmsgTopic, reqmsgSize);
-                session.onRequest(reqId, reqmsgTopic, reqmsg);
-                break;
-            default:
-                errorHandler.onException(
-                        new RuntimeException("Unknown message type " + read + " from " + session.getSessionId()));
-                return false;
-        }
-        return true;
-    }
-
 }

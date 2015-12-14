@@ -3,6 +3,7 @@ package org.jetlang.remote.acceptor;
 import org.jetlang.core.Disposable;
 import org.jetlang.fibers.Fiber;
 import org.jetlang.remote.core.ErrorHandler;
+import org.jetlang.remote.core.JetlangRemotingProtocol;
 import org.jetlang.remote.core.MsgTypes;
 
 import java.io.IOException;
@@ -12,7 +13,7 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-public class JetlangStreamSession extends JetlangBaseSession {
+public class JetlangStreamSession extends JetlangBaseSession implements JetlangRemotingProtocol.Handler {
 
     private final MessageStreamWriter socket;
     private final Fiber sendFiber;
@@ -99,6 +100,10 @@ public class JetlangStreamSession extends JetlangBaseSession {
         Logout.publish(new LogoutEvent());
         loggedOut = true;
         hbStopper.run();
+    }
+
+    public void onUnknownMessage(int read) {
+        errorHandler.onException(new RuntimeException("Unknown message type " + read + " from " + getSessionId()));
     }
 
     public <T> void publish(final String topic, final T msg) {
