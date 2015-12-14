@@ -1,18 +1,21 @@
 package org.jetlang.remote.example.chat;
 
-import org.jetlang.remote.client.*;
-import org.jetlang.remote.core.ErrorHandler;
-import org.jetlang.remote.core.JavaSerializer;
 import org.jetlang.core.Callback;
 import org.jetlang.core.SynchronousDisposingExecutor;
 import org.jetlang.fibers.ThreadFiber;
+import org.jetlang.remote.client.CloseEvent;
+import org.jetlang.remote.client.ConnectEvent;
+import org.jetlang.remote.client.JetlangClientConfig;
+import org.jetlang.remote.client.JetlangTcpClient;
+import org.jetlang.remote.client.SocketConnector;
+import org.jetlang.remote.core.ByteMessageWriter;
+import org.jetlang.remote.core.ErrorHandler;
+import org.jetlang.remote.core.ObjectByteReader;
+import org.jetlang.remote.core.ObjectByteWriter;
+import org.jetlang.remote.core.Serializer;
 
-import java.io.Serializable;
-import java.text.SimpleDateFormat;
-import java.util.Collections;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.Map;
+import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
@@ -23,51 +26,7 @@ import java.util.concurrent.TimeUnit;
  */
 public class LatencyPing {
 
-    private static int globalId;
     private static volatile CountDownLatch latch;
-    private static Map<String, Msg> msgs = Collections.synchronizedMap(new HashMap<String, Msg>());
-
-    private static byte[] createMsg() {
-        int length = (int) (Math.random() * 300);
-        return new byte[length];
-    }
-
-    public static class Content implements Serializable {
-        private final byte[] payload = createMsg();
-        public final String id = "MSGID" + String.valueOf(globalId++);
-    }
-
-    public static class Msg implements Serializable, Runnable {
-
-        private final long create = System.nanoTime();
-        private final int sleepTime;
-
-        public final Content data = new Content();
-        private volatile Date sentTimeStamp;
-
-        public Msg(int sleepTime) {
-            this.sleepTime = sleepTime;
-        }
-
-        public void run() {
-            sentTimeStamp = new Date();
-            log("send");
-        }
-
-        private void log(String send) {
-            long sendTime = System.nanoTime() - create;
-            long ms = TimeUnit.NANOSECONDS.toMillis(sendTime);
-            if (ms > 2) {
-                SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS");
-                String sentTime = sentTimeStamp != null ? format.format(sentTimeStamp) : "SentNotSet";
-                System.out.println(data.id + " " + format.format(new Date()) + " " + send + " ms = " + ms + " size: " + data.payload.length + " sleep: " + sleepTime + " sent: " + sentTime);
-            }
-        }
-
-        public void logRoundTripLatency() {
-            log("roundtrip");
-        }
-    }
 
     public static void main(String[] args) throws InterruptedException {
         String host = "localhost";
@@ -76,43 +35,73 @@ public class LatencyPing {
             host = args[0];
             port = Integer.parseInt(args[1]);
         }
-        int iteration = 10;
-        if (args.length >= 3) {
-            iteration = Integer.parseInt(args[2]);
-        }
+        final int iteration = 50000;
         System.out.println("iterations = " + iteration);
-        latch = new CountDownLatch(iteration * 2);
+        latch = new CountDownLatch(1);
         SocketConnector conn = new SocketConnector(host, port);
         JetlangClientConfig clientConfig = new JetlangClientConfig();
 
-        JetlangTcpClient tcpClient = new JetlangTcpClient(conn, new ThreadFiber(), clientConfig, new JavaSerializer(), new ErrorHandler.SysOut());
+        JetlangTcpClient tcpClient = new JetlangTcpClient(conn, new ThreadFiber(), clientConfig, new LongSerializer(), new ErrorHandler.SysOut());
         SynchronousDisposingExecutor executor = new SynchronousDisposingExecutor();
         tcpClient.getConnectChannel().subscribe(executor, Client.<ConnectEvent>print("Connect"));
         tcpClient.getCloseChannel().subscribe(executor, Client.<CloseEvent>print("Closed"));
         tcpClient.start();
 
-        Callback<Content> onMsg = new Callback<Content>() {
-            public void onMessage(Content message) {
-                Msg m = msgs.remove(message.id);
-                m.logRoundTripLatency();
-                latch.countDown();
+        Callback<Long> onMsg = new Callback<Long>() {
+            int count = 0;
+            long latency = 0;
+            long min = Long.MAX_VALUE;
+            long max = 0;
+            public void onMessage(Long message) {
+                long duration = System.nanoTime() - message;
+                min = Math.min(duration, min);
+                max = Math.max(duration, max);
+                count++;
+                latency+= duration;
+                if(count == iteration){
+                    System.out.println("Min: " + min + " Max: " + max);
+                    System.out.println("Count: " + count);
+                    System.out.println("AvgNanos: " + (latency/count));
+                    latch.countDown();
+                }
             }
         };
         tcpClient.subscribe("t", new SynchronousDisposingExecutor(), onMsg);
 
-        int sleepTime = 0;
+        int sleepTime = 1;
         for (int i = 0; i < iteration; i++) {
+            tcpClient.publish("t", System.nanoTime());
             Thread.sleep(sleepTime);
-            Msg msg = new Msg(sleepTime);
-            msgs.put(msg.data.id, msg);
-            tcpClient.publish("t", msg.data, msg);
-            Msg second = new Msg(0);
-            msgs.put(second.data.id, second);
-            tcpClient.publish("t", second.data, second);
-            sleepTime = (int) (Math.random() * 500.00);
         }
         System.out.println("executor = " + latch.await(10, TimeUnit.SECONDS));
         tcpClient.close(true).await(1, TimeUnit.SECONDS);
+    }
+
+    public static class LongSerializer implements Serializer {
+
+        public ObjectByteWriter getWriter() {
+            return new ObjectByteWriter() {
+                byte[] bytes = new byte[8];
+                ByteBuffer buffer = ByteBuffer.wrap(bytes);
+                public void write(String topic, Object msg, ByteMessageWriter writer) throws IOException {
+                    buffer.clear();
+                    buffer.putLong((Long)msg);
+                    writer.writeObjectAsBytes(bytes, 0, bytes.length);
+                }
+            };
+        }
+
+        public ObjectByteReader getReader() {
+            return new ObjectByteReader() {
+                public Object readObject(String fromTopic, byte[] buffer, int offset, int length) throws IOException {
+                    final ByteBuffer wrap = ByteBuffer.wrap(buffer);
+                    if(offset > 0){
+                        wrap.position(offset);
+                    }
+                    return wrap.getLong();
+                }
+            };
+        }
     }
 
 }
