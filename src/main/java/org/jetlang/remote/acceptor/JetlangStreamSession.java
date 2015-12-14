@@ -157,6 +157,9 @@ public class JetlangStreamSession extends JetlangBaseSession implements JetlangR
         sendFiber.execute(replyRunner);
     }
 
+    public void onRequestReply(int reqId, String dataTopicVal, Object readObject) {
+        errorHandler.onException(new RuntimeException("Reply is not supported: " + dataTopicVal + " msg: " + readObject));
+    }
 
     @Override
     public void publishIfSubscribed(String topic, final byte[] data) {

@@ -1,16 +1,28 @@
 package org.jetlang.remote.client;
 
-import org.jetlang.channels.*;
+import org.jetlang.channels.Channel;
+import org.jetlang.channels.ChannelSubscription;
+import org.jetlang.channels.MemoryChannel;
+import org.jetlang.channels.Subscribable;
+import org.jetlang.channels.Subscriber;
 import org.jetlang.core.Callback;
 import org.jetlang.core.Disposable;
 import org.jetlang.core.DisposingExecutor;
 import org.jetlang.fibers.Fiber;
 import org.jetlang.remote.acceptor.MessageStreamWriter;
-import org.jetlang.remote.core.*;
+import org.jetlang.remote.core.CloseableChannel;
+import org.jetlang.remote.core.ErrorHandler;
+import org.jetlang.remote.core.HeartbeatEvent;
+import org.jetlang.remote.core.JetlangRemotingInputStream;
+import org.jetlang.remote.core.JetlangRemotingProtocol;
+import org.jetlang.remote.core.MsgTypes;
+import org.jetlang.remote.core.ReadTimeoutEvent;
+import org.jetlang.remote.core.Serializer;
+import org.jetlang.remote.core.SocketMessageStreamWriter;
+import org.jetlang.remote.core.TcpSocket;
 
 import java.io.IOException;
 import java.net.Socket;
-import java.net.SocketTimeoutException;
 import java.nio.charset.Charset;
 import java.util.Collections;
 import java.util.HashMap;
@@ -236,13 +248,14 @@ public class JetlangTcpClient implements JetlangClient {
                 subscription.onConnect();
             }
         }
-        final StreamReader stream = new StreamReader(newSocket.getInputStream(), charset, ser.getReader(), onReadTimeout);
-        Runnable reader = new Runnable() {
+        final JetlangRemotingProtocol protocol = new JetlangRemotingProtocol(protocolHandler, ser.getReader(), charset);
+        final JetlangRemotingInputStream inputStream = new JetlangRemotingInputStream(newSocket.getInputStream(), protocol, onReadTimeout);
+        final Runnable reader = new Runnable() {
 
             public void run() {
                 try {
                     Connected.publish(new ConnectEvent());
-                    while (read(stream)) {
+                    while (inputStream.readFromStream()) {
                     }
                 } catch (IOException failed) {
                     handleReadExceptionOnSendFiber(failed);
@@ -256,35 +269,40 @@ public class JetlangTcpClient implements JetlangClient {
         }
     }
 
-    private boolean read(StreamReader stream) throws IOException {
-        try {
-            int msg = stream.readByteAsInt();
-            switch (msg) {
-                case MsgTypes.Disconnect://logout
-                    logoutLatch.countDown();
-                    return false;
-                case MsgTypes.Heartbeat:
-                    this.Heartbeat.publish(new HeartbeatEvent());
-                    return true;
-                case MsgTypes.Data:
-                    String topic = stream.readStringWithSize();
-                    Object object = stream.readObjectWithSize(topic);
-                    publishData(topic, object);
-                    return true;
-                case MsgTypes.DataReply:
-                    int reqId = stream.readInt();
-                    String reqTopic = stream.readStringWithSize();
-                    Object reply = stream.readObjectWithSize(reqTopic);
-                    publishReply(reqId, reply);
-                    return true;
-                default:
-                    throw new IOException("Unknown msg: " + msg);
-            }
-        } catch (SocketTimeoutException ignored) {
-            this.ReadTimeout.publish(new ReadTimeoutEvent());
-            return true;
+    private final JetlangRemotingProtocol.Handler protocolHandler = new JetlangRemotingProtocol.Handler() {
+        public void onMessage(String dataTopicVal, Object readObject) {
+            publishData(dataTopicVal, readObject);
         }
-    }
+
+        public void onSubscriptionRequest(String val) {
+            errorHandler.onException(new IOException("SubscriptionNotSupported: " + val));
+        }
+
+        public void onRequest(int reqId, String dataTopicVal, Object readObject) {
+            errorHandler.onException(new IOException("RequestNotSupported: " + dataTopicVal + " val: " + readObject));
+        }
+
+        public void onUnsubscribeRequest(String val) {
+            errorHandler.onException(new IOException("UnsubscribeNotSupported: " + val));
+        }
+
+        public void onHb() {
+            Heartbeat.publish(new HeartbeatEvent());
+        }
+
+        public void onLogout() {
+            logoutLatch.countDown();
+        }
+
+        public void onUnknownMessage(int read) {
+            errorHandler.onException(new IOException(read + " not supported"));
+        }
+
+        public void onRequestReply(int reqId, String dataTopicVal, Object readObject) {
+            publishReply(reqId, readObject);
+        }
+    };
+
 
     private void handleReadExceptionOnSendFiber(final IOException e) {
         Runnable exec = new Runnable() {

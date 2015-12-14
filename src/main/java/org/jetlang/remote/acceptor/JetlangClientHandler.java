@@ -3,6 +3,7 @@ package org.jetlang.remote.acceptor;
 import org.jetlang.fibers.Fiber;
 import org.jetlang.fibers.ThreadFiber;
 import org.jetlang.remote.core.ErrorHandler;
+import org.jetlang.remote.core.JetlangRemotingInputStream;
 import org.jetlang.remote.core.JetlangRemotingProtocol;
 import org.jetlang.remote.core.ReadTimeoutEvent;
 import org.jetlang.remote.core.Serializer;
@@ -11,11 +12,8 @@ import org.jetlang.remote.core.SocketMessageStreamWriter;
 import org.jetlang.remote.core.TcpSocket;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.net.Socket;
 import java.net.SocketException;
-import java.net.SocketTimeoutException;
-import java.nio.ByteBuffer;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.concurrent.Executor;
@@ -179,8 +177,8 @@ public class JetlangClientHandler implements Acceptor.ClientHandler, ClientPubli
                     channels.onNewSession(JetlangClientHandler.this, session);
                     session.startHeartbeat(config.getHeartbeatIntervalInMs(), TimeUnit.MILLISECONDS);
                     sendFiber.start();
-                    JetlangRemotingProtocol protocol = new JetlangRemotingProtocol(session, serializer.getReader());
-                    ReadState state = new ReadState(socket.getInputStream(), protocol, onReadTimeout);
+                    JetlangRemotingProtocol protocol = new JetlangRemotingProtocol(session, serializer.getReader(), ser.getCharset());
+                    JetlangRemotingInputStream state = new JetlangRemotingInputStream(socket.getInputStream(), protocol, onReadTimeout);
                     while (state.readFromStream()) {
 
                     }
@@ -195,49 +193,6 @@ public class JetlangClientHandler implements Acceptor.ClientHandler, ClientPubli
                 }
             }
         };
-    }
-
-    private static class ReadState {
-        private final InputStream inputStream;
-        private final JetlangRemotingProtocol protocol;
-        private final ReadTimeoutHandler onReadTimeout;
-        JetlangRemotingProtocol.State nextCommand;
-
-        public ReadState(InputStream inputStream, JetlangRemotingProtocol protocol, ReadTimeoutHandler onReadTimeout) {
-            this.inputStream = inputStream;
-            this.protocol = protocol;
-            this.onReadTimeout = onReadTimeout;
-            nextCommand = protocol.root;
-        }
-
-        public boolean readFromStream() throws IOException {
-            final ByteBuffer buffer = protocol.buffer;
-            int read = attemptRead();
-            if (read < 0) {
-                return false;
-            }
-            protocol.buffer.position(protocol.buffer.position() + read);
-            buffer.flip();
-            while (buffer.remaining() >= nextCommand.getRequiredBytes()) {
-                nextCommand = nextCommand.run();
-            }
-            buffer.compact();
-            if (nextCommand.getRequiredBytes() > buffer.capacity()) {
-                protocol.resizeBuffer(nextCommand.getRequiredBytes());
-            }
-            return true;
-        }
-
-        private int attemptRead() throws IOException {
-            final ByteBuffer buffer = protocol.buffer;
-            while (true) {
-                try {
-                    return inputStream.read(protocol.bufferArray, buffer.position(), buffer.remaining());
-                } catch (SocketTimeoutException timeout) {
-                    onReadTimeout.run();
-                }
-            }
-        }
     }
 
     private void configureClientSocketAfterAccept(Socket socket) throws SocketException {
