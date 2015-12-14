@@ -14,7 +14,7 @@ public class JetlangRemotingProtocol {
     private final DataRequestReply dataRequestReply = new DataRequestReply();
     private final DataReader d = new DataReader() {
         @Override
-        protected State onObject(String dataTopicVal, Object readObject) throws IOException {
+        protected State onObject(String dataTopicVal, Object readObject) {
             session.onMessage(dataTopicVal, readObject);
             return root;
         }
@@ -24,7 +24,7 @@ public class JetlangRemotingProtocol {
             return 1;
         }
 
-        public State run() throws IOException {
+        public State run() {
             int read = buffer.get();
             switch (read) {
                 case MsgTypes.Heartbeat:
@@ -51,14 +51,14 @@ public class JetlangRemotingProtocol {
     };
     private final StringState subRequest = new StringState() {
         @Override
-        protected State onString(String val) throws IOException {
+        protected State onString(String val) {
             session.onSubscriptionRequest(val);
             return root;
         }
     };
     private final StringState unsubRequest = new StringState() {
         @Override
-        protected State onString(String val) throws IOException {
+        protected State onString(String val) {
             session.onUnsubscribeRequest(val);
             return root;
         }
@@ -123,7 +123,7 @@ public class JetlangRemotingProtocol {
                 return 1;
             }
 
-            public State run() throws IOException {
+            public State run() {
                 stringSize = buffer.get();
                 return getSubRequestString;
             }
@@ -151,14 +151,14 @@ public class JetlangRemotingProtocol {
                 return 4;
             }
 
-            public State run() throws IOException {
+            public State run() {
                 dataSizeVal = buffer.getInt();
                 return dataSizeRead;
             }
         };
         StringState first = new StringState() {
             @Override
-            protected State onString(String val) throws IOException {
+            protected State onString(String val) {
                 dataTopicVal = val;
                 return dataSize;
             }
@@ -187,7 +187,7 @@ public class JetlangRemotingProtocol {
 
         DataReader data = new DataReader() {
             @Override
-            protected State onObject(String dataTopicVal, Object readObject) throws IOException {
+            protected State onObject(String dataTopicVal, Object readObject) {
                 handleRequest(reqId, dataTopicVal, readObject);
                 return root;
             }
@@ -200,7 +200,7 @@ public class JetlangRemotingProtocol {
                 return 4;
             }
 
-            public State run() throws IOException {
+            public State run() {
                 reqId = buffer.getInt();
                 return data.first.first;
             }
