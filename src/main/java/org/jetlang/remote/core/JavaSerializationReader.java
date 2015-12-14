@@ -12,7 +12,7 @@ import java.io.ObjectInputStream;
 public class JavaSerializationReader implements ObjectByteReader {
 
     public Object readObject(String fromTopic, byte[] buffer, int offset, int length) throws IOException {
-        ByteArrayInputStream readStream = new ByteArrayInputStream(buffer);
+        ByteArrayInputStream readStream = new ByteArrayInputStream(buffer, offset, length);
         try {
             return new ObjectInputStream(readStream).readObject();
         } catch (ClassNotFoundException e) {
