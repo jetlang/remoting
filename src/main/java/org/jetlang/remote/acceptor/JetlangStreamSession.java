@@ -90,8 +90,8 @@ public class JetlangStreamSession extends JetlangBaseSession implements JetlangR
         }
     }
 
-    public boolean disconnect() {
-        return socket.tryClose();
+    public void disconnect() {
+        socket.tryClose();
     }
 
     @Override

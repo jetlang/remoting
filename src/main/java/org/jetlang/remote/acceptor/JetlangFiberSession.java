@@ -83,8 +83,8 @@ public class JetlangFiberSession implements JetlangSession {
         return session.getSessionCloseChannel();
     }
 
-    public boolean disconnect() {
-        return session.disconnect();
+    public void disconnect() {
+        session.disconnect();
     }
 
     public void publish(byte[] data) {

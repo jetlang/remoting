@@ -30,11 +30,9 @@ public interface JetlangSession {
     Subscriber<SessionCloseEvent> getSessionCloseChannel();
 
     /**
-     * Attempts to disconnect the client. This call is synchronous to the client.
-     *
-     * @return true if close succeeds
+     * Attempts to disconnect the client.
      */
-    boolean disconnect();
+    void disconnect();
 
     /**
      * publish raw bytes. The bytes should be correctly formatted with the topic included. The bytes will
