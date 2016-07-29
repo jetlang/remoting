@@ -7,7 +7,7 @@
 
     <version>0.6.9</version>
     <name>Jetlang Remoting</name>
-    <url>http://code.google.com/p/jetlang/</url>
+    <url>hhttps://github.com/jetlang/remoting</url>
 
     <description>
         Jetlang remoting provides high performance remote messaging.
@@ -25,7 +25,7 @@
     <scm>
         <connection>scm:git:https://github.com/jetlang/remoting.git</connection>
         <developerConnection>scm:git:git@github.com:jetlang/remoting.git</developerConnection>
-        <url>https://github.com/jetlang/core</url>
+        <url>https://github.com/jetlang/remoting</url>
         <tag>HEAD</tag>
     </scm>
 
