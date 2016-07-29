@@ -3,8 +3,9 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>org.jetlang</groupId>
     <artifactId>jetlang.remoting</artifactId>
+    <packaging>bundle</packaging>
 
-    <version>0.5.4</version>
+    <version>0.6.9</version>
     <name>Jetlang Remoting</name>
     <url>http://code.google.com/p/jetlang/</url>
 
@@ -22,27 +23,52 @@
     </licenses>
 
     <scm>
-        <connection>scm:svn:http://jetlang.googlecode.com/svn/server/</connection>
-        <developerConnection>scm:svn:https://jetlang.googlecode.com/svn/server/</developerConnection>
-        <url>http://code.google.com/p/jetlang/source/browse/</url>
+        <connection>scm:git:https://github.com/jetlang/remoting.git</connection>
+        <developerConnection>scm:git:git@github.com:jetlang/remoting.git</developerConnection>
+        <url>https://github.com/jetlang/core</url>
+        <tag>HEAD</tag>
     </scm>
 
-    <build>
-        <extensions>
-            <extension>
-                <groupId>org.jvnet.wagon-svn</groupId>
-                <artifactId>wagon-svn</artifactId>
-                <version>1.8</version>
-            </extension>
-        </extensions>
+    <developers>
+        <developer>
+            <id>mike.rettig@gmail.com</id>
+            <name>Mike Rettig</name>
+            <email>mike.rettig@gmail.com</email>
+        </developer>
+        <developer>
+            <id>peter.a.royal</id>
+            <name>Peter Royal</name>
+            <email>peter.royal@pobox.com</email>
+        </developer>
+    </developers>
 
+    <build>
         <plugins>
             <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-release-plugin</artifactId>
-                <version>2.4.1</version>
+                <version>2.5</version>
                 <configuration>
-                    <tagBase>https://jetlang.googlecode.com/svn/tags</tagBase>
+                    <autoVersionSubmodules>true</autoVersionSubmodules>
+                    <useReleaseProfile>false</useReleaseProfile>
+                    <releaseProfiles>release</releaseProfiles>
+                    <goals>deploy</goals>
                 </configuration>
+            </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-gpg-plugin</artifactId>
+                <version>1.6</version>
+                <executions>
+                    <execution>
+                        <id>sign-artifacts</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>sign</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
 
             <plugin>
@@ -137,6 +163,33 @@
                     </archive>
                 </configuration>
             </plugin>
+
+            <plugin>
+                <groupId>org.apache.felix</groupId>
+                <artifactId>maven-bundle-plugin</artifactId>
+                <version>2.1.0</version>
+                <extensions>true</extensions>
+                <configuration>
+                    <instructions>
+                        <Bundle-RequiredExecutionEnvironment>J2SE-1.5,JavaSE-1.6</Bundle-RequiredExecutionEnvironment>
+                        <Bundle-SymbolicName>${project.groupId}.${project.artifactId}</Bundle-SymbolicName>
+                        <Export-Package>${project.groupId}.*;version="${project.version}"</Export-Package>
+                    </instructions>
+                </configuration>
+            </plugin>
+
+            <plugin>
+                <groupId>org.sonatype.plugins</groupId>
+                <artifactId>nexus-staging-maven-plugin</artifactId>
+                <version>1.6.7</version>
+                <extensions>true</extensions>
+                <configuration>
+                    <serverId>ossrh</serverId>
+                    <nexusUrl>https://oss.sonatype.org/</nexusUrl>
+                    <autoReleaseAfterClose>true</autoReleaseAfterClose>
+                </configuration>
+            </plugin>
+
         </plugins>
     </build>
 
@@ -187,29 +240,14 @@
     </profiles>
 
     <distributionManagement>
-        <site>
-            <id>google-code</id>
-            <url>svn:https://jetlang.googlecode.com/svn/site/</url>
-        </site>
+        <snapshotRepository>
+            <id>ossrh</id>
+            <url>https://oss.sonatype.org/content/repositories/snapshots</url>
+        </snapshotRepository>
         <repository>
-            <uniqueVersion>false</uniqueVersion>
-            <id>google-code</id>
-            <url>svn:https://jetlang.googlecode.com/svn/repo/</url>
+            <id>ossrh</id>
+            <url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
         </repository>
     </distributionManagement>
-
-    <repositories>
-        <repository>
-            <id>maven2-repository.dev.java.net</id>
-            <name>Java.net Repository for Maven</name>
-            <url>http://download.java.net/maven/2/</url>
-        </repository>
-        <!--<repository>
-            <id>jetlang.googlecode.com</id>
-            <name>Jetlang Repository for Maven</name>
-            <url>http://jetlang.googlecode.com/svn/repo/</url>
-        </repository>
-        -->
-    </repositories>
 
 </project>
