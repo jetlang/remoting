@@ -1,7 +1,6 @@
 package org.jetlang.remote.core;
 
 import java.io.IOException;
-import java.net.Socket;
 
 /**
  * User: mrettig
@@ -39,7 +38,7 @@ public class ByteArraySerializer implements Serializer {
 
     public static class Factory implements SerializerFactory {
 
-        public Serializer createForSocket(Socket socket) {
+        public Serializer create() {
             return new ByteArraySerializer();
         }
 

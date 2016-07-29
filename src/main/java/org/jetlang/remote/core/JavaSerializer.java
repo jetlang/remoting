@@ -1,7 +1,5 @@
 package org.jetlang.remote.core;
 
-import java.net.Socket;
-
 /**
  * User: mrettig
  * Date: 4/6/11
@@ -22,7 +20,7 @@ public class JavaSerializer implements Serializer {
 
     public static class Factory implements SerializerFactory {
 
-        public Serializer createForSocket(Socket socket) {
+        public Serializer create() {
             return new JavaSerializer();
         }
 

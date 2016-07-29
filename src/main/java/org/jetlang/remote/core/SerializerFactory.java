@@ -8,8 +8,15 @@ import java.net.Socket;
  * Time: 10:49 AM
  */
 public interface SerializerFactory {
-    Serializer createForSocket(Socket socket);
 
-    ObjectByteWriter createForGlobalWriter();
+    Serializer create();
+
+    default Serializer createForSocket(Socket socket) {
+        return create();
+    }
+
+    default ObjectByteWriter createForGlobalWriter() {
+        return create().getWriter();
+    }
 
 }
