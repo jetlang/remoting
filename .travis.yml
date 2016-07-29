@@ -5,5 +5,4 @@ script: mvn test
 install: echo "install"
 
 jdk:
-  - openjdk7
   - oraclejdk8
