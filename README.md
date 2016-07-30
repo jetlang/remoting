@@ -1,5 +1,8 @@
 Jetlang Remoting provides a language agnostic wire level protocol and threading model for asynchronous distributed messaging.
 
+The latest version is available in the maven repository.
+https://repo1.maven.org/maven2/org/jetlang/jetlang.remoting/
+
 #Features
 
   * Language agnostic messaging protocol - JetlangRemotingSpec
