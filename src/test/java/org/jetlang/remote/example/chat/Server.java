@@ -35,7 +35,7 @@ public class Server {
         //create send fiber as non-daemon thread to prevent main from exiting
         final Fiber sendFiber = new ThreadFiber(new RunnableExecutorImpl(), "sendFiber", false);
         ByteArraySerializer.Factory factory = new ByteArraySerializer.Factory();
-        final Serializer serializer = factory.createForSocket(null);
+        final Serializer serializer = factory.create();
         final Charset charset = Charset.forName("ASCII");
         NioJetlangSendFiber sender = new NioJetlangSendFiber(sendFiber, nioFiber, serializer.getWriter(), charset, new NioFiberImpl.NoOpBuffer());
 
@@ -46,6 +46,8 @@ public class Server {
                 Callback<SessionMessage<?>> onMsg = new Callback<SessionMessage<?>>() {
                     @Override
                     public void onMessage(SessionMessage sessionMessage) {
+                        //forward the bytes to any and all clients that have subscribed to the topic
+                        //message is serialized and written to clients on send fiber
                         sender.publishToAllSubscribedClients(sessionMessage.getTopic(), sessionMessage.getMessage());
                         System.out.println("topic: " + sessionMessage.getTopic() + " msg: " + sessionMessage.getMessage());
                     }
