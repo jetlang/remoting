@@ -6,7 +6,7 @@ https://repo1.maven.org/maven2/org/jetlang/jetlang.remoting/
 
 #Features
 
-  * Language agnostic messaging protocol
+  * Language agnostic messaging protocol - https://github.com/jetlang/remoting/wiki
   * Stateful distributed sessions
   * Session heartbeating
   * Session lifecycles - Connect, Heartbeat, Session Timeout, Logout, Disconnect
