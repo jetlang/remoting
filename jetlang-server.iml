@@ -13,5 +13,15 @@
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="library" scope="TEST" name="Maven: junit:junit:4.4" level="project" />
     <orderEntry type="library" name="Maven: org.jetlang:jetlang:0.2.15" level="project" />
+    <orderEntry type="library" scope="TEST" name="Maven: org.glassfish.tyrus:tyrus-server:1.13" level="project" />
+    <orderEntry type="library" scope="TEST" name="Maven: javax.websocket:javax.websocket-api:1.1" level="project" />
+    <orderEntry type="library" scope="TEST" name="Maven: org.glassfish.tyrus:tyrus-client:1.13" level="project" />
+    <orderEntry type="library" scope="TEST" name="Maven: org.glassfish.tyrus:tyrus-core:1.13" level="project" />
+    <orderEntry type="library" scope="TEST" name="Maven: org.glassfish.tyrus:tyrus-spi:1.13" level="project" />
+    <orderEntry type="library" scope="TEST" name="Maven: org.glassfish.tyrus:tyrus-container-grizzly-client:1.13" level="project" />
+    <orderEntry type="library" scope="TEST" name="Maven: org.glassfish.tyrus:tyrus-container-grizzly-server:1.13" level="project" />
+    <orderEntry type="library" scope="TEST" name="Maven: org.glassfish.grizzly:grizzly-framework:2.3.25" level="project" />
+    <orderEntry type="library" scope="TEST" name="Maven: org.glassfish.grizzly:grizzly-http-server:2.3.25" level="project" />
+    <orderEntry type="library" scope="TEST" name="Maven: org.glassfish.grizzly:grizzly-http:2.3.25" level="project" />
   </component>
 </module>

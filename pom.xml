@@ -199,6 +199,19 @@
             <artifactId>jetlang</artifactId>
             <version>0.2.15</version>
         </dependency>
+        <dependency>
+            <groupId>org.glassfish.tyrus</groupId>
+            <artifactId>tyrus-server</artifactId>
+            <version>1.13</version>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.glassfish.tyrus</groupId>
+            <artifactId>tyrus-container-grizzly-server</artifactId>
+            <version>1.13</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <reporting>
