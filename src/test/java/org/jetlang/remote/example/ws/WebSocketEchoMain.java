@@ -9,7 +9,7 @@ import java.net.URI;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
-public class WsTest {
+public class WebSocketEchoMain {
 
     private static final String SENT_MESSAGE = "Hello World";
 
@@ -18,7 +18,7 @@ public class WsTest {
         acceptorFiber.start();
         try {
 
-            WsClientFactory factory = new WsClientFactory() {
+            WebSocketClientFactory factory = new WebSocketClientFactory() {
             };
             WebSocketAcceptor acceptor = new WebSocketAcceptor(8025, acceptorFiber, factory, ()->{});
             acceptor.start();

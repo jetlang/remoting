@@ -12,7 +12,7 @@ import java.nio.channels.SelectableChannel;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.SocketChannel;
 
-public abstract class WsClientFactory implements NioAcceptorHandler.ClientFactory {
+public abstract class WebSocketClientFactory implements NioAcceptorHandler.ClientFactory {
     @Override
     public void onAccept(NioFiber fiber, NioControls controls, SelectionKey key, SocketChannel channel) {
        configureChannel(channel);
