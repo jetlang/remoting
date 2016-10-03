@@ -7,7 +7,6 @@ import org.jetlang.remote.acceptor.NioAcceptorHandler;
 
 import java.io.IOException;
 import java.net.SocketException;
-import java.nio.ByteBuffer;
 import java.nio.channels.SelectableChannel;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.SocketChannel;
@@ -21,19 +20,15 @@ public abstract class WebSocketClientFactory implements NioAcceptorHandler.Clien
 
     protected NioChannelHandler createHandler(SelectionKey key, SocketChannel channel) {
         return new NioChannelHandler() {
-            ByteBuffer buffer = ByteBuffer.allocate(1024);
+            Protocol protocol = new Protocol();
             @Override
             public boolean onSelect(NioFiber nioFiber, NioControls nioControls, SelectionKey selectionKey) {
                 try {
-                    while (channel.read(buffer) > 0) {
-                        buffer.flip();
-                        System.out.println(new String(buffer.array(), 0, buffer.limit()));
-                        buffer.clear();
-                    }
+                    return protocol.onRead(channel);
                 }catch(IOException failed){
                     return false;
                 }
-                return true;
+
             }
 
             @Override
