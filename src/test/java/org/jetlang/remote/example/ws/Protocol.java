@@ -37,7 +37,6 @@ public class Protocol {
     }
 
     public class FirstLine implements State {
-
         @Override
         public State afterRead() {
             stripEndOfLines();
@@ -47,7 +46,7 @@ public class Protocol {
                     String line = new String(buffer.array(), startPosition, buffer.position() - startPosition);
                     System.out.println("line = " + line);
                     buffer.position(buffer.position() + 1);
-                    return this;
+                    return new HeaderLine();
                 } else {
                     buffer.position(buffer.position() + 1);
                 }
@@ -57,10 +56,36 @@ public class Protocol {
         }
     }
 
-    private void stripEndOfLines() {
+    public class HeaderLine implements State {
+
+        @Override
+        public State afterRead() {
+            if (stripEndOfLines() > 2) {
+                System.out.println("Done");
+                return null;
+            }
+            final int startPosition = buffer.position();
+            while (buffer.remaining() > 0) {
+                if (isCurrentCharEol()) {
+                    String line = new String(buffer.array(), startPosition, buffer.position() - startPosition);
+                    System.out.println("header = " + line);
+                    buffer.position(buffer.position() + 1);
+                    return new HeaderLine();
+                } else {
+                    buffer.position(buffer.position() + 1);
+                }
+            }
+            return null;
+        }
+    }
+
+    private int stripEndOfLines() {
+        int count = 0;
         while (buffer.remaining() > 0 && isCurrentCharEol()) {
             buffer.position(buffer.position() + 1);
+            count++;
         }
+        return count;
     }
 
     private boolean isCurrentCharEol() {
