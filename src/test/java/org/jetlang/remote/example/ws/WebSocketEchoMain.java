@@ -3,9 +3,15 @@ package org.jetlang.remote.example.ws;
 import org.glassfish.tyrus.client.ClientManager;
 import org.jetlang.fibers.NioFiberImpl;
 
-import javax.websocket.*;
+import javax.websocket.ClientEndpointConfig;
+import javax.websocket.DeploymentException;
+import javax.websocket.Endpoint;
+import javax.websocket.EndpointConfig;
+import javax.websocket.MessageHandler;
+import javax.websocket.Session;
 import java.io.IOException;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
@@ -13,11 +19,9 @@ public class WebSocketEchoMain {
 
     private static final String SENT_MESSAGE = "Hello World";
 
-    public static void main(String [] args){
+    public static void main(String[] args) throws InterruptedException, URISyntaxException, IOException, DeploymentException {
         NioFiberImpl acceptorFiber = new NioFiberImpl();
         acceptorFiber.start();
-        try {
-
             WebSocketClientFactory factory = new WebSocketClientFactory() {
             };
             WebSocketAcceptor acceptor = new WebSocketAcceptor(8025, acceptorFiber, factory, ()->{});
@@ -46,9 +50,8 @@ public class WebSocketEchoMain {
                     }
                 }
             }, cec, new URI("ws://localhost:8025/websockets/echo"));
-            messageLatch.await(100, TimeUnit.SECONDS);
-        } catch (Exception e) {
-            e.printStackTrace();
+        if (!messageLatch.await(5, TimeUnit.SECONDS)) {
+            System.out.println("Nothing received");
         }
         acceptorFiber.dispose();
     }

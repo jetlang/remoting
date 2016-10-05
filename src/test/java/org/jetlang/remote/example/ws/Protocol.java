@@ -1,26 +1,51 @@
 package org.jetlang.remote.example.ws;
 
+import org.jetlang.fibers.NioControls;
+import org.jetlang.fibers.NioFiber;
+
+import javax.xml.bind.DatatypeConverter;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.nio.channels.SocketChannel;
 import java.nio.charset.Charset;
 import java.nio.charset.CharsetDecoder;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.HashMap;
 import java.util.Map;
 
 public class Protocol {
 
-    private final CharsetDecoder decoder = Charset.forName("UTF-8").newDecoder();
+    private final Charset charset = Charset.forName("UTF-8");
+    private final CharsetDecoder decoder = charset.newDecoder();
     private final ByteBuffer bb = ByteBuffer.allocate(1024);
     private final CharBuffer buffer = CharBuffer.allocate(1024);
+    private final SocketChannel channel;
+    private final NioFiber fiber;
+    private final NioControls controls;
     private State current = new FirstLine();
     private final Map<String, String> headers = new HashMap<>();
     private String method;
     private String requestUri;
     private String protocolVersion;
+    private final MessageDigest msgDigest = getDigest("SHA-1");
 
-    public boolean onRead(SocketChannel channel) throws IOException {
+    private MessageDigest getDigest(String s) {
+        try {
+            return MessageDigest.getInstance(s);
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public Protocol(SocketChannel channel, NioFiber fiber, NioControls controls) {
+        this.channel = channel;
+        this.fiber = fiber;
+        this.controls = controls;
+    }
+
+    public boolean onRead() throws IOException {
         while (channel.read(bb) > 0) {
             bb.flip();
             decoder.decode(bb, buffer, true);
@@ -82,7 +107,10 @@ public class Protocol {
         public State afterRead() {
             eol += stripEndOfLines();
             if (eol == 4) {
-                System.out.println("Done " + eol);
+                System.out.println("Done " + eol + " " + buffer.remaining());
+                if ("websocket".equals(headers.get("Upgrade"))) {
+                    return sendWebsocketHandshake();
+                }
                 return null;
             }
             final int startPosition = buffer.position();
@@ -96,6 +124,17 @@ public class Protocol {
             }
             return null;
         }
+    }
+
+    private State sendWebsocketHandshake() {
+        StringBuilder handshake = new StringBuilder();
+        handshake.append("HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: ");
+        String key = headers.get("Sec-WebSocket-Key") + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
+        String reply = DatatypeConverter.printBase64Binary(msgDigest.digest(key.getBytes(charset)));
+        handshake.append(reply).append("\r\n\r\n");
+        controls.write(channel, ByteBuffer.wrap(handshake.toString().getBytes(charset)));
+        System.out.println("handshake = " + handshake);
+        return new FirstLine();
     }
 
     private void addHeader(char[] array, int startPosition, int length) {

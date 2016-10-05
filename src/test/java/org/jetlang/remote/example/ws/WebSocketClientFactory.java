@@ -15,16 +15,16 @@ public abstract class WebSocketClientFactory implements NioAcceptorHandler.Clien
     @Override
     public void onAccept(NioFiber fiber, NioControls controls, SelectionKey key, SocketChannel channel) {
        configureChannel(channel);
-       controls.addHandler(createHandler(key, channel));
+        controls.addHandler(createHandler(key, channel, fiber, controls));
     }
 
-    protected NioChannelHandler createHandler(SelectionKey key, SocketChannel channel) {
+    protected NioChannelHandler createHandler(SelectionKey key, SocketChannel channel, NioFiber fiber, NioControls controls) {
         return new NioChannelHandler() {
-            Protocol protocol = new Protocol();
+            Protocol protocol = new Protocol(channel, fiber, controls);
             @Override
             public boolean onSelect(NioFiber nioFiber, NioControls nioControls, SelectionKey selectionKey) {
                 try {
-                    return protocol.onRead(channel);
+                    return protocol.onRead();
                 }catch(IOException failed){
                     return false;
                 }
