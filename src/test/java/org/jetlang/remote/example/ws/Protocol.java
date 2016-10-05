@@ -12,8 +12,6 @@ import java.nio.charset.Charset;
 import java.nio.charset.CharsetDecoder;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.util.HashMap;
-import java.util.Map;
 
 public class Protocol {
 
@@ -25,10 +23,7 @@ public class Protocol {
     private final NioFiber fiber;
     private final NioControls controls;
     private State current = new FirstLine();
-    private final Map<String, String> headers = new HashMap<>();
-    private String method;
-    private String requestUri;
-    private String protocolVersion;
+    private HttpHeaders headers = new HttpHeaders();
     private final MessageDigest msgDigest = getDigest("SHA-1");
 
     private MessageDigest getDigest(String s) {
@@ -81,7 +76,7 @@ public class Protocol {
                     buffer.position(buffer.position() + 1);
                 }
             }
-            buffer.position(0);
+            buffer.position(startPosition);
             return null;
         }
     }
@@ -89,14 +84,14 @@ public class Protocol {
     private void addFirstLine(char[] array, int startPosition, int length) {
         int first = find(array, startPosition, length, ' ');
         int firstLength = first - startPosition;
-        method = new String(array, startPosition, firstLength);
-        System.out.println("method = " + method);
+        headers.method = new String(array, startPosition, firstLength);
+        System.out.println("method = " + headers.method);
         int second = find(array, first + 1, length - firstLength, ' ');
         int secondLength = second - first - 1;
-        requestUri = new String(array, startPosition + firstLength + 1, secondLength);
-        System.out.println("requestUri = '" + requestUri + "'");
-        protocolVersion = new String(array, startPosition + firstLength + secondLength + 2, length - firstLength - secondLength - 2);
-        System.out.println("protocolVersion = '" + protocolVersion + "'");
+        headers.requestUri = new String(array, startPosition + firstLength + 1, secondLength);
+        System.out.println("requestUri = '" + headers.requestUri + "'");
+        headers.protocolVersion = new String(array, startPosition + firstLength + secondLength + 2, length - firstLength - secondLength - 2);
+        System.out.println("protocolVersion = '" + headers.protocolVersion + "'");
     }
 
     public class HeaderLine implements State {
@@ -134,7 +129,8 @@ public class Protocol {
         handshake.append(reply).append("\r\n\r\n");
         controls.write(channel, ByteBuffer.wrap(handshake.toString().getBytes(charset)));
         System.out.println("handshake = " + handshake);
-        return new FirstLine();
+        headers = new HttpHeaders();
+        return new ContentReader();
     }
 
     private void addHeader(char[] array, int startPosition, int length) {
@@ -172,5 +168,14 @@ public class Protocol {
 
     private static boolean isEol(char c) {
         return c == '\n' || c == '\r';
+    }
+
+    private class ContentReader implements State {
+        @Override
+        public State afterRead() {
+            System.out.println("AfterRead");
+            System.out.println(bb);
+            return null;
+        }
     }
 }
