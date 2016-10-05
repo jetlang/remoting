@@ -6,6 +6,8 @@ import java.nio.CharBuffer;
 import java.nio.channels.SocketChannel;
 import java.nio.charset.Charset;
 import java.nio.charset.CharsetDecoder;
+import java.util.HashMap;
+import java.util.Map;
 
 public class Protocol {
 
@@ -13,6 +15,10 @@ public class Protocol {
     private final ByteBuffer bb = ByteBuffer.allocate(1024);
     private final CharBuffer buffer = CharBuffer.allocate(1024);
     private State current = new FirstLine();
+    private final Map<String, String> headers = new HashMap<>();
+    private String method;
+    private String requestUri;
+    private String protocolVersion;
 
     public boolean onRead(SocketChannel channel) throws IOException {
         while (channel.read(bb) > 0) {
@@ -39,12 +45,11 @@ public class Protocol {
     public class FirstLine implements State {
         @Override
         public State afterRead() {
-            stripEndOfLines();
             final int startPosition = buffer.position();
             while (buffer.remaining() > 0) {
                 if (isCurrentCharEol()) {
-                    String line = new String(buffer.array(), startPosition, buffer.position() - startPosition);
-                    System.out.println("line = " + line);
+                    addFirstLine(buffer.array(), startPosition, buffer.position() - startPosition);
+                    //System.out.println("line = " + line);
                     buffer.position(buffer.position() + 1);
                     return new HeaderLine();
                 } else {
@@ -56,20 +61,34 @@ public class Protocol {
         }
     }
 
+    private void addFirstLine(char[] array, int startPosition, int length) {
+        int first = find(array, startPosition, length, ' ');
+        int firstLength = first - startPosition;
+        method = new String(array, startPosition, firstLength);
+        System.out.println("method = " + method);
+        int second = find(array, first + 1, length - firstLength, ' ');
+        int secondLength = second - first - 1;
+        requestUri = new String(array, startPosition + firstLength + 1, secondLength);
+        System.out.println("requestUri = '" + requestUri + "'");
+        protocolVersion = new String(array, startPosition + firstLength + secondLength + 2, length - firstLength - secondLength - 2);
+        System.out.println("protocolVersion = '" + protocolVersion + "'");
+    }
+
     public class HeaderLine implements State {
+
+        int eol;
 
         @Override
         public State afterRead() {
-            if (stripEndOfLines() > 2) {
-                System.out.println("Done");
+            eol += stripEndOfLines();
+            if (eol == 4) {
+                System.out.println("Done " + eol);
                 return null;
             }
             final int startPosition = buffer.position();
             while (buffer.remaining() > 0) {
                 if (isCurrentCharEol()) {
-                    String line = new String(buffer.array(), startPosition, buffer.position() - startPosition);
-                    System.out.println("header = " + line);
-                    buffer.position(buffer.position() + 1);
+                    addHeader(buffer.array(), startPosition, buffer.position() - startPosition);
                     return new HeaderLine();
                 } else {
                     buffer.position(buffer.position() + 1);
@@ -77,6 +96,26 @@ public class Protocol {
             }
             return null;
         }
+    }
+
+    private void addHeader(char[] array, int startPosition, int length) {
+        int first = find(array, startPosition, length, ':');
+        final int nameLength = first - startPosition;
+        String name = new String(array, startPosition, nameLength);
+        System.out.println("name = " + name);
+        String value = new String(array, startPosition + nameLength + 2, length - nameLength - 2);
+        System.out.println("value = " + value);
+        headers.put(name, value);
+    }
+
+    private static int find(char[] array, int startPosition, int length, char c) {
+        final int endPos = startPosition + length;
+        for (int i = startPosition; i < endPos; i++) {
+            if (array[i] == c) {
+                return i;
+            }
+        }
+        throw new RuntimeException(c + " not found in " + new String(array, startPosition, length) + " " + startPosition + " " + length);
     }
 
     private int stripEndOfLines() {
