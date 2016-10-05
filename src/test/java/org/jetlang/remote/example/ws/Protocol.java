@@ -13,9 +13,9 @@ public class Protocol {
     private final SocketChannel channel;
     private State current;
 
-    public Protocol(SocketChannel channel, NioFiber fiber, NioControls controls) {
+    public Protocol(SocketChannel channel, NioFiber fiber, NioControls controls, WebsocketConnectionFactory fact, WebSocketHandler handler) {
         this.channel = channel;
-        this.current = new HeaderReader(channel, fiber, controls).start();
+        this.current = new HeaderReader(channel, fiber, controls, fact, handler).start();
     }
 
     public boolean onRead() throws IOException {

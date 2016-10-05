@@ -11,26 +11,32 @@ import java.nio.channels.SelectableChannel;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.SocketChannel;
 
-public abstract class WebSocketClientFactory implements NioAcceptorHandler.ClientFactory {
+public class WebSocketClientFactory implements NioAcceptorHandler.ClientFactory {
+
+    private final WebSocketHandler handler;
+
+    public WebSocketClientFactory(WebSocketHandler handler) {
+        this.handler = handler;
+    }
+
     @Override
     public void onAccept(NioFiber fiber, NioControls controls, SelectionKey key, SocketChannel channel) {
-       configureChannel(channel);
+        configureChannel(channel);
         controls.addHandler(createHandler(key, channel, fiber, controls));
     }
 
     protected NioChannelHandler createHandler(SelectionKey key, SocketChannel channel, NioFiber fiber, NioControls controls) {
         return new NioChannelHandler() {
-            Protocol protocol = new Protocol(channel, fiber, controls);
+            Protocol protocol = new Protocol(channel, fiber, controls, new WebsocketConnectionFactory(handler), handler);
             @Override
             public boolean onSelect(NioFiber nioFiber, NioControls nioControls, SelectionKey selectionKey) {
                 try {
                     return protocol.onRead();
-                }catch(IOException failed){
+                } catch (IOException failed) {
                     return false;
                 }
 
             }
-
             @Override
             public SelectableChannel getChannel() {
                 return channel;

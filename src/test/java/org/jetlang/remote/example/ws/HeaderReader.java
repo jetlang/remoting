@@ -21,8 +21,10 @@ public class HeaderReader {
     private final SocketChannel channel;
     private final NioFiber fiber;
     private final NioControls controls;
+    private final WebsocketConnectionFactory fact;
     private HttpHeaders headers = new HttpHeaders();
     private final MessageDigest msgDigest = getDigest("SHA-1");
+    private final WebSocketHandler handler;
 
     private MessageDigest getDigest(String s) {
         try {
@@ -32,10 +34,12 @@ public class HeaderReader {
         }
     }
 
-    public HeaderReader(SocketChannel channel, NioFiber fiber, NioControls controls) {
+    public HeaderReader(SocketChannel channel, NioFiber fiber, NioControls controls, WebsocketConnectionFactory fact, WebSocketHandler handler) {
         this.channel = channel;
         this.fiber = fiber;
         this.controls = controls;
+        this.fact = fact;
+        this.handler = handler;
     }
 
     public Protocol.State start() {
@@ -122,8 +126,10 @@ public class HeaderReader {
         handshake.append(reply).append("\r\n\r\n");
         controls.write(channel, ByteBuffer.wrap(handshake.toString().getBytes(charset)));
         System.out.println("handshake = " + handshake);
-        headers = new HttpHeaders();
-        return new ContentReader();
+        headers = null;
+        WebSocketConnection connection = fact.onConnection(headers, channel, controls);
+        WebSocketReader reader = new WebSocketReader(channel, fiber, controls, connection, headers, charset, handler);
+        return reader.start();
     }
 
     private void addHeader(char[] array, int startPosition, int length) {
@@ -163,68 +169,4 @@ public class HeaderReader {
         return c == '\n' || c == '\r';
     }
 
-    private class ContentReader implements Protocol.State {
-        @Override
-        public Protocol.State processBytes(ByteBuffer bb) {
-            if (bb.remaining() > 0) {
-                byte b = bb.get();
-                boolean fin = ((b & 0x80) != 0);
-//                boolean rsv1 = ((b & 0x40) != 0);
-//                boolean rsv2 = ((b & 0x20) != 0);
-//                boolean rsv3 = ((b & 0x10) != 0);
-                byte opcode = (byte) (b & 0x0F);
-                System.out.println("first = " + b);
-                System.out.println("fin = " + fin);
-                System.out.println("op = " + opcode);
-                System.out.println("AfterRead");
-                if (opcode == 1) {
-                    return new TextFrame();
-                }
-            }
-            return null;
-        }
-    }
-
-    private class TextFrame implements Protocol.State {
-        @Override
-        public Protocol.State processBytes(ByteBuffer bb) {
-            if (bb.remaining() > 0) {
-                byte b = bb.get();
-                System.out.println("b = " + b);
-                int size = (byte) (0x7F & b);
-                System.out.println("size = " + size);
-                if (size >= 0 && size <= 125) {
-                    return new BodyReader(size);
-                }
-            }
-            return null;
-        }
-    }
-
-    private class BodyReader implements Protocol.State {
-        private final int size;
-
-        public BodyReader(int size) {
-            this.size = size;
-        }
-
-        @Override
-        public Protocol.State processBytes(ByteBuffer bb) {
-            if (bb.remaining() >= size + 4) {
-                byte[] mask = new byte[4];
-                mask[0] = bb.get();
-                mask[1] = bb.get();
-                mask[2] = bb.get();
-                mask[3] = bb.get();
-                byte[] result = new byte[size];
-                for (int i = 0; i < size; i++) {
-                    result[i] = (byte) (bb.get() ^ mask[i & 0x3]);
-                }
-                System.out.println("'" + new String(result, charset) + "'");
-                //controls.write(channel, ByteBuffer.wrap());
-                return new ContentReader();
-            }
-            return null;
-        }
-    }
 }
