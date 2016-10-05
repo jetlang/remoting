@@ -31,6 +31,7 @@ public class WebSocketEchoMain {
             @Override
             public void onMessage(WebSocketConnection connection, String msg) {
                 System.out.println("msg = " + msg);
+                connection.send(msg);
             }
         };
         WebSocketClientFactory factory = new WebSocketClientFactory(handler);

@@ -21,7 +21,6 @@ public class HeaderReader {
     private final SocketChannel channel;
     private final NioFiber fiber;
     private final NioControls controls;
-    private final WebsocketConnectionFactory fact;
     private HttpHeaders headers = new HttpHeaders();
     private final MessageDigest msgDigest = getDigest("SHA-1");
     private final WebSocketHandler handler;
@@ -34,11 +33,10 @@ public class HeaderReader {
         }
     }
 
-    public HeaderReader(SocketChannel channel, NioFiber fiber, NioControls controls, WebsocketConnectionFactory fact, WebSocketHandler handler) {
+    public HeaderReader(SocketChannel channel, NioFiber fiber, NioControls controls, WebSocketHandler handler) {
         this.channel = channel;
         this.fiber = fiber;
         this.controls = controls;
-        this.fact = fact;
         this.handler = handler;
     }
 
@@ -126,9 +124,9 @@ public class HeaderReader {
         handshake.append(reply).append("\r\n\r\n");
         controls.write(channel, ByteBuffer.wrap(handshake.toString().getBytes(charset)));
         System.out.println("handshake = " + handshake);
-        headers = null;
-        WebSocketConnection connection = fact.onConnection(headers, channel, controls);
+        WebSocketConnection connection = new WebSocketConnection(headers, channel, controls, charset);
         WebSocketReader reader = new WebSocketReader(channel, fiber, controls, connection, headers, charset, handler);
+        headers = null;
         return reader.start();
     }
 
