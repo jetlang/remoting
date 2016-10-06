@@ -18,7 +18,7 @@ public class WebSocketConnection {
     private final NioControls controls;
     private final Charset charset;
 
-    public WebSocketConnection(HttpHeaders headers, SocketChannel channel, NioControls controls, Charset charset) {
+    public WebSocketConnection(HttpRequest headers, SocketChannel channel, NioControls controls, Charset charset) {
         this.channel = channel;
         this.controls = controls;
         this.charset = charset;

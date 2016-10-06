@@ -21,7 +21,7 @@ public class HeaderReader {
     private final SocketChannel channel;
     private final NioFiber fiber;
     private final NioControls controls;
-    private HttpHeaders headers = new HttpHeaders();
+    private HttpRequest headers = new HttpRequest();
     private final MessageDigest msgDigest = getDigest("SHA-1");
     private final WebSocketHandler handler;
 

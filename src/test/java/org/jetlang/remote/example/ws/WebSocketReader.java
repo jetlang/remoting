@@ -15,9 +15,9 @@ public class WebSocketReader {
     private final NioFiber fiber;
     private final NioControls controls;
     private final WebSocketConnection connection;
-    private final HttpHeaders headers;
+    private final HttpRequest headers;
 
-    public WebSocketReader(SocketChannel channel, NioFiber fiber, NioControls controls, WebSocketConnection connection, HttpHeaders headers, Charset charset, WebSocketHandler handler) {
+    public WebSocketReader(SocketChannel channel, NioFiber fiber, NioControls controls, WebSocketConnection connection, HttpRequest headers, Charset charset, WebSocketHandler handler) {
         this.channel = channel;
         this.fiber = fiber;
         this.controls = controls;

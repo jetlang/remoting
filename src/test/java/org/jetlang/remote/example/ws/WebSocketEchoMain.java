@@ -3,7 +3,12 @@ package org.jetlang.remote.example.ws;
 import org.glassfish.tyrus.client.ClientManager;
 import org.jetlang.fibers.NioFiberImpl;
 
-import javax.websocket.*;
+import javax.websocket.ClientEndpointConfig;
+import javax.websocket.DeploymentException;
+import javax.websocket.Endpoint;
+import javax.websocket.EndpointConfig;
+import javax.websocket.MessageHandler;
+import javax.websocket.Session;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -60,6 +65,8 @@ public class WebSocketEchoMain {
         if (!messageLatch.await(5, TimeUnit.SECONDS)) {
             System.out.println("Nothing received");
         }
+
+        //Thread.sleep(Long.MAX_VALUE);
         acceptorFiber.dispose();
     }
 }
