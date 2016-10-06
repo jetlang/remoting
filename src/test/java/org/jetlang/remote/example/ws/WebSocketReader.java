@@ -45,8 +45,11 @@ public class WebSocketReader {
             System.out.println("fin = " + fin);
             System.out.println("op = " + opcode);
             System.out.println("AfterRead");
-            if (opcode == 1) {
-                return new TextFrame();
+            switch (opcode) {
+                case 1:
+                    return new TextFrame();
+                case 8:
+                    return NioReader.CLOSE;
             }
             throw new RuntimeException("Not supported: " + opcode);
         }

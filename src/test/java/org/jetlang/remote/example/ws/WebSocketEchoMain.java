@@ -9,9 +9,11 @@ import javax.websocket.Endpoint;
 import javax.websocket.EndpointConfig;
 import javax.websocket.MessageHandler;
 import javax.websocket.Session;
+import java.io.File;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.net.URL;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
@@ -34,8 +36,12 @@ public class WebSocketEchoMain {
                 connection.send(msg);
             }
         };
+
         WebServerConfigBuilder config = new WebServerConfigBuilder();
         config.add("/websockets/echo", handler);
+        final URL resource = Thread.currentThread().getContextClassLoader().getResource("websocket.html");
+        config.add("/", new StaticResource(new File(resource.getFile()).toPath()));
+
         WebAcceptor acceptor = new WebAcceptor(8025, acceptorFiber, config.create(), () -> {
         });
         acceptor.start();
@@ -67,7 +73,7 @@ public class WebSocketEchoMain {
             System.out.println("Nothing received");
         }
 
-        //Thread.sleep(Long.MAX_VALUE);
+        Thread.sleep(Long.MAX_VALUE);
         acceptorFiber.dispose();
     }
 }

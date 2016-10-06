@@ -11,13 +11,15 @@ import java.util.Map;
 
 public class NioReader {
 
+    private final HeaderReader headerReader;
     private ByteBuffer bb = bufferAllocate(1);
     private final SocketChannel channel;
     private State current;
 
     public NioReader(SocketChannel channel, NioFiber fiber, NioControls controls, Map<String, Handler> handler) {
         this.channel = channel;
-        this.current = new HeaderReader(channel, fiber, controls, handler).start();
+        this.headerReader = new HeaderReader(channel, fiber, controls, handler);
+        this.current = headerReader.start();
     }
 
     public boolean onRead() throws IOException {
@@ -42,7 +44,7 @@ public class NioReader {
                 System.out.println("bb = " + bb);
             }
         }
-        return true;
+        return current.continueReading();
     }
 
     public static ByteBuffer bufferAllocate(int size) {
@@ -71,6 +73,22 @@ public class NioReader {
         default void end() {
 
         }
+
+        default boolean continueReading() {
+            return true;
+        }
     }
+
+    public static final State CLOSE = new State() {
+        @Override
+        public State processBytes(ByteBuffer bb) {
+            return null;
+        }
+
+        @Override
+        public boolean continueReading() {
+            return false;
+        }
+    };
 
 }
