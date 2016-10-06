@@ -5,11 +5,12 @@ import org.jetlang.fibers.NioFiber;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.nio.channels.SocketChannel;
 
 public class Protocol {
 
-    private ByteBuffer bb = ByteBuffer.allocate(1);
+    private ByteBuffer bb = bufferAllocate(1);
     private final SocketChannel channel;
     private State current;
 
@@ -34,13 +35,17 @@ public class Protocol {
             bb.compact();
             System.out.println("compacted bb = " + bb + " " + current);
             if (bb.remaining() == 0 || bb.remaining() < current.minRequiredBytes()) {
-                ByteBuffer resize = ByteBuffer.allocate(bb.capacity() + Math.max(1024, current.minRequiredBytes()));
+                ByteBuffer resize = bufferAllocate(bb.capacity() + Math.max(1024, current.minRequiredBytes()));
                 bb.flip();
                 bb = resize.put(bb);
                 System.out.println("bb = " + bb);
             }
         }
         return true;
+    }
+
+    public static ByteBuffer bufferAllocate(int size) {
+        return ByteBuffer.allocate(size).order(ByteOrder.BIG_ENDIAN);
     }
 
     interface State {
