@@ -79,13 +79,18 @@ public class WebSocketReader {
         }
 
         @Override
+        public int minRequiredBytes() {
+            return size + 4;
+        }
+
+        @Override
         public Protocol.State processBytes(ByteBuffer bb) {
-            if (bb.remaining() >= size + 4) {
-                byte[] mask = new byte[4];
-                bb.get(mask);
+            if (bb.remaining() >= minRequiredBytes()) {
+                final int maskPos = bb.position();
+                bb.position(bb.position() + 4);
                 byte[] result = new byte[size];
                 for (int i = 0; i < size; i++) {
-                    result[i] = (byte) (bb.get() ^ mask[i & 0x3]);
+                    result[i] = (byte) (bb.get() ^ bb.get((maskPos + i) & 0x3));
                 }
                 handler.onMessage(connection, new String(result, charset));
                 //controls.write(channel, ByteBuffer.wrap());

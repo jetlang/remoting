@@ -33,8 +33,8 @@ public class Protocol {
             System.out.println("pre = " + bb);
             bb.compact();
             System.out.println("compacted bb = " + bb + " " + current);
-            if (bb.remaining() == 0) {
-                ByteBuffer resize = ByteBuffer.allocate(bb.capacity() + 1024);
+            if (bb.remaining() == 0 || bb.remaining() < current.minRequiredBytes()) {
+                ByteBuffer resize = ByteBuffer.allocate(bb.capacity() + Math.max(1024, current.minRequiredBytes()));
                 bb.flip();
                 bb = resize.put(bb);
                 System.out.println("bb = " + bb);
@@ -44,6 +44,11 @@ public class Protocol {
     }
 
     interface State {
+
+        default int minRequiredBytes() {
+            return 1;
+        }
+
         default void begin(ByteBuffer bb) throws IOException {
 
         }
