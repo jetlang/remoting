@@ -9,7 +9,7 @@ import java.nio.channels.SocketChannel;
 
 public class Protocol {
 
-    private final ByteBuffer bb = ByteBuffer.allocate(1024);
+    private ByteBuffer bb = ByteBuffer.allocate(1);
     private final SocketChannel channel;
     private State current;
 
@@ -30,7 +30,15 @@ public class Protocol {
                 }
             }
             current.end();
+            System.out.println("pre = " + bb);
             bb.compact();
+            System.out.println("compacted bb = " + bb + " " + current);
+            if (bb.remaining() < 1024) {
+                ByteBuffer resize = ByteBuffer.allocate(bb.capacity() * 1024);
+                bb.flip();
+                bb = resize.put(bb);
+                System.out.println("bb = " + bb);
+            }
         }
         return true;
     }

@@ -65,7 +65,7 @@ public class HeaderReader {
                 if (isCurrentCharEol()) {
                     addFirstLine(buffer.array(), startPosition, buffer.position() - startPosition);
                     //System.out.println("line = " + line);
-                    buffer.position(buffer.position() + 1);
+                    //buffer.position(buffer.position() + 1);
                     return new HeaderLine();
                 } else {
                     buffer.position(buffer.position() + 1);
@@ -95,14 +95,28 @@ public class HeaderReader {
 
         @Override
         public Protocol.State processBytes(ByteBuffer bb) {
-            eol += stripEndOfLines();
+            int stripped = stripEndOfLines();
+            eol += stripped;
+            System.out.println("eol = " + eol + " " + buffer.remaining() + " " + buffer.position());
             if (eol == 4) {
                 System.out.println("Done " + eol + " " + buffer.remaining());
-                if ("websocket".equals(headers.get("Upgrade"))) {
+                String type = headers.get("Upgrade");
+                if ("websocket".equals(type)) {
                     return sendWebsocketHandshake();
                 }
-                return null;
+                throw new RuntimeException("Unsupported: " + headers);
             }
+            if (buffer.hasRemaining() && eol == 2) {
+                return new ReadHeader();
+            }
+            return null;
+        }
+    }
+
+    public class ReadHeader extends BaseCharReader {
+
+        @Override
+        public Protocol.State processBytes(ByteBuffer bb) {
             final int startPosition = buffer.position();
             while (buffer.remaining() > 0) {
                 if (isCurrentCharEol()) {
@@ -112,6 +126,7 @@ public class HeaderReader {
                     buffer.position(buffer.position() + 1);
                 }
             }
+            buffer.position(startPosition);
             return null;
         }
     }
