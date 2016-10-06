@@ -46,6 +46,14 @@ public class HeaderReader {
 
     private abstract class BaseCharReader implements Protocol.State {
 
+        @Override
+        public Protocol.State process(ByteBuffer bb) {
+            if (buffer.remaining() < minRequiredBytes()) {
+                return null;
+            }
+            return processBytes(bb);
+        }
+
         public void begin(ByteBuffer bb) throws IOException {
             if (buffer.remaining() < bb.remaining()) {
                 CharBuffer resize = CharBuffer.allocate(buffer.position() + bb.remaining());

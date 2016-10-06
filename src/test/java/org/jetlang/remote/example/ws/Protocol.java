@@ -24,7 +24,7 @@ public class Protocol {
             current.begin(bb);
             State result = current;
             while (result != null) {
-                result = current.processBytes(bb);
+                result = current.process(bb);
                 if (result != null) {
                     current = result;
                 }
@@ -51,6 +51,13 @@ public class Protocol {
 
         default void begin(ByteBuffer bb) throws IOException {
 
+        }
+
+        default State process(ByteBuffer bb) {
+            if (bb.remaining() < minRequiredBytes()) {
+                return null;
+            }
+            return processBytes(bb);
         }
 
         State processBytes(ByteBuffer bb);

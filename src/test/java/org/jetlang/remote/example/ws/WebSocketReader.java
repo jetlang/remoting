@@ -35,7 +35,6 @@ public class WebSocketReader {
     private class ContentReader implements Protocol.State {
         @Override
         public Protocol.State processBytes(ByteBuffer bb) {
-            if (bb.remaining() > 0) {
                 byte b = bb.get();
                 boolean fin = ((b & 0x80) != 0);
 //                boolean rsv1 = ((b & 0x40) != 0);
@@ -49,8 +48,7 @@ public class WebSocketReader {
                 if (opcode == 1) {
                     return new TextFrame();
                 }
-            }
-            return null;
+            throw new RuntimeException("Not supported: " + opcode);
         }
     }
 
@@ -58,16 +56,18 @@ public class WebSocketReader {
 
         @Override
         public Protocol.State processBytes(ByteBuffer bb) {
-            if (bb.remaining() > 0) {
                 byte b = bb.get();
                 System.out.println("b = " + b);
                 int size = (byte) (0x7F & b);
                 System.out.println("size = " + size);
                 if (size >= 0 && size <= 125) {
+                    if (size == 0) {
+                        handler.onMessage(connection, "");
+                        return new ContentReader();
+                    }
                     return new BodyReader(size);
                 }
-            }
-            return null;
+            throw new RuntimeException("Unsupported size: " + size);
         }
     }
 
@@ -85,7 +85,6 @@ public class WebSocketReader {
 
         @Override
         public Protocol.State processBytes(ByteBuffer bb) {
-            if (bb.remaining() >= minRequiredBytes()) {
                 final int maskPos = bb.position();
                 bb.position(bb.position() + 4);
                 byte[] result = new byte[size];
@@ -95,8 +94,6 @@ public class WebSocketReader {
                 handler.onMessage(connection, new String(result, charset));
                 //controls.write(channel, ByteBuffer.wrap());
                 return new ContentReader();
-            }
-            return null;
         }
     }
 }
