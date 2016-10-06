@@ -34,15 +34,14 @@ public class WebSocketConnection {
         byte lengthWithMask = (byte) (maskPayload ? 0x80 | (byte) length : (byte) length);
 
         int random = (int) (Math.random() * Integer.MAX_VALUE);
-        byte[] mask = ByteBuffer.allocate(4).putInt(random).array();
         ByteBuffer bb = ByteBuffer.allocate(2 + 4 + length);
         bb.put(header);
         bb.put(lengthWithMask);
-        bb.put(mask);
+        int maskPos = bb.position();
+        bb.putInt(random);
 
         for (int i = 0; i < length; i++) {
-            byte byteData = bytes[i];
-            bb.put((byte) (byteData ^ mask[+i % 4]));
+            bb.put((byte) (bytes[i] ^ bb.get((i % 4) + maskPos)));
         }
         bb.flip();
         controls.write(channel, bb);
