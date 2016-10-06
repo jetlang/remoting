@@ -3,12 +3,7 @@ package org.jetlang.remote.example.ws;
 import org.glassfish.tyrus.client.ClientManager;
 import org.jetlang.fibers.NioFiberImpl;
 
-import javax.websocket.ClientEndpointConfig;
-import javax.websocket.DeploymentException;
-import javax.websocket.Endpoint;
-import javax.websocket.EndpointConfig;
-import javax.websocket.MessageHandler;
-import javax.websocket.Session;
+import javax.websocket.*;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;

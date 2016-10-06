@@ -28,6 +28,7 @@ public class WebSocketClientFactory implements NioAcceptorHandler.ClientFactory 
     protected NioChannelHandler createHandler(SelectionKey key, SocketChannel channel, NioFiber fiber, NioControls controls) {
         return new NioChannelHandler() {
             Protocol protocol = new Protocol(channel, fiber, controls, handler);
+
             @Override
             public boolean onSelect(NioFiber nioFiber, NioControls nioControls, SelectionKey selectionKey) {
                 try {
@@ -37,6 +38,7 @@ public class WebSocketClientFactory implements NioAcceptorHandler.ClientFactory 
                 }
 
             }
+
             @Override
             public SelectableChannel getChannel() {
                 return channel;
