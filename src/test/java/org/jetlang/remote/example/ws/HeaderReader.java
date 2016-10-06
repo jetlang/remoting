@@ -19,7 +19,6 @@ public class HeaderReader {
     private final SocketChannel channel;
     private final NioFiber fiber;
     private final NioControls controls;
-    private HttpRequest headers = new HttpRequest();
     private final Map<String, Handler> handler;
 
     public HeaderReader(SocketChannel channel, NioFiber fiber, NioControls controls, Map<String, Handler> handler) {
@@ -60,6 +59,8 @@ public class HeaderReader {
 
 
     public class FirstLine extends BaseCharReader {
+        private final HttpRequest headers = new HttpRequest();
+
         @Override
         public NioReader.State processBytes(ByteBuffer bb) {
             final int startPosition = buffer.position();
@@ -68,7 +69,7 @@ public class HeaderReader {
                     addFirstLine(buffer.array(), startPosition, buffer.position() - startPosition);
                     //System.out.println("line = " + line);
                     //buffer.position(buffer.position() + 1);
-                    return new HeaderLine();
+                    return new HeaderLine(headers);
                 } else {
                     buffer.position(buffer.position() + 1);
                 }
@@ -76,24 +77,30 @@ public class HeaderReader {
             buffer.position(startPosition);
             return null;
         }
+
+        private void addFirstLine(char[] array, int startPosition, int length) {
+            int first = find(array, startPosition, length, ' ');
+            int firstLength = first - startPosition;
+            headers.method = new String(array, startPosition, firstLength);
+            System.out.println("method = " + headers.method);
+            int second = find(array, first + 1, length - firstLength, ' ');
+            int secondLength = second - first - 1;
+            headers.requestUri = new String(array, startPosition + firstLength + 1, secondLength);
+            System.out.println("requestUri = '" + headers.requestUri + "'");
+            headers.protocolVersion = new String(array, startPosition + firstLength + secondLength + 2, length - firstLength - secondLength - 2);
+            System.out.println("protocolVersion = '" + headers.protocolVersion + "'");
+        }
     }
 
-    private void addFirstLine(char[] array, int startPosition, int length) {
-        int first = find(array, startPosition, length, ' ');
-        int firstLength = first - startPosition;
-        headers.method = new String(array, startPosition, firstLength);
-        System.out.println("method = " + headers.method);
-        int second = find(array, first + 1, length - firstLength, ' ');
-        int secondLength = second - first - 1;
-        headers.requestUri = new String(array, startPosition + firstLength + 1, secondLength);
-        System.out.println("requestUri = '" + headers.requestUri + "'");
-        headers.protocolVersion = new String(array, startPosition + firstLength + secondLength + 2, length - firstLength - secondLength - 2);
-        System.out.println("protocolVersion = '" + headers.protocolVersion + "'");
-    }
 
     public class HeaderLine extends BaseCharReader {
 
+        private final HttpRequest headers;
         int eol;
+
+        public HeaderLine(HttpRequest headers) {
+            this.headers = headers;
+        }
 
         @Override
         public NioReader.State processBytes(ByteBuffer bb) {
@@ -110,7 +117,7 @@ public class HeaderReader {
                 }
             }
             if (buffer.hasRemaining() && eol == 2) {
-                return new ReadHeader();
+                return new ReadHeader(headers);
             }
             return null;
         }
@@ -118,13 +125,19 @@ public class HeaderReader {
 
     public class ReadHeader extends BaseCharReader {
 
+        private final HttpRequest headers;
+
+        public ReadHeader(HttpRequest headers) {
+            this.headers = headers;
+        }
+
         @Override
         public NioReader.State processBytes(ByteBuffer bb) {
             final int startPosition = buffer.position();
             while (buffer.remaining() > 0) {
                 if (isCurrentCharEol()) {
                     addHeader(buffer.array(), startPosition, buffer.position() - startPosition);
-                    return new HeaderLine();
+                    return new HeaderLine(headers);
                 } else {
                     buffer.position(buffer.position() + 1);
                 }
@@ -132,16 +145,16 @@ public class HeaderReader {
             buffer.position(startPosition);
             return null;
         }
-    }
 
-    private void addHeader(char[] array, int startPosition, int length) {
-        int first = find(array, startPosition, length, ':');
-        final int nameLength = first - startPosition;
-        String name = new String(array, startPosition, nameLength);
-        System.out.println("name = " + name);
-        String value = new String(array, startPosition + nameLength + 2, length - nameLength - 2);
-        System.out.println("value = " + value);
-        headers.put(name, value);
+        private void addHeader(char[] array, int startPosition, int length) {
+            int first = find(array, startPosition, length, ':');
+            final int nameLength = first - startPosition;
+            String name = new String(array, startPosition, nameLength);
+            System.out.println("name = " + name);
+            String value = new String(array, startPosition + nameLength + 2, length - nameLength - 2);
+            System.out.println("value = " + value);
+            headers.put(name, value);
+        }
     }
 
     private static int find(char[] array, int startPosition, int length, char c) {
