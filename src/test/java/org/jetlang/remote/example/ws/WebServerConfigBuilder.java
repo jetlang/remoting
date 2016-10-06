@@ -2,7 +2,6 @@ package org.jetlang.remote.example.ws;
 
 import org.jetlang.fibers.NioControls;
 import org.jetlang.fibers.NioFiber;
-import org.jetlang.remote.acceptor.NioAcceptorHandler;
 
 import javax.xml.bind.DatatypeConverter;
 import java.nio.ByteBuffer;
@@ -13,12 +12,12 @@ import java.security.NoSuchAlgorithmException;
 import java.util.HashMap;
 import java.util.Map;
 
-public class WebSocketConfigBuilder {
+public class WebServerConfigBuilder {
 
     private Map<String, Handler> handlerMap = new HashMap<>();
     private final Charset charset = Charset.forName("UTF-8");
 
-    public WebSocketConfigBuilder add(String path, WebSocketHandler handler) {
+    public WebServerConfigBuilder add(String path, WebSocketHandler handler) {
         handlerMap.put(path, new Handler() {
             private final MessageDigest msgDigest = getDigest("SHA-1");
 
@@ -47,7 +46,7 @@ public class WebSocketConfigBuilder {
         }
     }
 
-    public NioAcceptorHandler.ClientFactory create() {
-        return new WebSocketClientFactory(new HashMap<>(handlerMap));
+    public WebDispatcher create() {
+        return new WebDispatcher(new HashMap<>(handlerMap));
     }
 }

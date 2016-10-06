@@ -12,11 +12,11 @@ import java.nio.channels.SelectionKey;
 import java.nio.channels.SocketChannel;
 import java.util.Map;
 
-public class WebSocketClientFactory implements NioAcceptorHandler.ClientFactory {
+public class WebDispatcher implements NioAcceptorHandler.ClientFactory {
 
     private final Map<String, Handler> handler;
 
-    public WebSocketClientFactory(Map<String, Handler> handler) {
+    public WebDispatcher(Map<String, Handler> handler) {
         this.handler = handler;
     }
 
