@@ -3,15 +3,13 @@ package org.jetlang.remote.example.ws;
 import org.jetlang.fibers.NioControls;
 import org.jetlang.fibers.NioFiber;
 
-import javax.xml.bind.DatatypeConverter;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.nio.channels.SocketChannel;
 import java.nio.charset.Charset;
 import java.nio.charset.CharsetDecoder;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
+import java.util.Map;
 
 public class HeaderReader {
 
@@ -22,18 +20,9 @@ public class HeaderReader {
     private final NioFiber fiber;
     private final NioControls controls;
     private HttpRequest headers = new HttpRequest();
-    private final MessageDigest msgDigest = getDigest("SHA-1");
-    private final WebSocketHandler handler;
+    private final Map<String, Handler> handler;
 
-    private MessageDigest getDigest(String s) {
-        try {
-            return MessageDigest.getInstance(s);
-        } catch (NoSuchAlgorithmException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    public HeaderReader(SocketChannel channel, NioFiber fiber, NioControls controls, WebSocketHandler handler) {
+    public HeaderReader(SocketChannel channel, NioFiber fiber, NioControls controls, Map<String, Handler> handler) {
         this.channel = channel;
         this.fiber = fiber;
         this.controls = controls;
@@ -113,11 +102,12 @@ public class HeaderReader {
             System.out.println("eol = " + eol + " " + buffer.remaining() + " " + buffer.position());
             if (eol == 4) {
                 System.out.println("Done " + eol + " " + buffer.remaining());
-                String type = headers.get("Upgrade");
-                if ("websocket".equals(type)) {
-                    return sendWebsocketHandshake();
+                Handler h = handler.get(headers.getRequestUri());
+                if (h != null) {
+                    return h.start(headers, controls, channel, fiber);
+                } else {
+                    throw new RuntimeException("Unsupported: " + headers);
                 }
-                throw new RuntimeException("Unsupported: " + headers);
             }
             if (buffer.hasRemaining() && eol == 2) {
                 return new ReadHeader();
@@ -142,20 +132,6 @@ public class HeaderReader {
             buffer.position(startPosition);
             return null;
         }
-    }
-
-    private Protocol.State sendWebsocketHandshake() {
-        StringBuilder handshake = new StringBuilder();
-        handshake.append("HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: ");
-        String key = headers.get("Sec-WebSocket-Key") + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
-        String reply = DatatypeConverter.printBase64Binary(msgDigest.digest(key.getBytes(charset)));
-        handshake.append(reply).append("\r\n\r\n");
-        controls.write(channel, ByteBuffer.wrap(handshake.toString().getBytes(charset)));
-        System.out.println("handshake = " + handshake);
-        WebSocketConnection connection = new WebSocketConnection(headers, channel, controls, charset);
-        WebSocketReader reader = new WebSocketReader(channel, fiber, controls, connection, headers, charset, handler);
-        headers = null;
-        return reader.start();
     }
 
     private void addHeader(char[] array, int startPosition, int length) {

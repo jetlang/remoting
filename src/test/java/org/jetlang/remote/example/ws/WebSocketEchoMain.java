@@ -34,8 +34,9 @@ public class WebSocketEchoMain {
                 connection.send(msg);
             }
         };
-        WebSocketClientFactory factory = new WebSocketClientFactory(handler);
-        WebSocketAcceptor acceptor = new WebSocketAcceptor(8025, acceptorFiber, factory, () -> {
+        WebSocketConfigBuilder config = new WebSocketConfigBuilder();
+        config.add("/websockets/echo", handler);
+        WebSocketAcceptor acceptor = new WebSocketAcceptor(8025, acceptorFiber, config.create(), () -> {
         });
         acceptor.start();
         CountDownLatch messageLatch = new CountDownLatch(1);

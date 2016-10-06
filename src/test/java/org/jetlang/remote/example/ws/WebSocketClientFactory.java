@@ -10,12 +10,13 @@ import java.net.SocketException;
 import java.nio.channels.SelectableChannel;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.SocketChannel;
+import java.util.Map;
 
 public class WebSocketClientFactory implements NioAcceptorHandler.ClientFactory {
 
-    private final WebSocketHandler handler;
+    private final Map<String, Handler> handler;
 
-    public WebSocketClientFactory(WebSocketHandler handler) {
+    public WebSocketClientFactory(Map<String, Handler> handler) {
         this.handler = handler;
     }
 
