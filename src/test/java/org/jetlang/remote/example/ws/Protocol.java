@@ -33,8 +33,8 @@ public class Protocol {
             System.out.println("pre = " + bb);
             bb.compact();
             System.out.println("compacted bb = " + bb + " " + current);
-            if (bb.remaining() < 1024) {
-                ByteBuffer resize = ByteBuffer.allocate(bb.capacity() * 1024);
+            if (bb.remaining() == 0) {
+                ByteBuffer resize = ByteBuffer.allocate(bb.capacity() + 1024);
                 bb.flip();
                 bb = resize.put(bb);
                 System.out.println("bb = " + bb);

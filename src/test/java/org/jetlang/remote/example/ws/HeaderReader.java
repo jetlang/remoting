@@ -17,7 +17,7 @@ public class HeaderReader {
 
     private final Charset charset = Charset.forName("UTF-8");
     private final CharsetDecoder decoder = charset.newDecoder();
-    private final CharBuffer buffer = CharBuffer.allocate(1024);
+    private CharBuffer buffer = CharBuffer.allocate(1);
     private final SocketChannel channel;
     private final NioFiber fiber;
     private final NioControls controls;
@@ -47,6 +47,11 @@ public class HeaderReader {
     private abstract class BaseCharReader implements Protocol.State {
 
         public void begin(ByteBuffer bb) throws IOException {
+            if (buffer.remaining() < bb.remaining()) {
+                CharBuffer resize = CharBuffer.allocate(buffer.position() + bb.remaining());
+                buffer.flip();
+                buffer = resize.put(buffer);
+            }
             decoder.decode(bb, buffer, true);
             buffer.flip();
         }
