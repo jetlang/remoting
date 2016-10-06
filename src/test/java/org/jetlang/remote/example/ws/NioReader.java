@@ -9,13 +9,13 @@ import java.nio.ByteOrder;
 import java.nio.channels.SocketChannel;
 import java.util.Map;
 
-public class Protocol {
+public class NioReader {
 
     private ByteBuffer bb = bufferAllocate(1);
     private final SocketChannel channel;
     private State current;
 
-    public Protocol(SocketChannel channel, NioFiber fiber, NioControls controls, Map<String, Handler> handler) {
+    public NioReader(SocketChannel channel, NioFiber fiber, NioControls controls, Map<String, Handler> handler) {
         this.channel = channel;
         this.current = new HeaderReader(channel, fiber, controls, handler).start();
     }

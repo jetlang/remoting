@@ -23,7 +23,7 @@ public class WebSocketConfigBuilder {
             private final MessageDigest msgDigest = getDigest("SHA-1");
 
             @Override
-            public Protocol.State start(HttpRequest headers, NioControls controls, SocketChannel channel, NioFiber fiber) {
+            public NioReader.State start(HttpRequest headers, NioControls controls, SocketChannel channel, NioFiber fiber) {
                 StringBuilder handshake = new StringBuilder();
                 handshake.append("HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: ");
                 String key = headers.get("Sec-WebSocket-Key") + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";

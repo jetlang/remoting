@@ -34,7 +34,7 @@ public class WebSocketConnection {
         byte lengthWithMask = (byte) (maskPayload ? 0x80 | (byte) length : (byte) length);
 
         int random = (int) (Math.random() * Integer.MAX_VALUE);
-        ByteBuffer bb = Protocol.bufferAllocate(2 + 4 + length);
+        ByteBuffer bb = NioReader.bufferAllocate(2 + 4 + length);
         bb.put(header);
         bb.put(lengthWithMask);
         int maskPos = bb.position();

@@ -29,14 +29,14 @@ public class HeaderReader {
         this.handler = handler;
     }
 
-    public Protocol.State start() {
+    public NioReader.State start() {
         return new FirstLine();
     }
 
-    private abstract class BaseCharReader implements Protocol.State {
+    private abstract class BaseCharReader implements NioReader.State {
 
         @Override
-        public Protocol.State process(ByteBuffer bb) {
+        public NioReader.State process(ByteBuffer bb) {
             if (buffer.remaining() < minRequiredBytes()) {
                 return null;
             }
@@ -61,7 +61,7 @@ public class HeaderReader {
 
     public class FirstLine extends BaseCharReader {
         @Override
-        public Protocol.State processBytes(ByteBuffer bb) {
+        public NioReader.State processBytes(ByteBuffer bb) {
             final int startPosition = buffer.position();
             while (buffer.remaining() > 0) {
                 if (isCurrentCharEol()) {
@@ -96,7 +96,7 @@ public class HeaderReader {
         int eol;
 
         @Override
-        public Protocol.State processBytes(ByteBuffer bb) {
+        public NioReader.State processBytes(ByteBuffer bb) {
             int stripped = stripEndOfLines();
             eol += stripped;
             System.out.println("eol = " + eol + " " + buffer.remaining() + " " + buffer.position());
@@ -119,7 +119,7 @@ public class HeaderReader {
     public class ReadHeader extends BaseCharReader {
 
         @Override
-        public Protocol.State processBytes(ByteBuffer bb) {
+        public NioReader.State processBytes(ByteBuffer bb) {
             final int startPosition = buffer.position();
             while (buffer.remaining() > 0) {
                 if (isCurrentCharEol()) {

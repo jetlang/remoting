@@ -3,14 +3,14 @@ package org.jetlang.remote.example.ws;
 import org.jetlang.fibers.NioFiber;
 import org.jetlang.remote.acceptor.NioAcceptorHandler;
 
-public class WebSocketAcceptor {
+public class HttpAcceptor {
 
     private final int port;
     private final NioFiber fiber;
     private NioAcceptorHandler.ClientFactory clientFactory;
     private Runnable onEnd;
 
-    public WebSocketAcceptor(int port, NioFiber fiber, NioAcceptorHandler.ClientFactory clientFactory, Runnable onEnd) {
+    public HttpAcceptor(int port, NioFiber fiber, NioAcceptorHandler.ClientFactory clientFactory, Runnable onEnd) {
         this.port = port;
         this.fiber = fiber;
         this.clientFactory = clientFactory;

@@ -27,14 +27,14 @@ public class WebSocketReader {
         this.handler = handler;
     }
 
-    public Protocol.State start() {
+    public NioReader.State start() {
         handler.onOpen(connection);
         return new ContentReader();
     }
 
-    private class ContentReader implements Protocol.State {
+    private class ContentReader implements NioReader.State {
         @Override
-        public Protocol.State processBytes(ByteBuffer bb) {
+        public NioReader.State processBytes(ByteBuffer bb) {
             byte b = bb.get();
             boolean fin = ((b & 0x80) != 0);
 //                boolean rsv1 = ((b & 0x40) != 0);
@@ -52,10 +52,10 @@ public class WebSocketReader {
         }
     }
 
-    private class TextFrame implements Protocol.State {
+    private class TextFrame implements NioReader.State {
 
         @Override
-        public Protocol.State processBytes(ByteBuffer bb) {
+        public NioReader.State processBytes(ByteBuffer bb) {
             byte b = bb.get();
             System.out.println("b = " + b);
             int size = (byte) (0x7F & b);
@@ -71,7 +71,7 @@ public class WebSocketReader {
         }
     }
 
-    private class BodyReader implements Protocol.State {
+    private class BodyReader implements NioReader.State {
         private final int size;
 
         public BodyReader(int size) {
@@ -84,7 +84,7 @@ public class WebSocketReader {
         }
 
         @Override
-        public Protocol.State processBytes(ByteBuffer bb) {
+        public NioReader.State processBytes(ByteBuffer bb) {
             final int maskPos = bb.position();
             bb.position(bb.position() + 4);
             byte[] result = new byte[size];

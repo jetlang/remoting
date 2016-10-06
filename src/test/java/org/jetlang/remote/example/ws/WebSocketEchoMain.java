@@ -36,7 +36,7 @@ public class WebSocketEchoMain {
         };
         WebSocketConfigBuilder config = new WebSocketConfigBuilder();
         config.add("/websockets/echo", handler);
-        WebSocketAcceptor acceptor = new WebSocketAcceptor(8025, acceptorFiber, config.create(), () -> {
+        HttpAcceptor acceptor = new HttpAcceptor(8025, acceptorFiber, config.create(), () -> {
         });
         acceptor.start();
         CountDownLatch messageLatch = new CountDownLatch(1);
