@@ -27,22 +27,13 @@ public class WebSocketConnection {
     public void send(String msg) {
         final byte[] bytes = msg.getBytes(charset);
         final int length = bytes.length;
-        boolean maskPayload = true;
         byte header = 0;
         header |= 1 << 7;
         header |= OPCODE_TEXT % 128;
-        byte lengthWithMask = (byte) (maskPayload ? 0x80 | (byte) length : (byte) length);
-
-        int random = (int) (Math.random() * Integer.MAX_VALUE);
-        ByteBuffer bb = NioReader.bufferAllocate(2 + 4 + length);
+        ByteBuffer bb = NioReader.bufferAllocate(2 + length);
         bb.put(header);
-        bb.put(lengthWithMask);
-        int maskPos = bb.position();
-        bb.putInt(random);
-
-        for (int i = 0; i < length; i++) {
-            bb.put((byte) (bytes[i] ^ bb.get((i % 4) + maskPos)));
-        }
+        bb.put((byte) length);
+        bb.put(bytes);
         bb.flip();
         controls.write(channel, bb);
     }
