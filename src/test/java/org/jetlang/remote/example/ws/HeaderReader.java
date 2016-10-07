@@ -10,7 +10,7 @@ import java.util.Map;
 
 public class HeaderReader {
 
-    private final Charset ascii = Charset.forName("ASCII");
+    final Charset ascii = Charset.forName("ASCII");
     private final SocketChannel channel;
     private final NioFiber fiber;
     private final NioControls controls;
