@@ -3,6 +3,7 @@ package org.jetlang.remote.example.ws;
 import org.jetlang.fibers.NioControls;
 import org.jetlang.fibers.NioFiber;
 
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
 import java.nio.charset.Charset;
@@ -27,33 +28,7 @@ public class HeaderReader {
         return new FirstLine();
     }
 
-    private abstract class BaseCharReader implements NioReader.State {
-
-//        @Override
-//        public NioReader.State process(ByteBuffer buffer) {
-//            if (buffer.remaining() < minRequiredBytes()) {
-//                return null;
-//            }
-//            return processBytes(bb);
-//        }
-//
-//        public void begin(ByteBuffer bb) throws IOException {
-//            if (buffer.remaining() < bb.remaining()) {
-//                CharBuffer resize = CharBuffer.allocate(buffer.position() + bb.remaining());
-//                buffer.flip();
-//                buffer = resize.put(buffer);
-//            }
-//            decoder.decode(bb, buffer, true);
-//            buffer.flip();
-//        }
-//
-//        public void end() {
-//            buffer.compact();
-//        }
-    }
-
-
-    public class FirstLine extends BaseCharReader {
+    public class FirstLine implements NioReader.State {
         private final HttpRequest headers = new HttpRequest();
 
         @Override
@@ -88,7 +63,7 @@ public class HeaderReader {
     }
 
 
-    public class HeaderLine extends BaseCharReader {
+    public class HeaderLine implements NioReader.State {
 
         private final HttpRequest headers;
         int eol;
@@ -108,7 +83,16 @@ public class HeaderReader {
                 if (h != null) {
                     return h.start(headers, controls, channel, fiber, HeaderReader.this);
                 } else {
-                    //throw new RuntimeException("Unsupported: " + headers);
+                    StringBuilder response = new StringBuilder();
+                    response.append("HTTP/1.0 404 Not Found\r\n");
+                    response.append("Content-Length: 0\r\n\r\n");
+                    try {
+                        String s = response.toString();
+                        channel.write(ByteBuffer.wrap(s.getBytes(ascii)));
+                        System.out.println("s = " + s);
+                    } catch (IOException e) {
+                        return NioReader.CLOSE;
+                    }
                 }
             }
             if (buffer.hasRemaining() && eol == 2) {
@@ -118,7 +102,7 @@ public class HeaderReader {
         }
     }
 
-    public class ReadHeader extends BaseCharReader {
+    public class ReadHeader implements NioReader.State {
 
         private final HttpRequest headers;
 

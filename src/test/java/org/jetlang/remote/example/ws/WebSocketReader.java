@@ -95,8 +95,6 @@ public class WebSocketReader {
                 result[i] = (byte) (bb.get() ^ bb.get((i % 4) + maskPos));
             }
             handler.onMessage(connection, new String(result, charset));
-            System.out.println("bb = " + bb);
-            //controls.write(channel, ByteBuffer.wrap());
             return new ContentReader();
         }
     }
