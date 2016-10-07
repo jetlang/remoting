@@ -21,14 +21,14 @@ public class WebServerConfigBuilder {
         return websocketCharset;
     }
 
-    public void setWebsocketCharset(Charset websocketCharset) {
+    public WebServerConfigBuilder setWebsocketCharset(Charset websocketCharset) {
         this.websocketCharset = websocketCharset;
+        return this;
     }
 
     public WebServerConfigBuilder add(String path, WebSocketHandler handler) {
         handlerMap.put(path, new Handler() {
             private final MessageDigest msgDigest = getDigest("SHA-1");
-            private final Charset localChars = websocketCharset;
 
             @Override
             public NioReader.State start(HttpRequest headers, NioControls controls, SocketChannel channel, NioFiber fiber, HeaderReader headerReader) {
@@ -40,7 +40,7 @@ public class WebServerConfigBuilder {
                 controls.write(channel, ByteBuffer.wrap(handshake.toString().getBytes(headerReader.ascii)));
                 System.out.println("handshake = " + handshake);
                 WebSocketConnection connection = new WebSocketConnection(headers, channel, controls, headerReader.ascii);
-                WebSocketReader reader = new WebSocketReader(channel, fiber, controls, connection, headers, localChars, handler);
+                WebSocketReader reader = new WebSocketReader(channel, fiber, controls, connection, headers, websocketCharset, handler);
                 return reader.start();
             }
         });
