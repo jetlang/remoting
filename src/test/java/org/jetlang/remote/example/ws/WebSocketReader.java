@@ -10,13 +10,13 @@ import java.nio.charset.Charset;
 public class WebSocketReader<T> {
 
     private final Charset charset;
-    private final WebSocketHandler handler;
+    private final WebSocketHandler<T> handler;
     private final SocketChannel channel;
     private final NioFiber fiber;
     private final NioControls controls;
     private final WebSocketConnection connection;
     private final HttpRequest headers;
-    private final Object state;
+    private final T state;
 
     public WebSocketReader(SocketChannel channel, NioFiber fiber, NioControls controls, WebSocketConnection connection, HttpRequest headers, Charset charset, WebSocketHandler<T> handler) {
         this.channel = channel;
