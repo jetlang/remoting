@@ -14,6 +14,7 @@ public class WebSocketConnection {
     private static final byte OPCODE_CLOSE = 0x8;
     private static final byte OPCODE_PING = 0x9;
     private static final byte OPCODE_PONG = 0xA;
+    public static final byte[] empty = new byte[0];
     private final SocketChannel channel;
     private final NioControls controls;
     private final Charset charset;
@@ -26,15 +27,25 @@ public class WebSocketConnection {
 
     public void send(String msg) {
         final byte[] bytes = msg.getBytes(charset);
+        send(OPCODE_TEXT, bytes);
+    }
+
+    private void send(byte opCode, byte[] bytes) {
         final int length = bytes.length;
         byte header = 0;
         header |= 1 << 7;
-        header |= OPCODE_TEXT % 128;
+        header |= opCode % 128;
         ByteBuffer bb = NioReader.bufferAllocate(2 + length);
         bb.put(header);
         bb.put((byte) length);
-        bb.put(bytes);
+        if (bytes.length > 0) {
+            bb.put(bytes);
+        }
         bb.flip();
         controls.write(channel, bb);
+    }
+
+    void sendClose() {
+        send(OPCODE_CLOSE, empty);
     }
 }

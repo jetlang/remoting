@@ -50,6 +50,7 @@ public class WebSocketReader<T> {
                 case 1:
                     return new TextFrame();
                 case 8:
+                    connection.sendClose();
                     return new NioReader.Close() {
                         @Override
                         public void onClosed() {
