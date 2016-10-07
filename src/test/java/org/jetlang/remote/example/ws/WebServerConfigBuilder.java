@@ -15,7 +15,7 @@ import java.util.Map;
 public class WebServerConfigBuilder {
 
     private Map<String, Handler> handlerMap = new HashMap<>();
-    private final Charset charset = Charset.forName("UTF-8");
+    private final Charset ascii = Charset.forName("ASCII");
 
     public WebServerConfigBuilder add(String path, WebSocketHandler handler) {
         handlerMap.put(path, new Handler() {
@@ -26,12 +26,12 @@ public class WebServerConfigBuilder {
                 StringBuilder handshake = new StringBuilder();
                 handshake.append("HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: ");
                 String key = headers.get("Sec-WebSocket-Key") + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
-                String reply = DatatypeConverter.printBase64Binary(msgDigest.digest(key.getBytes(charset)));
+                String reply = DatatypeConverter.printBase64Binary(msgDigest.digest(key.getBytes(ascii)));
                 handshake.append(reply).append("\r\n\r\n");
-                controls.write(channel, ByteBuffer.wrap(handshake.toString().getBytes(charset)));
+                controls.write(channel, ByteBuffer.wrap(handshake.toString().getBytes(ascii)));
                 System.out.println("handshake = " + handshake);
-                WebSocketConnection connection = new WebSocketConnection(headers, channel, controls, charset);
-                WebSocketReader reader = new WebSocketReader(channel, fiber, controls, connection, headers, charset, handler);
+                WebSocketConnection connection = new WebSocketConnection(headers, channel, controls, ascii);
+                WebSocketReader reader = new WebSocketReader(channel, fiber, controls, connection, headers, ascii, handler);
                 return reader.start();
             }
         });

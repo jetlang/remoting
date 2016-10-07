@@ -3,19 +3,14 @@ package org.jetlang.remote.example.ws;
 import org.jetlang.fibers.NioControls;
 import org.jetlang.fibers.NioFiber;
 
-import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.nio.CharBuffer;
 import java.nio.channels.SocketChannel;
 import java.nio.charset.Charset;
-import java.nio.charset.CharsetDecoder;
 import java.util.Map;
 
 public class HeaderReader {
 
-    private final Charset charset = Charset.forName("UTF-8");
-    private final CharsetDecoder decoder = charset.newDecoder();
-    private CharBuffer buffer = CharBuffer.allocate(1);
+    private final Charset ascii = Charset.forName("ASCII");
     private final SocketChannel channel;
     private final NioFiber fiber;
     private final NioControls controls;
@@ -34,27 +29,27 @@ public class HeaderReader {
 
     private abstract class BaseCharReader implements NioReader.State {
 
-        @Override
-        public NioReader.State process(ByteBuffer bb) {
-            if (buffer.remaining() < minRequiredBytes()) {
-                return null;
-            }
-            return processBytes(bb);
-        }
-
-        public void begin(ByteBuffer bb) throws IOException {
-            if (buffer.remaining() < bb.remaining()) {
-                CharBuffer resize = CharBuffer.allocate(buffer.position() + bb.remaining());
-                buffer.flip();
-                buffer = resize.put(buffer);
-            }
-            decoder.decode(bb, buffer, true);
-            buffer.flip();
-        }
-
-        public void end() {
-            buffer.compact();
-        }
+//        @Override
+//        public NioReader.State process(ByteBuffer buffer) {
+//            if (buffer.remaining() < minRequiredBytes()) {
+//                return null;
+//            }
+//            return processBytes(bb);
+//        }
+//
+//        public void begin(ByteBuffer bb) throws IOException {
+//            if (buffer.remaining() < bb.remaining()) {
+//                CharBuffer resize = CharBuffer.allocate(buffer.position() + bb.remaining());
+//                buffer.flip();
+//                buffer = resize.put(buffer);
+//            }
+//            decoder.decode(bb, buffer, true);
+//            buffer.flip();
+//        }
+//
+//        public void end() {
+//            buffer.compact();
+//        }
     }
 
 
@@ -62,10 +57,10 @@ public class HeaderReader {
         private final HttpRequest headers = new HttpRequest();
 
         @Override
-        public NioReader.State processBytes(ByteBuffer bb) {
+        public NioReader.State processBytes(ByteBuffer buffer) {
             final int startPosition = buffer.position();
             while (buffer.remaining() > 0) {
-                if (isCurrentCharEol()) {
+                if (isCurrentCharEol(buffer)) {
                     addFirstLine(buffer.array(), startPosition, buffer.position() - startPosition);
                     //System.out.println("line = " + line);
                     //buffer.position(buffer.position() + 1);
@@ -78,16 +73,16 @@ public class HeaderReader {
             return null;
         }
 
-        private void addFirstLine(char[] array, int startPosition, int length) {
+        private void addFirstLine(byte[] array, int startPosition, int length) {
             int first = find(array, startPosition, length, ' ');
             int firstLength = first - startPosition;
-            headers.method = new String(array, startPosition, firstLength);
+            headers.method = new String(array, startPosition, firstLength, ascii);
             System.out.println("method = " + headers.method);
             int second = find(array, first + 1, length - firstLength, ' ');
             int secondLength = second - first - 1;
-            headers.requestUri = new String(array, startPosition + firstLength + 1, secondLength);
+            headers.requestUri = new String(array, startPosition + firstLength + 1, secondLength, ascii);
             System.out.println("requestUri = '" + headers.requestUri + "'");
-            headers.protocolVersion = new String(array, startPosition + firstLength + secondLength + 2, length - firstLength - secondLength - 2);
+            headers.protocolVersion = new String(array, startPosition + firstLength + secondLength + 2, length - firstLength - secondLength - 2, ascii);
             System.out.println("protocolVersion = '" + headers.protocolVersion + "'");
         }
     }
@@ -103,8 +98,8 @@ public class HeaderReader {
         }
 
         @Override
-        public NioReader.State processBytes(ByteBuffer bb) {
-            int stripped = stripEndOfLines();
+        public NioReader.State processBytes(ByteBuffer buffer) {
+            int stripped = stripEndOfLines(buffer);
             eol += stripped;
             System.out.println("eol = " + eol + " " + buffer.remaining() + " " + buffer.position());
             if (eol == 4) {
@@ -132,10 +127,10 @@ public class HeaderReader {
         }
 
         @Override
-        public NioReader.State processBytes(ByteBuffer bb) {
+        public NioReader.State processBytes(ByteBuffer buffer) {
             final int startPosition = buffer.position();
             while (buffer.remaining() > 0) {
-                if (isCurrentCharEol()) {
+                if (isCurrentCharEol(buffer)) {
                     addHeader(buffer.array(), startPosition, buffer.position() - startPosition);
                     return new HeaderLine(headers);
                 } else {
@@ -146,18 +141,18 @@ public class HeaderReader {
             return null;
         }
 
-        private void addHeader(char[] array, int startPosition, int length) {
+        private void addHeader(byte[] array, int startPosition, int length) {
             int first = find(array, startPosition, length, ':');
             final int nameLength = first - startPosition;
-            String name = new String(array, startPosition, nameLength);
+            String name = new String(array, startPosition, nameLength, ascii);
             System.out.println("name = " + name);
-            String value = new String(array, startPosition + nameLength + 2, length - nameLength - 2);
+            String value = new String(array, startPosition + nameLength + 2, length - nameLength - 2, ascii);
             System.out.println("value = " + value);
             headers.put(name, value);
         }
     }
 
-    private static int find(char[] array, int startPosition, int length, char c) {
+    private static int find(byte[] array, int startPosition, int length, char c) {
         final int endPos = startPosition + length;
         for (int i = startPosition; i < endPos; i++) {
             if (array[i] == c) {
@@ -167,20 +162,20 @@ public class HeaderReader {
         throw new RuntimeException(c + " not found in " + new String(array, startPosition, length) + " " + startPosition + " " + length);
     }
 
-    private int stripEndOfLines() {
+    private int stripEndOfLines(ByteBuffer buffer) {
         int count = 0;
-        while (buffer.remaining() > 0 && isCurrentCharEol()) {
+        while (buffer.remaining() > 0 && isCurrentCharEol(buffer)) {
             buffer.position(buffer.position() + 1);
             count++;
         }
         return count;
     }
 
-    private boolean isCurrentCharEol() {
+    private boolean isCurrentCharEol(ByteBuffer buffer) {
         return isEol(buffer.get(buffer.position()));
     }
 
-    private static boolean isEol(char c) {
+    private static boolean isEol(byte c) {
         return c == '\n' || c == '\r';
     }
 

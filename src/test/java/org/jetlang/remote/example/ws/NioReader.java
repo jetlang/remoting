@@ -34,14 +34,14 @@ public class NioReader {
                 }
             }
             current.end();
-            System.out.println("pre = " + bb);
+            //System.out.println("pre = " + bb);
             bb.compact();
-            System.out.println("compacted bb = " + bb + " " + current);
+            //System.out.println("compacted bb = " + bb + " " + current);
             if (bb.remaining() == 0 || bb.remaining() < current.minRequiredBytes()) {
                 ByteBuffer resize = bufferAllocate(bb.capacity() + Math.max(1024, current.minRequiredBytes()));
                 bb.flip();
                 bb = resize.put(bb);
-                System.out.println("bb = " + bb);
+                System.out.println("resize = " + bb);
             }
         }
         return current.continueReading();
