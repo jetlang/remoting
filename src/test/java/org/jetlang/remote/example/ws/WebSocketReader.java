@@ -49,9 +49,19 @@ public class WebSocketReader {
                 case 1:
                     return new TextFrame();
                 case 8:
-                    return NioReader.CLOSE;
+                    return new NioReader.Close() {
+                        @Override
+                        public void onClosed() {
+                            handler.onClose(connection);
+                        }
+                    };
             }
             throw new RuntimeException("Not supported: " + opcode);
+        }
+
+        @Override
+        public void onClosed() {
+            handler.onClose(connection);
         }
     }
 
@@ -71,6 +81,11 @@ public class WebSocketReader {
                 return new BodyReader(size);
             }
             throw new RuntimeException("Unsupported size: " + size);
+        }
+
+        @Override
+        public void onClosed() {
+            handler.onClose(connection);
         }
     }
 
@@ -96,6 +111,11 @@ public class WebSocketReader {
             }
             handler.onMessage(connection, new String(result, charset));
             return new ContentReader();
+        }
+
+        @Override
+        public void onClosed() {
+            handler.onClose(connection);
         }
     }
 }

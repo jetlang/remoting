@@ -35,6 +35,11 @@ public class WebSocketEchoMain {
                 System.out.println("msg = " + msg);
                 connection.send(msg);
             }
+
+            @Override
+            public void onClose(WebSocketConnection connection) {
+                System.out.println("WS Close");
+            }
         };
 
         WebServerConfigBuilder config = new WebServerConfigBuilder();
@@ -72,7 +77,7 @@ public class WebSocketEchoMain {
         if (!messageLatch.await(5, TimeUnit.SECONDS)) {
             System.out.println("Nothing received");
         }
-
+        client.shutdown();
         Thread.sleep(Long.MAX_VALUE);
         acceptorFiber.dispose();
     }

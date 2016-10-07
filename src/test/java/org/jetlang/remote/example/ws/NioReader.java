@@ -51,6 +51,10 @@ public class NioReader {
         return ByteBuffer.allocate(size).order(ByteOrder.BIG_ENDIAN);
     }
 
+    public void onClosed() {
+        current.onClosed();
+    }
+
     interface State {
 
         default int minRequiredBytes() {
@@ -77,11 +81,16 @@ public class NioReader {
         default boolean continueReading() {
             return true;
         }
+
+        default void onClosed() {
+
+        }
     }
 
-    public static final State CLOSE = new State() {
+    public static class Close implements State {
         @Override
         public State processBytes(ByteBuffer bb) {
+            bb.position(bb.position() + bb.remaining());
             return null;
         }
 
@@ -89,6 +98,11 @@ public class NioReader {
         public boolean continueReading() {
             return false;
         }
-    };
 
+        @Override
+        public void onClosed() {
+        }
+    }
+
+    public static final State CLOSE = new Close();
 }

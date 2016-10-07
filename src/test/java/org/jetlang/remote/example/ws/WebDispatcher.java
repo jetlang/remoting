@@ -52,12 +52,12 @@ public class WebDispatcher implements NioAcceptorHandler.ClientFactory {
 
             @Override
             public void onEnd() {
-
+                nioReader.onClosed();
             }
 
             @Override
             public void onSelectorEnd() {
-
+                onEnd();
             }
         };
     }
