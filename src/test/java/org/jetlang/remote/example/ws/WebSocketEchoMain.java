@@ -24,20 +24,21 @@ public class WebSocketEchoMain {
     public static void main(String[] args) throws InterruptedException, URISyntaxException, IOException, DeploymentException {
         NioFiberImpl acceptorFiber = new NioFiberImpl();
         acceptorFiber.start();
-        WebSocketHandler handler = new WebSocketHandler() {
+        WebSocketHandler<Void> handler = new WebSocketHandler<Void>() {
             @Override
-            public void onOpen(WebSocketConnection connection) {
+            public Void onOpen(WebSocketConnection connection) {
                 System.out.println("Open!");
+                return null;
             }
 
             @Override
-            public void onMessage(WebSocketConnection connection, String msg) {
+            public void onMessage(WebSocketConnection connection, Void nothing, String msg) {
                 System.out.println("msg = " + msg);
                 connection.send(msg);
             }
 
             @Override
-            public void onClose(WebSocketConnection connection) {
+            public void onClose(WebSocketConnection connection, Void nothing) {
                 System.out.println("WS Close");
             }
         };

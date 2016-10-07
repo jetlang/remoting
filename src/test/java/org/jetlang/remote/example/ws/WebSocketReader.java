@@ -7,7 +7,7 @@ import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
 import java.nio.charset.Charset;
 
-public class WebSocketReader {
+public class WebSocketReader<T> {
 
     private final Charset charset;
     private final WebSocketHandler handler;
@@ -16,8 +16,9 @@ public class WebSocketReader {
     private final NioControls controls;
     private final WebSocketConnection connection;
     private final HttpRequest headers;
+    private final Object state;
 
-    public WebSocketReader(SocketChannel channel, NioFiber fiber, NioControls controls, WebSocketConnection connection, HttpRequest headers, Charset charset, WebSocketHandler handler) {
+    public WebSocketReader(SocketChannel channel, NioFiber fiber, NioControls controls, WebSocketConnection connection, HttpRequest headers, Charset charset, WebSocketHandler<T> handler) {
         this.channel = channel;
         this.fiber = fiber;
         this.controls = controls;
@@ -25,10 +26,10 @@ public class WebSocketReader {
         this.headers = headers;
         this.charset = charset;
         this.handler = handler;
+        this.state = handler.onOpen(connection);
     }
 
     public NioReader.State start() {
-        handler.onOpen(connection);
         return new ContentReader();
     }
 
@@ -52,7 +53,7 @@ public class WebSocketReader {
                     return new NioReader.Close() {
                         @Override
                         public void onClosed() {
-                            handler.onClose(connection);
+                            handler.onClose(connection, state);
                         }
                     };
             }
@@ -61,7 +62,7 @@ public class WebSocketReader {
 
         @Override
         public void onClosed() {
-            handler.onClose(connection);
+            handler.onClose(connection, state);
         }
     }
 
@@ -75,7 +76,7 @@ public class WebSocketReader {
             System.out.println("size = " + size);
             if (size >= 0 && size <= 125) {
                 if (size == 0) {
-                    handler.onMessage(connection, "");
+                    handler.onMessage(connection, state, "");
                     return new ContentReader();
                 }
                 return new BodyReader(size);
@@ -85,7 +86,7 @@ public class WebSocketReader {
 
         @Override
         public void onClosed() {
-            handler.onClose(connection);
+            handler.onClose(connection, state);
         }
     }
 
@@ -109,13 +110,13 @@ public class WebSocketReader {
             for (int i = 0; i < size; i++) {
                 result[i] = (byte) (bb.get() ^ bb.get((i % 4) + maskPos));
             }
-            handler.onMessage(connection, new String(result, charset));
+            handler.onMessage(connection, state, new String(result, charset));
             return new ContentReader();
         }
 
         @Override
         public void onClosed() {
-            handler.onClose(connection);
+            handler.onClose(connection, state);
         }
     }
 }

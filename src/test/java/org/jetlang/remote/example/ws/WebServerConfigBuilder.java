@@ -29,7 +29,7 @@ public class WebServerConfigBuilder {
         return this;
     }
 
-    public WebServerConfigBuilder add(String path, WebSocketHandler handler) {
+    public <T> WebServerConfigBuilder add(String path, WebSocketHandler<T> handler) {
         events.add((map) -> {
             map.put(path, new Handler() {
                 private final MessageDigest msgDigest = getDigest("SHA-1");
@@ -45,7 +45,7 @@ public class WebServerConfigBuilder {
                     controls.write(channel, ByteBuffer.wrap(handshake.toString().getBytes(headerReader.ascii)));
                     System.out.println("handshake = " + handshake);
                     WebSocketConnection connection = new WebSocketConnection(headers, channel, controls, headerReader.ascii);
-                    WebSocketReader reader = new WebSocketReader(channel, fiber, controls, connection, headers, local, handler);
+                    WebSocketReader<T> reader = new WebSocketReader<>(channel, fiber, controls, connection, headers, local, handler);
                     return reader.start();
                 }
             });

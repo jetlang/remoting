@@ -1,9 +1,9 @@
 package org.jetlang.remote.example.ws;
 
-public interface WebSocketHandler {
-    void onOpen(WebSocketConnection connection);
+public interface WebSocketHandler<T> {
+    T onOpen(WebSocketConnection connection);
 
-    void onMessage(WebSocketConnection connection, String msg);
+    void onMessage(WebSocketConnection connection, T state, String msg);
 
-    void onClose(WebSocketConnection connection);
+    void onClose(WebSocketConnection connection, T state);
 }
