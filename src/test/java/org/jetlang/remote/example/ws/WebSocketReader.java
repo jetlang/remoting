@@ -42,10 +42,6 @@ public class WebSocketReader<T> {
 //                boolean rsv2 = ((b & 0x20) != 0);
 //                boolean rsv3 = ((b & 0x10) != 0);
             byte opcode = (byte) (b & 0x0F);
-            System.out.println("first = " + b);
-            System.out.println("fin = " + fin);
-            System.out.println("op = " + opcode);
-            System.out.println("AfterRead");
             switch (opcode) {
                 case 1:
                     return new TextFrame();
@@ -72,9 +68,7 @@ public class WebSocketReader<T> {
         @Override
         public NioReader.State processBytes(ByteBuffer bb) {
             byte b = bb.get();
-            System.out.println("b = " + b);
             int size = (byte) (0x7F & b);
-            System.out.println("size = " + size);
             if (size >= 0 && size <= 125) {
                 if (size == 0) {
                     handler.onMessage(connection, state, "");

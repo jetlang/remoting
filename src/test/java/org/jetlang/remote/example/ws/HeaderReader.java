@@ -52,13 +52,10 @@ public class HeaderReader {
             int first = find(array, startPosition, length, ' ');
             int firstLength = first - startPosition;
             headers.method = new String(array, startPosition, firstLength, ascii);
-            System.out.println("method = " + headers.method);
             int second = find(array, first + 1, length - firstLength, ' ');
             int secondLength = second - first - 1;
             headers.requestUri = new String(array, startPosition + firstLength + 1, secondLength, ascii);
-            System.out.println("requestUri = '" + headers.requestUri + "'");
             headers.protocolVersion = new String(array, startPosition + firstLength + secondLength + 2, length - firstLength - secondLength - 2, ascii);
-            System.out.println("protocolVersion = '" + headers.protocolVersion + "'");
         }
     }
 
@@ -76,9 +73,7 @@ public class HeaderReader {
         public NioReader.State processBytes(ByteBuffer buffer) {
             int stripped = stripEndOfLines(buffer);
             eol += stripped;
-            System.out.println("eol = " + eol + " " + buffer.remaining() + " " + buffer.position());
             if (eol == 4) {
-                System.out.println("Done " + eol + " " + buffer.remaining());
                 Handler h = handler.get(headers.getRequestUri());
                 if (h != null) {
                     return h.start(headers, controls, channel, fiber, HeaderReader.this);
@@ -89,7 +84,6 @@ public class HeaderReader {
                     try {
                         String s = response.toString();
                         channel.write(ByteBuffer.wrap(s.getBytes(ascii)));
-                        System.out.println("s = " + s);
                     } catch (IOException e) {
                         return NioReader.CLOSE;
                     }
@@ -129,9 +123,7 @@ public class HeaderReader {
             int first = find(array, startPosition, length, ':');
             final int nameLength = first - startPosition;
             String name = new String(array, startPosition, nameLength, ascii);
-            System.out.println("name = " + name);
             String value = new String(array, startPosition + nameLength + 2, length - nameLength - 2, ascii);
-            System.out.println("value = " + value);
             headers.put(name, value);
         }
     }
