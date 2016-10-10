@@ -35,12 +35,12 @@ public class WebSocketConnection {
         this.fiber = fiber;
     }
 
-    public void send(String msg) {
+    public SendResult send(String msg) {
         final byte[] bytes = msg.getBytes(charset);
-        send(OPCODE_TEXT, bytes);
+        return send(OPCODE_TEXT, bytes);
     }
 
-    private void send(byte opCode, byte[] bytes) {
+    private SendResult send(byte opCode, byte[] bytes) {
         final int length = bytes.length;
         byte header = 0;
         header |= 1 << 7;
@@ -54,18 +54,23 @@ public class WebSocketConnection {
         bb.flip();
         synchronized (writeLock) {
             if (bufferedWrite != null) {
-                if (channel.isOpen() && channel.isRegistered())
+                if (channel.isOpen() && channel.isRegistered()) {
+                    int toBuffer = bb.remaining();
                     bufferedWrite.buffer(bb);
-                return;
+                    return new SendResult.Buffered(toBuffer, toBuffer);
+                } else {
+                    return SendResult.Closed;
+                }
             }
             try {
                 writeAll(channel, bb);
             } catch (IOException e) {
-                throw new RuntimeException(e);
+                fiber.execute((c) -> c.close(channel));
+                return new SendResult.FailedOnError(e);
             }
             if (!bb.hasRemaining()) {
                 //System.out.println("sent : " + bytes.length);
-                return;
+                return SendResult.SUCCESS;
             }
             bufferedWrite = new NioFiberImpl.BufferedWrite<SocketChannel>(channel, new NioFiberImpl.WriteFailure() {
                 @Override
@@ -92,16 +97,14 @@ public class WebSocketConnection {
                 public void onEnd() {
                 }
             };
+            int remaining = bb.remaining();
             bufferedWrite.buffer(bb);
-            //fiber.execute((c)->{
-            if (channel.isOpen() && channel.isRegistered()) {
-                controls.addHandler(bufferedWrite);
-                //c.addHandler(bufferedWrite);
-                System.out.println("Added buffer to niofiber");
-            } else {
-                System.out.println("Channel is closed.");
-            }
-            //});
+            fiber.execute((c) -> {
+                if (channel.isOpen() && channel.isRegistered()) {
+                    controls.addHandler(bufferedWrite);
+                }
+            });
+            return new SendResult.Buffered(remaining, remaining);
         }
     }
 
@@ -115,5 +118,9 @@ public class WebSocketConnection {
 
     void sendClose() {
         send(OPCODE_CLOSE, empty);
+    }
+
+    public void close() throws IOException {
+        channel.close();
     }
 }

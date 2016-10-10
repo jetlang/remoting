@@ -23,7 +23,7 @@ public class WebSocketEchoMain {
 
 
     public static void main(String[] args) throws InterruptedException, URISyntaxException, IOException, DeploymentException {
-        int toSend = 100000;
+        int toSend = 1000000;
 
         int msgSize = 100;
         StringBuilder msg = new StringBuilder();
@@ -43,7 +43,14 @@ public class WebSocketEchoMain {
 
             @Override
             public void onMessage(WebSocketConnection connection, Void nothing, String msg) {
-                connection.send(msg);
+                if (connection.send(msg) instanceof SendResult.Buffered) {
+//                    try {
+//                        //connection.close();
+//                        System.out.println("Closed on buffer.");
+//                    } catch (IOException e) {
+//                        throw new RuntimeException(e);
+//                    }
+                }
             }
 
             @Override
@@ -72,15 +79,18 @@ public class WebSocketEchoMain {
             public void onOpen(Session session, EndpointConfig config) {
                 onOPen.countDown();
                 session.addMessageHandler(new MessageHandler.Whole<String>() {
-
+                    boolean slept = false;
                     @Override
                     public void onMessage(String message) {
                         assertEquals(SENT_MESSAGE, message);
                         messageLatch.countDown();
-                        try {
-                            Thread.sleep(10);
-                        } catch (InterruptedException e) {
-                            throw new RuntimeException(e);
+                        if (!slept) {
+                            try {
+                                Thread.sleep(3000);
+                                slept = true;
+                            } catch (InterruptedException e) {
+                                throw new RuntimeException(e);
+                            }
                         }
                     }
                 });
