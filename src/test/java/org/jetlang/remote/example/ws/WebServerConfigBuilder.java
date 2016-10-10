@@ -19,6 +19,24 @@ public class WebServerConfigBuilder {
 
     private Charset websocketCharset = Charset.forName("UTF-8");
     private List<Consumer<Map<String, Handler>>> events = new ArrayList<>();
+    private int readBufferSizeInBytes = 1024;
+    private int maxReadLoops = 50;
+
+    public int getMaxReadLoops() {
+        return maxReadLoops;
+    }
+
+    public void setMaxReadLoops(int maxReadLoops) {
+        this.maxReadLoops = maxReadLoops;
+    }
+
+    public int getReadBufferSizeInBytes() {
+        return readBufferSizeInBytes;
+    }
+
+    public void setReadBufferSizeInBytes(int readBufferSizeInBytes) {
+        this.readBufferSizeInBytes = readBufferSizeInBytes;
+    }
 
     public Charset getWebsocketCharset() {
         return websocketCharset;
@@ -72,6 +90,6 @@ public class WebServerConfigBuilder {
         for (Consumer<Map<String, Handler>> event : events) {
             event.accept(handlerMap);
         }
-        return new WebDispatcher(handlerMap);
+        return new WebDispatcher(handlerMap, readBufferSizeInBytes, maxReadLoops);
     }
 }

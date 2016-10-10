@@ -15,9 +15,13 @@ import java.util.Map;
 public class WebDispatcher implements NioAcceptorHandler.ClientFactory {
 
     private final Map<String, Handler> handler;
+    private final int readBufferSizeInBytes;
+    private final int maxReadLoops;
 
-    public WebDispatcher(Map<String, Handler> handler) {
+    public WebDispatcher(Map<String, Handler> handler, int readBufferSizeInBytes, int maxReadLoops) {
         this.handler = handler;
+        this.readBufferSizeInBytes = readBufferSizeInBytes;
+        this.maxReadLoops = maxReadLoops;
     }
 
     @Override
@@ -28,7 +32,7 @@ public class WebDispatcher implements NioAcceptorHandler.ClientFactory {
 
     protected NioChannelHandler createHandler(SelectionKey key, SocketChannel channel, NioFiber fiber, NioControls controls) {
         return new NioChannelHandler() {
-            NioReader nioReader = new NioReader(channel, fiber, controls, handler);
+            NioReader nioReader = new NioReader(channel, fiber, controls, handler, readBufferSizeInBytes, maxReadLoops);
 
             @Override
             public boolean onSelect(NioFiber nioFiber, NioControls nioControls, SelectionKey selectionKey) {

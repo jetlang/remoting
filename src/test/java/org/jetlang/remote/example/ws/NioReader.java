@@ -12,18 +12,21 @@ import java.util.Map;
 public class NioReader {
 
     private final HeaderReader headerReader;
-    private ByteBuffer bb = bufferAllocate(1);
+    private ByteBuffer bb;
     private final SocketChannel channel;
+    private final int maxReadLoops;
     private State current;
 
-    public NioReader(SocketChannel channel, NioFiber fiber, NioControls controls, Map<String, Handler> handler) {
+    public NioReader(SocketChannel channel, NioFiber fiber, NioControls controls, Map<String, Handler> handler, int readBufferSizeInBytes, int maxReadLoops) {
         this.channel = channel;
+        this.maxReadLoops = maxReadLoops;
         this.headerReader = new HeaderReader(channel, fiber, controls, handler);
         this.current = headerReader.start();
+        this.bb = bufferAllocate(readBufferSizeInBytes);
     }
 
     public boolean onRead() throws IOException {
-        while (channel.read(bb) > 0) {
+        for (int i = 0; i < maxReadLoops && channel.read(bb) > 0; i++) {
             bb.flip();
             current.begin(bb);
             State result = current;
