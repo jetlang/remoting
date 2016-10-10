@@ -21,10 +21,17 @@ import static org.junit.Assert.assertEquals;
 
 public class WebSocketEchoMain {
 
-    private static final String SENT_MESSAGE = "M";
 
     public static void main(String[] args) throws InterruptedException, URISyntaxException, IOException, DeploymentException {
-        int toSend = 1000000;
+        int toSend = 100000;
+
+        int msgSize = 100;
+        StringBuilder msg = new StringBuilder();
+        for (int i = 0; i < msgSize; i++) {
+            msg.append(" ");
+        }
+        String SENT_MESSAGE = msg.toString();
+
         NioFiberImpl acceptorFiber = new NioFiberImpl();
         acceptorFiber.start();
         WebSocketHandler<Void> handler = new WebSocketHandler<Void>() {
@@ -59,34 +66,34 @@ public class WebSocketEchoMain {
 
         ClientManager client = ClientManager.createClient();
         CountDownLatch onOPen = new CountDownLatch(1);
-        client.connectToServer(new Endpoint() {
+        Session s = client.connectToServer(new Endpoint() {
 
             @Override
             public void onOpen(Session session, EndpointConfig config) {
                 onOPen.countDown();
-                try {
-                    session.addMessageHandler(new MessageHandler.Whole<String>() {
+                session.addMessageHandler(new MessageHandler.Whole<String>() {
 
-                        @Override
-                        public void onMessage(String message) {
-                            assertEquals(SENT_MESSAGE, message);
-                            messageLatch.countDown();
+                    @Override
+                    public void onMessage(String message) {
+                        assertEquals(SENT_MESSAGE, message);
+                        messageLatch.countDown();
+                        try {
+                            Thread.sleep(10);
+                        } catch (InterruptedException e) {
+                            throw new RuntimeException(e);
                         }
-                    });
-                    for (int i = 0; i < toSend; i++) {
-                        session.getBasicRemote().sendText(SENT_MESSAGE);
                     }
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
+                });
             }
         }, cec, new URI("ws://localhost:8025/websockets/echo"));
         if (!onOPen.await(60, TimeUnit.SECONDS)) {
             throw new RuntimeException("Never connected");
         }
         long start = System.currentTimeMillis();
-
-        if (!messageLatch.await(5, TimeUnit.SECONDS)) {
+        for (int i = 0; i < toSend; i++) {
+            s.getBasicRemote().sendText(SENT_MESSAGE);
+        }
+        if (!messageLatch.await(20, TimeUnit.MINUTES)) {
             System.out.println("Nothing received");
         }
         long end = System.currentTimeMillis();

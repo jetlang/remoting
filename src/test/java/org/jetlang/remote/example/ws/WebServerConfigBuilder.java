@@ -43,8 +43,7 @@ public class WebServerConfigBuilder {
                     String reply = DatatypeConverter.printBase64Binary(msgDigest.digest(key.getBytes(headerReader.ascii)));
                     handshake.append(reply).append("\r\n\r\n");
                     controls.write(channel, ByteBuffer.wrap(handshake.toString().getBytes(headerReader.ascii)));
-                    System.out.println("handshake = " + handshake);
-                    WebSocketConnection connection = new WebSocketConnection(headers, channel, controls, headerReader.ascii);
+                    WebSocketConnection connection = new WebSocketConnection(headers, channel, controls, headerReader.ascii, fiber);
                     WebSocketReader<T> reader = new WebSocketReader<>(channel, fiber, controls, connection, headers, local, handler);
                     return reader.start();
                 }

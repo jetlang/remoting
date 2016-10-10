@@ -1,9 +1,15 @@
 package org.jetlang.remote.example.ws;
 
 import org.jetlang.fibers.NioControls;
+import org.jetlang.fibers.NioFiber;
+import org.jetlang.fibers.NioFiberImpl;
 
+import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.channels.SelectableChannel;
+import java.nio.channels.SelectionKey;
 import java.nio.channels.SocketChannel;
+import java.nio.channels.WritableByteChannel;
 import java.nio.charset.Charset;
 
 public class WebSocketConnection {
@@ -18,11 +24,15 @@ public class WebSocketConnection {
     private final SocketChannel channel;
     private final NioControls controls;
     private final Charset charset;
+    private final NioFiber fiber;
+    private final Object writeLock = new Object();
+    private NioFiberImpl.BufferedWrite<SocketChannel> bufferedWrite;
 
-    public WebSocketConnection(HttpRequest headers, SocketChannel channel, NioControls controls, Charset charset) {
+    public WebSocketConnection(HttpRequest headers, SocketChannel channel, NioControls controls, Charset charset, NioFiber fiber) {
         this.channel = channel;
         this.controls = controls;
         this.charset = charset;
+        this.fiber = fiber;
     }
 
     public void send(String msg) {
@@ -42,8 +52,66 @@ public class WebSocketConnection {
             bb.put(bytes);
         }
         bb.flip();
-        controls.write(channel, bb);
+        synchronized (writeLock) {
+            if (bufferedWrite != null) {
+                if (channel.isOpen() && channel.isRegistered())
+                    bufferedWrite.buffer(bb);
+                return;
+            }
+            try {
+                writeAll(channel, bb);
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+            if (!bb.hasRemaining()) {
+                //System.out.println("sent : " + bytes.length);
+                return;
+            }
+            bufferedWrite = new NioFiberImpl.BufferedWrite<SocketChannel>(channel, new NioFiberImpl.WriteFailure() {
+                @Override
+                public <T extends SelectableChannel & WritableByteChannel> void onFailure(IOException e, T t, ByteBuffer byteBuffer) {
+                }
+            }, new NioFiberImpl.OnBuffer() {
+                @Override
+                public <T extends SelectableChannel & WritableByteChannel> void onBufferEnd(T t) {
+                    bufferedWrite = null;
+                }
+
+                @Override
+                public <T extends SelectableChannel & WritableByteChannel> void onBuffer(T t, ByteBuffer byteBuffer) {
+                }
+            }) {
+                @Override
+                public boolean onSelect(NioFiber nioFiber, NioControls controls, SelectionKey key) {
+                    synchronized (writeLock) {
+                        return super.onSelect(nioFiber, controls, key);
+                    }
+                }
+
+                @Override
+                public void onEnd() {
+                }
+            };
+            bufferedWrite.buffer(bb);
+            //fiber.execute((c)->{
+            if (channel.isOpen() && channel.isRegistered()) {
+                controls.addHandler(bufferedWrite);
+                //c.addHandler(bufferedWrite);
+                System.out.println("Added buffer to niofiber");
+            } else {
+                System.out.println("Channel is closed.");
+            }
+            //});
+        }
     }
+
+    public static void writeAll(WritableByteChannel channel, ByteBuffer data) throws IOException {
+        int write;
+        do {
+            write = channel.write(data);
+        } while (write != 0 && data.remaining() > 0);
+    }
+
 
     void sendClose() {
         send(OPCODE_CLOSE, empty);
