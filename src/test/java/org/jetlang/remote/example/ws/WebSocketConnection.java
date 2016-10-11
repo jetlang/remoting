@@ -15,6 +15,7 @@ public class WebSocketConnection {
     public static final byte[] empty = new byte[0];
     private final Charset charset;
     private final NioWriter writer;
+    private static final SizeType[] sizes = SizeType.values();
 
     public WebSocketConnection(Charset charset, NioWriter writer) {
         this.charset = charset;
@@ -26,19 +27,63 @@ public class WebSocketConnection {
         return send(OPCODE_TEXT, bytes);
     }
 
+    enum SizeType {
+        Small(125, 1) {
+            @Override
+            void write(ByteBuffer bb, int length) {
+                bb.put((byte) length);
+            }
+        },
+        Medium(65535, 3) {
+            @Override
+            void write(ByteBuffer bb, int length) {
+                bb.put((byte) 126);
+                bb.put((byte) (length >>> 8));
+                bb.put((byte) length);
+            }
+        },
+        Large(Integer.MAX_VALUE, 9) {
+            @Override
+            void write(ByteBuffer bb, int length) {
+                bb.put((byte) 127);
+                bb.putLong(length);
+            }
+        };
+
+        public int max;
+        private final int bytes;
+
+        SizeType(int max, int bytes) {
+            this.max = max;
+            this.bytes = bytes;
+        }
+
+        abstract void write(ByteBuffer bb, int length);
+    }
+
     private SendResult send(byte opCode, byte[] bytes) {
         final int length = bytes.length;
         byte header = 0;
         header |= 1 << 7;
         header |= opCode % 128;
-        ByteBuffer bb = NioReader.bufferAllocate(2 + length);
+        SizeType sz = findSize(length);
+        ByteBuffer bb = NioReader.bufferAllocate(1 + length + sz.bytes);
         bb.put(header);
-        bb.put((byte) length);
+        sz.write(bb, length);
         if (bytes.length > 0) {
             bb.put(bytes);
         }
         bb.flip();
         return writer.send(bb);
+    }
+
+    private static SizeType findSize(int length) {
+        for (SizeType size : sizes) {
+            if (length <= size.max) {
+                return size;
+            }
+        }
+        throw new RuntimeException(length + " invalid ");
     }
 
     void sendClose() {

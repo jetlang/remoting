@@ -66,6 +66,33 @@ public class WebSocketReader<T> {
                 }
                 return new BodyReader(size);
             }
+            if (size == 126) {
+                return new NioReader.State() {
+                    @Override
+                    public int minRequiredBytes() {
+                        return 2;
+                    }
+
+                    @Override
+                    public NioReader.State processBytes(ByteBuffer bb) {
+                        int size = ((bb.get() & 0xFF) << 8) + (bb.get() & 0xFF);
+                        return new BodyReader(size);
+                    }
+                };
+            }
+            if (size == 127) {
+                return new NioReader.State() {
+                    @Override
+                    public int minRequiredBytes() {
+                        return 8;
+                    }
+
+                    @Override
+                    public NioReader.State processBytes(ByteBuffer bb) {
+                        return new BodyReader((int) bb.getLong());
+                    }
+                };
+            }
             throw new RuntimeException("Unsupported size: " + size);
         }
 
