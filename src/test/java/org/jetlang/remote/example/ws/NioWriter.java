@@ -17,6 +17,7 @@ public class NioWriter {
     private final NioFiber fiber;
     private final Object writeLock = new Object();
     private NioFiberImpl.BufferedWrite<SocketChannel> bufferedWrite;
+    private boolean closed = false;
 
     public NioWriter(SocketChannel channel, NioFiber fiber) {
         this.channel = channel;
@@ -25,6 +26,9 @@ public class NioWriter {
 
     public SendResult send(ByteBuffer bb) {
         synchronized (writeLock) {
+            if (closed) {
+                return SendResult.Closed;
+            }
             if (bufferedWrite != null) {
                 if (channel.isOpen() && channel.isRegistered()) {
                     int toBuffer = bb.remaining();
@@ -37,7 +41,7 @@ public class NioWriter {
             try {
                 writeAll(channel, bb);
             } catch (IOException e) {
-                fiber.execute((c) -> c.close(channel));
+                attemptCloseOnNioFiber();
                 return new SendResult.FailedOnError(e);
             }
             if (!bb.hasRemaining()) {
@@ -47,6 +51,7 @@ public class NioWriter {
             bufferedWrite = new NioFiberImpl.BufferedWrite<SocketChannel>(channel, new NioFiberImpl.WriteFailure() {
                 @Override
                 public <T extends SelectableChannel & WritableByteChannel> void onFailure(IOException e, T t, ByteBuffer byteBuffer) {
+                    attemptCloseOnNioFiber();
                 }
             }, new NioFiberImpl.OnBuffer() {
                 @Override
@@ -77,6 +82,13 @@ public class NioWriter {
                 }
             });
             return new SendResult.Buffered(remaining, remaining);
+        }
+    }
+
+    private void attemptCloseOnNioFiber() {
+        if (!closed) {
+            fiber.execute((c) -> c.close(channel));
+            closed = true;
         }
     }
 
