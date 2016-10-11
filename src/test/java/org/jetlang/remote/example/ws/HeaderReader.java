@@ -16,12 +16,14 @@ public class HeaderReader {
     private final NioFiber fiber;
     private final NioControls controls;
     private final Map<String, Handler> handler;
+    private final NioWriter writer;
 
     public HeaderReader(SocketChannel channel, NioFiber fiber, NioControls controls, Map<String, Handler> handler) {
         this.channel = channel;
         this.fiber = fiber;
         this.controls = controls;
         this.handler = handler;
+        this.writer = new NioWriter(channel, fiber);
     }
 
     public NioReader.State start() {
@@ -76,7 +78,7 @@ public class HeaderReader {
             if (eol == 4) {
                 Handler h = handler.get(headers.getRequestUri());
                 if (h != null) {
-                    return h.start(headers, controls, channel, fiber, HeaderReader.this);
+                    return h.start(headers, HeaderReader.this, writer);
                 } else {
                     StringBuilder response = new StringBuilder();
                     response.append("HTTP/1.0 404 Not Found\r\n");

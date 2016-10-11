@@ -23,9 +23,11 @@ public class WebSocketEchoMain {
 
 
     public static void main(String[] args) throws InterruptedException, URISyntaxException, IOException, DeploymentException {
+        int sleepTimeOnFirstMessage = 0;
+
         int toSend = 1000000;
 
-        int msgSize = 100;
+        int msgSize = 1;
         StringBuilder msg = new StringBuilder();
         for (int i = 0; i < msgSize; i++) {
             msg.append(" ");
@@ -86,7 +88,9 @@ public class WebSocketEchoMain {
                         messageLatch.countDown();
                         if (!slept) {
                             try {
-                                Thread.sleep(3000);
+                                if (sleepTimeOnFirstMessage > 0) {
+                                    Thread.sleep(3000);
+                                }
                                 slept = true;
                             } catch (InterruptedException e) {
                                 throw new RuntimeException(e);

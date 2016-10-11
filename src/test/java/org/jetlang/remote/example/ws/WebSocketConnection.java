@@ -1,15 +1,7 @@
 package org.jetlang.remote.example.ws;
 
-import org.jetlang.fibers.NioControls;
-import org.jetlang.fibers.NioFiber;
-import org.jetlang.fibers.NioFiberImpl;
-
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.nio.channels.SelectableChannel;
-import java.nio.channels.SelectionKey;
-import java.nio.channels.SocketChannel;
-import java.nio.channels.WritableByteChannel;
 import java.nio.charset.Charset;
 
 public class WebSocketConnection {
@@ -21,18 +13,12 @@ public class WebSocketConnection {
     private static final byte OPCODE_PING = 0x9;
     private static final byte OPCODE_PONG = 0xA;
     public static final byte[] empty = new byte[0];
-    private final SocketChannel channel;
-    private final NioControls controls;
     private final Charset charset;
-    private final NioFiber fiber;
-    private final Object writeLock = new Object();
-    private NioFiberImpl.BufferedWrite<SocketChannel> bufferedWrite;
+    private final NioWriter writer;
 
-    public WebSocketConnection(HttpRequest headers, SocketChannel channel, NioControls controls, Charset charset, NioFiber fiber) {
-        this.channel = channel;
-        this.controls = controls;
+    public WebSocketConnection(Charset charset, NioWriter writer) {
         this.charset = charset;
-        this.fiber = fiber;
+        this.writer = writer;
     }
 
     public SendResult send(String msg) {
@@ -52,75 +38,14 @@ public class WebSocketConnection {
             bb.put(bytes);
         }
         bb.flip();
-        synchronized (writeLock) {
-            if (bufferedWrite != null) {
-                if (channel.isOpen() && channel.isRegistered()) {
-                    int toBuffer = bb.remaining();
-                    bufferedWrite.buffer(bb);
-                    return new SendResult.Buffered(toBuffer, toBuffer);
-                } else {
-                    return SendResult.Closed;
-                }
-            }
-            try {
-                writeAll(channel, bb);
-            } catch (IOException e) {
-                fiber.execute((c) -> c.close(channel));
-                return new SendResult.FailedOnError(e);
-            }
-            if (!bb.hasRemaining()) {
-                //System.out.println("sent : " + bytes.length);
-                return SendResult.SUCCESS;
-            }
-            bufferedWrite = new NioFiberImpl.BufferedWrite<SocketChannel>(channel, new NioFiberImpl.WriteFailure() {
-                @Override
-                public <T extends SelectableChannel & WritableByteChannel> void onFailure(IOException e, T t, ByteBuffer byteBuffer) {
-                }
-            }, new NioFiberImpl.OnBuffer() {
-                @Override
-                public <T extends SelectableChannel & WritableByteChannel> void onBufferEnd(T t) {
-                    bufferedWrite = null;
-                }
-
-                @Override
-                public <T extends SelectableChannel & WritableByteChannel> void onBuffer(T t, ByteBuffer byteBuffer) {
-                }
-            }) {
-                @Override
-                public boolean onSelect(NioFiber nioFiber, NioControls controls, SelectionKey key) {
-                    synchronized (writeLock) {
-                        return super.onSelect(nioFiber, controls, key);
-                    }
-                }
-
-                @Override
-                public void onEnd() {
-                }
-            };
-            int remaining = bb.remaining();
-            bufferedWrite.buffer(bb);
-            fiber.execute((c) -> {
-                if (channel.isOpen() && channel.isRegistered()) {
-                    controls.addHandler(bufferedWrite);
-                }
-            });
-            return new SendResult.Buffered(remaining, remaining);
-        }
+        return writer.send(bb);
     }
-
-    public static void writeAll(WritableByteChannel channel, ByteBuffer data) throws IOException {
-        int write;
-        do {
-            write = channel.write(data);
-        } while (write != 0 && data.remaining() > 0);
-    }
-
 
     void sendClose() {
         send(OPCODE_CLOSE, empty);
     }
 
     public void close() throws IOException {
-        channel.close();
+        writer.close();
     }
 }

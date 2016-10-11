@@ -1,10 +1,5 @@
 package org.jetlang.remote.example.ws;
 
-import org.jetlang.fibers.NioControls;
-import org.jetlang.fibers.NioFiber;
-
-import java.nio.channels.SocketChannel;
-
 public interface Handler {
-    NioReader.State start(HttpRequest headers, NioControls controls, SocketChannel channel, NioFiber fiber, HeaderReader headerReader);
+    NioReader.State start(HttpRequest headers, HeaderReader headerReader, NioWriter writer);
 }

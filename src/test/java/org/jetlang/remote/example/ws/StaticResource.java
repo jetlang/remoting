@@ -1,11 +1,7 @@
 package org.jetlang.remote.example.ws;
 
-import org.jetlang.fibers.NioControls;
-import org.jetlang.fibers.NioFiber;
-
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.nio.channels.SocketChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
@@ -17,7 +13,7 @@ public class StaticResource implements Handler {
     }
 
     @Override
-    public NioReader.State start(HttpRequest headers, NioControls controls, SocketChannel channel, NioFiber fiber, HeaderReader headerReader) {
+    public NioReader.State start(HttpRequest headers, HeaderReader headerReader, NioWriter writer) {
         StringBuilder response = new StringBuilder();
         response.append("HTTP/1.0 200 OK\r\n");
         response.append("Content-Type: text/html\r\n");
@@ -25,7 +21,7 @@ public class StaticResource implements Handler {
             final byte[] b = Files.readAllBytes(resource);
             response.append("Content-Length: " + b.length + "\r\n\r\n");
             response.append(new String(b));
-            controls.write(channel, ByteBuffer.wrap(response.toString().getBytes()));
+            writer.send(ByteBuffer.wrap(response.toString().getBytes()));
         } catch (IOException e) {
             throw new RuntimeException(e);
         }

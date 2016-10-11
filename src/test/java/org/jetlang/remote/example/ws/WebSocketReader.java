@@ -1,27 +1,17 @@
 package org.jetlang.remote.example.ws;
 
-import org.jetlang.fibers.NioControls;
-import org.jetlang.fibers.NioFiber;
-
 import java.nio.ByteBuffer;
-import java.nio.channels.SocketChannel;
 import java.nio.charset.Charset;
 
 public class WebSocketReader<T> {
 
     private final Charset charset;
     private final WebSocketHandler<T> handler;
-    private final SocketChannel channel;
-    private final NioFiber fiber;
-    private final NioControls controls;
     private final WebSocketConnection connection;
     private final HttpRequest headers;
     private final T state;
 
-    public WebSocketReader(SocketChannel channel, NioFiber fiber, NioControls controls, WebSocketConnection connection, HttpRequest headers, Charset charset, WebSocketHandler<T> handler) {
-        this.channel = channel;
-        this.fiber = fiber;
-        this.controls = controls;
+    public WebSocketReader(WebSocketConnection connection, HttpRequest headers, Charset charset, WebSocketHandler<T> handler) {
         this.connection = connection;
         this.headers = headers;
         this.charset = charset;
