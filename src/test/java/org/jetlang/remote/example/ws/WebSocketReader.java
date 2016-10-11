@@ -9,6 +9,7 @@ public class WebSocketReader<T> {
     private final WebSocketHandler<T> handler;
     private final WebSocketConnection connection;
     private final HttpRequest headers;
+    private final BodyReader bodyRead = new BodyReader();
     private final T state;
 
     public WebSocketReader(WebSocketConnection connection, HttpRequest headers, Charset charset, WebSocketHandler<T> handler) {
@@ -20,10 +21,10 @@ public class WebSocketReader<T> {
     }
 
     public NioReader.State start() {
-        return new ContentReader();
+        return contentReader;
     }
 
-    private class ContentReader implements NioReader.State {
+    private final NioReader.State contentReader = new NioReader.State() {
         @Override
         public NioReader.State processBytes(ByteBuffer bb) {
             byte b = bb.get();
@@ -34,7 +35,7 @@ public class WebSocketReader<T> {
             byte opcode = (byte) (b & 0x0F);
             switch (opcode) {
                 case 1:
-                    return new TextFrame();
+                    return textFrame;
                 case 8:
                     connection.sendClose();
                     return new NioReader.Close() {
@@ -51,9 +52,9 @@ public class WebSocketReader<T> {
         public void onClosed() {
             handler.onClose(connection, state);
         }
-    }
+    };
 
-    private class TextFrame implements NioReader.State {
+    private final NioReader.State textFrame = new NioReader.State() {
 
         @Override
         public NioReader.State processBytes(ByteBuffer bb) {
@@ -62,9 +63,9 @@ public class WebSocketReader<T> {
             if (size >= 0 && size <= 125) {
                 if (size == 0) {
                     handler.onMessage(connection, state, "");
-                    return new ContentReader();
+                    return contentReader;
                 }
-                return new BodyReader(size);
+                return bodyRead.init(size);
             }
             if (size == 126) {
                 return new NioReader.State() {
@@ -76,7 +77,7 @@ public class WebSocketReader<T> {
                     @Override
                     public NioReader.State processBytes(ByteBuffer bb) {
                         int size = ((bb.get() & 0xFF) << 8) + (bb.get() & 0xFF);
-                        return new BodyReader(size);
+                        return bodyRead.init(size);
                     }
                 };
             }
@@ -89,7 +90,7 @@ public class WebSocketReader<T> {
 
                     @Override
                     public NioReader.State processBytes(ByteBuffer bb) {
-                        return new BodyReader((int) bb.getLong());
+                        return bodyRead.init((int) bb.getLong());
                     }
                 };
             }
@@ -100,13 +101,18 @@ public class WebSocketReader<T> {
         public void onClosed() {
             handler.onClose(connection, state);
         }
-    }
+    };
 
     private class BodyReader implements NioReader.State {
-        private final int size;
+        private int size;
+        private byte[] result = new byte[0];
 
-        public BodyReader(int size) {
+        BodyReader init(int size) {
             this.size = size;
+            if (result.length < size) {
+                result = new byte[size];
+            }
+            return this;
         }
 
         @Override
@@ -118,12 +124,11 @@ public class WebSocketReader<T> {
         public NioReader.State processBytes(ByteBuffer bb) {
             final int maskPos = bb.position();
             bb.position(bb.position() + 4);
-            byte[] result = new byte[size];
             for (int i = 0; i < size; i++) {
                 result[i] = (byte) (bb.get() ^ bb.get((i % 4) + maskPos));
             }
-            handler.onMessage(connection, state, new String(result, charset));
-            return new ContentReader();
+            handler.onMessage(connection, state, new String(result, 0, size, charset));
+            return contentReader;
         }
 
         @Override

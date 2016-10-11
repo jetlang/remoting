@@ -89,7 +89,7 @@ public class WebSocketEchoMain {
                         if (!slept) {
                             try {
                                 if (sleepTimeOnFirstMessage > 0) {
-                                    Thread.sleep(3000);
+                                    Thread.sleep(sleepTimeOnFirstMessage);
                                 }
                                 slept = true;
                             } catch (InterruptedException e) {
