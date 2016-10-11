@@ -3,7 +3,6 @@ package org.jetlang.remote.example.ws;
 import org.jetlang.fibers.NioControls;
 import org.jetlang.fibers.NioFiber;
 
-import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
 import java.nio.charset.Charset;
@@ -80,15 +79,8 @@ public class HeaderReader {
                 if (h != null) {
                     return h.start(headers, HeaderReader.this, writer);
                 } else {
-                    StringBuilder response = new StringBuilder();
-                    response.append("HTTP/1.0 404 Not Found\r\n");
-                    response.append("Content-Length: 0\r\n\r\n");
-                    try {
-                        String s = response.toString();
-                        channel.write(ByteBuffer.wrap(s.getBytes(ascii)));
-                    } catch (IOException e) {
-                        return NioReader.CLOSE;
-                    }
+                    TextPlainResponse response = new TextPlainResponse(404, "Not Found", headers.getRequestUri() + " Not Found", ascii);
+                    writer.send(response.getByteBuffer());
                 }
             }
             if (buffer.hasRemaining() && eol == 2) {

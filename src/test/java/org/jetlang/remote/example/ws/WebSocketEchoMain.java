@@ -25,7 +25,7 @@ public class WebSocketEchoMain {
     public static void main(String[] args) throws InterruptedException, URISyntaxException, IOException, DeploymentException {
         int sleepTimeOnFirstMessage = 0;
 
-        int toSend = 1000000;
+        int toSend = 100;
 
         int msgSize = 1;
         StringBuilder msg = new StringBuilder();
