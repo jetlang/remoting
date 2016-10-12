@@ -19,10 +19,10 @@ public class SendResult {
         Success, FailedOnError, Buffered, Closed;
     }
 
-    public static class FailedOnError extends SendResult {
+    public static class FailedWithError extends SendResult {
         private final Exception failed;
 
-        public FailedOnError(Exception failed) {
+        public FailedWithError(Exception failed) {
             super(Type.FailedOnError);
             this.failed = failed;
         }

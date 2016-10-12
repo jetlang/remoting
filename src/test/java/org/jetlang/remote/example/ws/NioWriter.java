@@ -27,6 +27,7 @@ public class NioWriter {
     public SendResult send(ByteBuffer bb) {
         synchronized (writeLock) {
             if (closed) {
+                bb.position(bb.position() + bb.remaining());
                 return SendResult.Closed;
             }
             if (bufferedWrite != null) {
@@ -35,14 +36,16 @@ public class NioWriter {
                     bufferedWrite.buffer(bb);
                     return new SendResult.Buffered(toBuffer, toBuffer);
                 } else {
+                    bb.position(bb.position() + bb.remaining());
                     return SendResult.Closed;
                 }
             }
             try {
-                writeAll(channel, bb);
+                NioFiberImpl.writeAll(channel, bb);
             } catch (IOException e) {
                 attemptCloseOnNioFiber();
-                return new SendResult.FailedOnError(e);
+                bb.position(bb.position() + bb.remaining());
+                return new SendResult.FailedWithError(e);
             }
             if (!bb.hasRemaining()) {
                 //System.out.println("sent : " + bytes.length);
@@ -91,14 +94,6 @@ public class NioWriter {
             closed = true;
         }
     }
-
-    public static void writeAll(WritableByteChannel channel, ByteBuffer data) throws IOException {
-        int write;
-        do {
-            write = channel.write(data);
-        } while (write != 0 && data.remaining() > 0);
-    }
-
 
     public void close() throws IOException {
         channel.close();
