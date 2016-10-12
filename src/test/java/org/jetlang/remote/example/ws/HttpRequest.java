@@ -1,24 +1,30 @@
 package org.jetlang.remote.example.ws;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.util.ArrayList;
+import java.util.List;
 
 public class HttpRequest {
 
-    private final Map<String, String> headers = new HashMap<>();
+    private final List<Header> headers = new ArrayList<>();
     String method;
     String requestUri;
     String protocolVersion;
 
     public String get(String key) {
-        return headers.get(key);
+        for (int i = 0; i < headers.size(); i++) {
+            Header header = headers.get(i);
+            if (header.name.equals(key)) {
+                return header.value;
+            }
+        }
+        return null;
     }
 
     void put(String name, String value) {
-        headers.put(name, value);
+        headers.add(new Header(name, value));
     }
 
-    public Map<String, String> getHeaders() {
+    public List<Header> getHeaders() {
         return headers;
     }
 
@@ -42,5 +48,16 @@ public class HttpRequest {
                 ", requestUri='" + requestUri + '\'' +
                 ", protocolVersion='" + protocolVersion + '\'' +
                 '}';
+    }
+
+    public static class Header {
+
+        private final String name;
+        private final String value;
+
+        public Header(String name, String value) {
+            this.name = name;
+            this.value = value;
+        }
     }
 }
