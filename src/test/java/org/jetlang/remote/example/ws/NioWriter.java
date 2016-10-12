@@ -69,19 +69,19 @@ public class NioWriter {
                         return super.onSelect(nioFiber, controls, key);
                     }
                 }
-
-                @Override
-                public void onEnd() {
-                }
             };
             int remaining = bb.remaining();
-            bufferedWrite.buffer(bb);
+            int totalBuffered = bufferedWrite.buffer(bb);
             fiber.execute((c) -> {
-                if (channel.isOpen() && channel.isRegistered()) {
+                if (c.isRegistered(channel)) {
                     c.addHandler(bufferedWrite);
+                } else {
+                    synchronized (writeLock) {
+                        bufferedWrite = null;
+                    }
                 }
             });
-            return new SendResult.Buffered(remaining, remaining);
+            return new SendResult.Buffered(remaining, totalBuffered);
         }
     }
 
