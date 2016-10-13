@@ -26,6 +26,10 @@ public class WebSocketConnection {
         return send(OPCODE_TEXT, bytes, 0, bytes.length);
     }
 
+    public SendResult sendPong() {
+        return send(OPCODE_PONG, empty, 0, 0);
+    }
+
     enum SizeType {
         Small(125, 1) {
             @Override

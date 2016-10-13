@@ -10,4 +10,8 @@ public interface WebSocketHandler<T> {
     void onError(String msg);
 
     void onBinaryMessage(WebSocketConnection connection, T state, byte[] result, int size);
+
+    default void onPing(WebSocketConnection connection, T state, byte[] result, int size) {
+        connection.sendPong();
+    }
 }
