@@ -72,7 +72,7 @@ public class WebSocketReader<T> {
     }
 
     enum ContentType {
-        Text {
+        Text(true) {
             @Override
             public <T> boolean onComplete(WebSocketHandler<T> handler, WebSocketConnection connection, T state, byte[] result, int size, StringDecoder charset) {
                 String str = charset.decode(result, 0, size);
@@ -84,25 +84,31 @@ public class WebSocketReader<T> {
                     return false;
                 }
             }
-        }, Binary {
+        }, Binary(true) {
             @Override
             public <T> boolean onComplete(WebSocketHandler<T> handler, WebSocketConnection connection, T state, byte[] result, int size, StringDecoder charset) {
                 handler.onBinaryMessage(connection, state, result, size);
                 return true;
             }
-        }, PING {
+        }, PING(false) {
             @Override
             public <T> boolean onComplete(WebSocketHandler<T> handler, WebSocketConnection connection, T state, byte[] result, int size, StringDecoder charset) {
                 handler.onPing(connection, state, result, size, charset);
                 return true;
             }
-        }, PONG {
+        }, PONG(false) {
             @Override
             public <T> boolean onComplete(WebSocketHandler<T> handler, WebSocketConnection connection, T state, byte[] result, int size, StringDecoder charset) {
                 handler.onPong(connection, state, result, size);
                 return true;
             }
         };
+
+        public final boolean canBeFragmented;
+
+        ContentType(boolean canBeFragmented) {
+            this.canBeFragmented = canBeFragmented;
+        }
 
         public abstract <T> boolean onComplete(WebSocketHandler<T> handler, WebSocketConnection connection, T state, byte[] result, int size, StringDecoder charset);
     }
@@ -114,6 +120,9 @@ public class WebSocketReader<T> {
         private boolean isFragment;
 
         private NioReader.State init(ContentType t, boolean fin, boolean isFragment) {
+            if (t != null && !fin && !t.canBeFragmented) {
+                return closeOnError(t + " cannot be fragmented.");
+            }
             this.t = t;
             this.fin = fin;
             this.isFragment = isFragment;
