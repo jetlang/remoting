@@ -66,7 +66,7 @@ public class WebSocketEchoMain {
             }
 
             @Override
-            public void onError(String msg) {
+            public void onError(WebSocketConnection connection, Void state, String msg) {
                 System.err.println(msg);
             }
         };

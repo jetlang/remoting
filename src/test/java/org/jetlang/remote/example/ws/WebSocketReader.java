@@ -47,7 +47,7 @@ public class WebSocketReader<T> {
                     connection.sendClose();
                     return createClose();
             }
-            handler.onError(opcode + " op code isn't supported.");
+            handler.onError(connection, state, opcode + " op code isn't supported.");
             return createClose();
         }
 
@@ -140,7 +140,7 @@ public class WebSocketReader<T> {
                     }
                 };
             }
-            handler.onError("Unsupported size: " + size);
+            handler.onError(connection, state, "Unsupported size: " + size);
             return createClose();
         }
 
