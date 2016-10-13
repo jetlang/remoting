@@ -85,6 +85,19 @@ public class WebServerConfigBuilder {
         for (Consumer<Map<String, Handler>> event : events) {
             event.accept(handlerMap);
         }
-        return new WebDispatcher(handlerMap, readBufferSizeInBytes, maxReadLoops);
+        HttpRequestHandler handler = new HttpRequestHandler() {
+            @Override
+            public NioReader.State dispatch(HttpRequest headers, HeaderReader reader, NioWriter writer) {
+                Handler h = handlerMap.get(headers.getRequestUri());
+                if (h != null) {
+                    return h.start(headers, reader, writer);
+                } else {
+                    TextPlainResponse response = new TextPlainResponse(404, "Not Found", headers.getRequestUri() + " Not Found", HeaderReader.ascii);
+                    writer.send(response.getByteBuffer());
+                    return reader.start();
+                }
+            }
+        };
+        return new WebDispatcher(handler, readBufferSizeInBytes, maxReadLoops);
     }
 }

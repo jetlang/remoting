@@ -7,7 +7,6 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.channels.SocketChannel;
-import java.util.Map;
 
 public class NioReader {
 
@@ -17,7 +16,7 @@ public class NioReader {
     private final int maxReadLoops;
     private State current;
 
-    public NioReader(SocketChannel channel, NioFiber fiber, NioControls controls, Map<String, Handler> handler, int readBufferSizeInBytes, int maxReadLoops) {
+    public NioReader(SocketChannel channel, NioFiber fiber, NioControls controls, HttpRequestHandler handler, int readBufferSizeInBytes, int maxReadLoops) {
         this.channel = channel;
         this.maxReadLoops = maxReadLoops;
         this.headerReader = new HeaderReader(channel, fiber, controls, handler);
@@ -42,7 +41,6 @@ public class NioReader {
                 ByteBuffer resize = bufferAllocate(bb.capacity() + Math.max(1024, current.minRequiredBytes()));
                 bb.flip();
                 bb = resize.put(bb);
-                System.out.println("resize = " + bb);
             }
         }
         return current.continueReading();

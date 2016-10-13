@@ -10,15 +10,14 @@ import java.net.SocketException;
 import java.nio.channels.SelectableChannel;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.SocketChannel;
-import java.util.Map;
 
 public class WebDispatcher implements NioAcceptorHandler.ClientFactory {
 
-    private final Map<String, Handler> handler;
+    private final HttpRequestHandler handler;
     private final int readBufferSizeInBytes;
     private final int maxReadLoops;
 
-    public WebDispatcher(Map<String, Handler> handler, int readBufferSizeInBytes, int maxReadLoops) {
+    public WebDispatcher(HttpRequestHandler handler, int readBufferSizeInBytes, int maxReadLoops) {
         this.handler = handler;
         this.readBufferSizeInBytes = readBufferSizeInBytes;
         this.maxReadLoops = maxReadLoops;

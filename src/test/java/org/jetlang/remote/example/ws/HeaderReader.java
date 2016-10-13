@@ -6,18 +6,17 @@ import org.jetlang.fibers.NioFiber;
 import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
 import java.nio.charset.Charset;
-import java.util.Map;
 
 public class HeaderReader {
 
-    final Charset ascii = Charset.forName("ASCII");
+    public static final Charset ascii = Charset.forName("ASCII");
     private final SocketChannel channel;
     private final NioFiber fiber;
     private final NioControls controls;
-    private final Map<String, Handler> handler;
+    private final HttpRequestHandler handler;
     private final NioWriter writer;
 
-    public HeaderReader(SocketChannel channel, NioFiber fiber, NioControls controls, Map<String, Handler> handler) {
+    public HeaderReader(SocketChannel channel, NioFiber fiber, NioControls controls, HttpRequestHandler handler) {
         this.channel = channel;
         this.fiber = fiber;
         this.controls = controls;
@@ -75,13 +74,7 @@ public class HeaderReader {
             int stripped = stripEndOfLines(buffer);
             eol += stripped;
             if (eol == 4) {
-                Handler h = handler.get(headers.getRequestUri());
-                if (h != null) {
-                    return h.start(headers, HeaderReader.this, writer);
-                } else {
-                    TextPlainResponse response = new TextPlainResponse(404, "Not Found", headers.getRequestUri() + " Not Found", ascii);
-                    writer.send(response.getByteBuffer());
-                }
+                return handler.dispatch(headers, HeaderReader.this, writer);
             }
             if (buffer.hasRemaining() && eol == 2) {
                 return new ReadHeader(headers);
