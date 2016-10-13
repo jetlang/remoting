@@ -23,7 +23,7 @@ public class WebSocketConnection {
 
     public SendResult send(String msg) {
         final byte[] bytes = msg.getBytes(charset);
-        return send(OPCODE_TEXT, bytes);
+        return send(OPCODE_TEXT, bytes, 0, bytes.length);
     }
 
     enum SizeType {
@@ -60,8 +60,11 @@ public class WebSocketConnection {
         abstract void write(ByteBuffer bb, int length);
     }
 
-    private SendResult send(byte opCode, byte[] bytes) {
-        final int length = bytes.length;
+    public SendResult sendBinary(byte[] buffer, int offset, int length) {
+        return send(OPCODE_BINARY, buffer, offset, length);
+    }
+
+    private SendResult send(byte opCode, byte[] bytes, int offset, int length) {
         byte header = 0;
         header |= 1 << 7;
         header |= opCode % 128;
@@ -70,7 +73,7 @@ public class WebSocketConnection {
         bb.put(header);
         sz.write(bb, length);
         if (bytes.length > 0) {
-            bb.put(bytes);
+            bb.put(bytes, offset, length);
         }
         bb.flip();
         return writer.send(bb);
@@ -86,7 +89,7 @@ public class WebSocketConnection {
     }
 
     void sendClose() {
-        send(OPCODE_CLOSE, empty);
+        send(OPCODE_CLOSE, empty, 0, 0);
     }
 
     public void close() {

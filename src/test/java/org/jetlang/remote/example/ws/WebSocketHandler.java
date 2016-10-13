@@ -8,4 +8,6 @@ public interface WebSocketHandler<T> {
     void onClose(WebSocketConnection connection, T state);
 
     void onError(String msg);
+
+    void onBinaryMessage(WebSocketConnection connection, T state, byte[] result, int size);
 }

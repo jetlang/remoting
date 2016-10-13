@@ -10,6 +10,7 @@ public class WebSocketReader<T> {
     private final WebSocketConnection connection;
     private final HttpRequest headers;
     private final BodyReader bodyRead = new BodyReader();
+    private final Frame textFrame = new Frame();
     private final T state;
 
     public WebSocketReader(WebSocketConnection connection, HttpRequest headers, Charset charset, WebSocketHandler<T> handler) {
@@ -34,9 +35,11 @@ public class WebSocketReader<T> {
 //                boolean rsv3 = ((b & 0x10) != 0);
             byte opcode = (byte) (b & 0x0F);
             switch (opcode) {
-                case 1:
-                    return textFrame;
-                case 8:
+                case WebSocketConnection.OPCODE_TEXT:
+                    return textFrame.init(ContentType.Text);
+                case WebSocketConnection.OPCODE_BINARY:
+                    return textFrame.init(ContentType.Binary);
+                case WebSocketConnection.OPCODE_CLOSE:
                     connection.sendClose();
                     return new NioReader.Close() {
                         @Override
@@ -64,7 +67,30 @@ public class WebSocketReader<T> {
         };
     }
 
-    private final NioReader.State textFrame = new NioReader.State() {
+    enum ContentType {
+        Text {
+            @Override
+            public <T> void onComplete(WebSocketHandler<T> handler, WebSocketConnection connection, T state, byte[] result, int size, Charset charset) {
+                handler.onMessage(connection, state, new String(result, 0, size, charset));
+            }
+        }, Binary {
+            @Override
+            public <T> void onComplete(WebSocketHandler<T> handler, WebSocketConnection connection, T state, byte[] result, int size, Charset charset) {
+                handler.onBinaryMessage(connection, state, result, size);
+            }
+        };
+
+        public abstract <T> void onComplete(WebSocketHandler<T> handler, WebSocketConnection connection, T state, byte[] result, int size, Charset charset);
+    }
+
+    private class Frame implements NioReader.State {
+
+        private ContentType t;
+
+        private NioReader.State init(ContentType t) {
+            this.t = t;
+            return this;
+        }
 
         @Override
         public NioReader.State processBytes(ByteBuffer bb) {
@@ -75,7 +101,7 @@ public class WebSocketReader<T> {
                     handler.onMessage(connection, state, "");
                     return contentReader;
                 }
-                return bodyRead.init(size);
+                return bodyRead.init(size, t);
             }
             if (size == 126) {
                 return new NioReader.State() {
@@ -87,7 +113,7 @@ public class WebSocketReader<T> {
                     @Override
                     public NioReader.State processBytes(ByteBuffer bb) {
                         int size = ((bb.get() & 0xFF) << 8) + (bb.get() & 0xFF);
-                        return bodyRead.init(size);
+                        return bodyRead.init(size, t);
                     }
                 };
             }
@@ -100,7 +126,7 @@ public class WebSocketReader<T> {
 
                     @Override
                     public NioReader.State processBytes(ByteBuffer bb) {
-                        return bodyRead.init((int) bb.getLong());
+                        return bodyRead.init((int) bb.getLong(), t);
                     }
                 };
             }
@@ -116,10 +142,12 @@ public class WebSocketReader<T> {
 
     private class BodyReader implements NioReader.State {
         private int size;
+        private ContentType t;
         private byte[] result = new byte[0];
 
-        BodyReader init(int size) {
+        BodyReader init(int size, ContentType t) {
             this.size = size;
+            this.t = t;
             if (result.length < size) {
                 result = new byte[size];
             }
@@ -138,7 +166,7 @@ public class WebSocketReader<T> {
             for (int i = 0; i < size; i++) {
                 result[i] = (byte) (bb.get() ^ bb.get((i % 4) + maskPos));
             }
-            handler.onMessage(connection, state, new String(result, 0, size, charset));
+            t.onComplete(handler, connection, state, result, size, charset);
             return contentReader;
         }
 

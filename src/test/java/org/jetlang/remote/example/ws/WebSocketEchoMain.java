@@ -56,6 +56,11 @@ public class WebSocketEchoMain {
             }
 
             @Override
+            public void onBinaryMessage(WebSocketConnection connection, Void state, byte[] result, int size) {
+                connection.sendBinary(result, 0, size);
+            }
+
+            @Override
             public void onClose(WebSocketConnection connection, Void nothing) {
                 System.out.println("WS Close");
             }
