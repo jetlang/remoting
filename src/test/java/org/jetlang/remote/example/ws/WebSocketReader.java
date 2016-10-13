@@ -32,9 +32,12 @@ public class WebSocketReader<T> {
         public NioReader.State processBytes(ByteBuffer bb) {
             byte b = bb.get();
             boolean fin = ((b & 0x80) != 0);
-//                boolean rsv1 = ((b & 0x40) != 0);
-//                boolean rsv2 = ((b & 0x20) != 0);
-//                boolean rsv3 = ((b & 0x10) != 0);
+            boolean rsv1 = ((b & 0x40) != 0);
+            boolean rsv2 = ((b & 0x20) != 0);
+            boolean rsv3 = ((b & 0x10) != 0);
+            if (rsv1 || rsv2 || rsv3) {
+                return closeOnError("Reserve bits are not supported.");
+            }
             byte opcode = (byte) (b & 0x0F);
             switch (opcode) {
                 case WebSocketConnection.OPCODE_TEXT:
