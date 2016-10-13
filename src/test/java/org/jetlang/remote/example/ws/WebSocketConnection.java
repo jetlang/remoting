@@ -25,13 +25,8 @@ public class WebSocketConnection {
         return send(OPCODE_TEXT, bytes, 0, bytes.length);
     }
 
-    public SendResult sendPong() {
-        return send(OPCODE_PONG, empty, 0, 0);
-    }
-
-    public SendResult sendPong(String msg) {
-        final byte[] bytes = msg.getBytes(charset);
-        return send(OPCODE_PONG, bytes, 0, bytes.length);
+    public SendResult sendPong(byte[] bytes, int offset, int length) {
+        return send(OPCODE_PONG, bytes, offset, length);
     }
 
 

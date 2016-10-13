@@ -14,8 +14,7 @@ public interface WebSocketHandler<T> {
     void onBinaryMessage(WebSocketConnection connection, T state, byte[] result, int size);
 
     default void onPing(WebSocketConnection connection, T state, byte[] result, int size, Charset charset) {
-        String reply = size > 0 ? new String(result, 0, size, charset) : "";
-        connection.sendPong(reply);
+        connection.sendPong(result, 0, size);
     }
 
     default void onPong(WebSocketConnection connection, T state, byte[] result, int size) {
