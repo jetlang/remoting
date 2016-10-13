@@ -45,12 +45,7 @@ public class WebSocketReader<T> {
                     return textFrame.init(ContentType.PONG);
                 case WebSocketConnection.OPCODE_CLOSE:
                     connection.sendClose();
-                    return new NioReader.Close() {
-                        @Override
-                        public void onClosed() {
-                            handler.onClose(connection, state);
-                        }
-                    };
+                    return createClose();
             }
             handler.onError(opcode + " op code isn't supported.");
             return createClose();
@@ -63,6 +58,7 @@ public class WebSocketReader<T> {
     };
 
     private NioReader.State createClose() {
+        connection.close();
         return new NioReader.Close() {
             @Override
             public void onClosed() {
@@ -85,7 +81,7 @@ public class WebSocketReader<T> {
         }, PING {
             @Override
             public <T> void onComplete(WebSocketHandler<T> handler, WebSocketConnection connection, T state, byte[] result, int size, Charset charset) {
-                handler.onPing(connection, state, result, size);
+                handler.onPing(connection, state, result, size, charset);
             }
         }, PONG {
             @Override

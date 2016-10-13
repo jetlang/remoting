@@ -12,12 +12,11 @@ public class WebSocketConnection {
     public static final byte OPCODE_PING = 0x9;
     public static final byte OPCODE_PONG = 0xA;
     public static final byte[] empty = new byte[0];
-    private final Charset charset;
+    private static final Charset charset = Charset.forName("UTF-8");
     private final NioWriter writer;
     private static final SizeType[] sizes = SizeType.values();
 
-    public WebSocketConnection(Charset charset, NioWriter writer) {
-        this.charset = charset;
+    public WebSocketConnection(NioWriter writer) {
         this.writer = writer;
     }
 
@@ -29,6 +28,12 @@ public class WebSocketConnection {
     public SendResult sendPong() {
         return send(OPCODE_PONG, empty, 0, 0);
     }
+
+    public SendResult sendPong(String msg) {
+        final byte[] bytes = msg.getBytes(charset);
+        return send(OPCODE_PONG, bytes, 0, bytes.length);
+    }
+
 
     enum SizeType {
         Small(125, 1) {
