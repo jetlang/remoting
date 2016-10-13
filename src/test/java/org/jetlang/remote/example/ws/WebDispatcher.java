@@ -6,7 +6,6 @@ import org.jetlang.fibers.NioFiber;
 import org.jetlang.remote.acceptor.NioAcceptorHandler;
 
 import java.io.IOException;
-import java.net.SocketException;
 import java.nio.channels.SelectableChannel;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.SocketChannel;
@@ -25,7 +24,7 @@ public class WebDispatcher implements NioAcceptorHandler.ClientFactory {
 
     @Override
     public void onAccept(NioFiber fiber, NioControls controls, SelectionKey key, SocketChannel channel) {
-        configureChannel(channel);
+        handler.configureNewClient(channel);
         controls.addHandler(createHandler(key, channel, fiber, controls));
     }
 
@@ -63,13 +62,5 @@ public class WebDispatcher implements NioAcceptorHandler.ClientFactory {
                 onEnd();
             }
         };
-    }
-
-    protected void configureChannel(SocketChannel channel) {
-        try {
-            channel.socket().setTcpNoDelay(true);
-        } catch (SocketException e) {
-
-        }
     }
 }
