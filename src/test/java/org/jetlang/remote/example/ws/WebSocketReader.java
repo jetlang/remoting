@@ -6,7 +6,7 @@ import java.util.Arrays;
 
 public class WebSocketReader<T> {
 
-    private final Charset charset;
+    private final StringDecoder charset;
     private final WebSocketHandler<T> handler;
     private final WebSocketConnection connection;
     private final HttpRequest headers;
@@ -18,7 +18,7 @@ public class WebSocketReader<T> {
     public WebSocketReader(WebSocketConnection connection, HttpRequest headers, Charset charset, WebSocketHandler<T> handler) {
         this.connection = connection;
         this.headers = headers;
-        this.charset = charset;
+        this.charset = StringDecoder.create(charset);
         this.handler = handler;
         this.state = handler.onOpen(connection);
     }
@@ -74,27 +74,37 @@ public class WebSocketReader<T> {
     enum ContentType {
         Text {
             @Override
-            public <T> void onComplete(WebSocketHandler<T> handler, WebSocketConnection connection, T state, byte[] result, int size, Charset charset) {
-                handler.onMessage(connection, state, new String(result, 0, size, charset));
+            public <T> boolean onComplete(WebSocketHandler<T> handler, WebSocketConnection connection, T state, byte[] result, int size, StringDecoder charset) {
+                String str = charset.decode(result, 0, size);
+                if (str != null) {
+                    handler.onMessage(connection, state, str);
+                    return true;
+                } else {
+                    handler.onError(connection, state, "Invalid Content");
+                    return false;
+                }
             }
         }, Binary {
             @Override
-            public <T> void onComplete(WebSocketHandler<T> handler, WebSocketConnection connection, T state, byte[] result, int size, Charset charset) {
+            public <T> boolean onComplete(WebSocketHandler<T> handler, WebSocketConnection connection, T state, byte[] result, int size, StringDecoder charset) {
                 handler.onBinaryMessage(connection, state, result, size);
+                return true;
             }
         }, PING {
             @Override
-            public <T> void onComplete(WebSocketHandler<T> handler, WebSocketConnection connection, T state, byte[] result, int size, Charset charset) {
+            public <T> boolean onComplete(WebSocketHandler<T> handler, WebSocketConnection connection, T state, byte[] result, int size, StringDecoder charset) {
                 handler.onPing(connection, state, result, size, charset);
+                return true;
             }
         }, PONG {
             @Override
-            public <T> void onComplete(WebSocketHandler<T> handler, WebSocketConnection connection, T state, byte[] result, int size, Charset charset) {
+            public <T> boolean onComplete(WebSocketHandler<T> handler, WebSocketConnection connection, T state, byte[] result, int size, StringDecoder charset) {
                 handler.onPong(connection, state, result, size);
+                return true;
             }
         };
 
-        public abstract <T> void onComplete(WebSocketHandler<T> handler, WebSocketConnection connection, T state, byte[] result, int size, Charset charset);
+        public abstract <T> boolean onComplete(WebSocketHandler<T> handler, WebSocketConnection connection, T state, byte[] result, int size, StringDecoder charset);
     }
 
     private class Frame implements NioReader.State {
@@ -212,9 +222,12 @@ public class WebSocketReader<T> {
             }
 
             if (fin) {
-                t.onComplete(handler, connection, state, result, totalSize, charset);
+                boolean success = t.onComplete(handler, connection, state, result, totalSize, charset);
                 totalSize = 0;
                 t = null;
+                if (!success) {
+                    return createClose();
+                }
             }
             return contentReader;
         }

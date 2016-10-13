@@ -1,7 +1,5 @@
 package org.jetlang.remote.example.ws;
 
-import java.nio.charset.Charset;
-
 public interface WebSocketHandler<T> {
     T onOpen(WebSocketConnection connection);
 
@@ -13,7 +11,7 @@ public interface WebSocketHandler<T> {
 
     void onBinaryMessage(WebSocketConnection connection, T state, byte[] result, int size);
 
-    default void onPing(WebSocketConnection connection, T state, byte[] result, int size, Charset charset) {
+    default void onPing(WebSocketConnection connection, T state, byte[] result, int size, StringDecoder charset) {
         connection.sendPong(result, 0, size);
     }
 
