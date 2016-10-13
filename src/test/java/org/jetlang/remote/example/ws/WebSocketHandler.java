@@ -14,4 +14,8 @@ public interface WebSocketHandler<T> {
     default void onPing(WebSocketConnection connection, T state, byte[] result, int size) {
         connection.sendPong();
     }
+
+    default void onPong(WebSocketConnection connection, T state, byte[] result, int size) {
+
+    }
 }

@@ -41,6 +41,8 @@ public class WebSocketReader<T> {
                     return textFrame.init(ContentType.Binary);
                 case WebSocketConnection.OPCODE_PING:
                     return textFrame.init(ContentType.PING);
+                case WebSocketConnection.OPCODE_PONG:
+                    return textFrame.init(ContentType.PONG);
                 case WebSocketConnection.OPCODE_CLOSE:
                     connection.sendClose();
                     return new NioReader.Close() {
@@ -84,6 +86,11 @@ public class WebSocketReader<T> {
             @Override
             public <T> void onComplete(WebSocketHandler<T> handler, WebSocketConnection connection, T state, byte[] result, int size, Charset charset) {
                 handler.onPing(connection, state, result, size);
+            }
+        }, PONG {
+            @Override
+            public <T> void onComplete(WebSocketHandler<T> handler, WebSocketConnection connection, T state, byte[] result, int size, Charset charset) {
+                handler.onPong(connection, state, result, size);
             }
         };
 
