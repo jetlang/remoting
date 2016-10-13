@@ -114,8 +114,9 @@ public class WebSocketReader<T> {
         public NioReader.State processBytes(ByteBuffer bb) {
             byte b = bb.get();
             final int size = (byte) (0x7F & b);
+            final boolean frameMasked = (b & 0x80) != 0;
             if (size >= 0 && size <= 125) {
-                return bodyReadinit(size, t, fin, isFragment);
+                return bodyReadinit(size, t, fin, isFragment, frameMasked);
             }
             if (size == 126) {
                 return new NioReader.State() {
@@ -127,7 +128,7 @@ public class WebSocketReader<T> {
                     @Override
                     public NioReader.State processBytes(ByteBuffer bb) {
                         int size = ((bb.get() & 0xFF) << 8) + (bb.get() & 0xFF);
-                        return bodyReadinit(size, t, fin, isFragment);
+                        return bodyReadinit(size, t, fin, isFragment, frameMasked);
                     }
                 };
             }
@@ -140,7 +141,7 @@ public class WebSocketReader<T> {
 
                     @Override
                     public NioReader.State processBytes(ByteBuffer bb) {
-                        return bodyReadinit((int) bb.getLong(), t, fin, isFragment);
+                        return bodyReadinit((int) bb.getLong(), t, fin, isFragment, frameMasked);
                     }
                 };
             }
@@ -154,11 +155,11 @@ public class WebSocketReader<T> {
         }
     }
 
-    private NioReader.State bodyReadinit(int size, ContentType t, boolean fin, boolean isFragment) {
+    private NioReader.State bodyReadinit(int size, ContentType t, boolean fin, boolean isFragment, boolean frameMasked) {
         if (isFragment || !fin) {
-            return fragment.init(size, t, fin, isFragment);
+            return fragment.init(size, t, fin, isFragment, frameMasked);
         }
-        return bodyRead.init(size, t, fin, isFragment);
+        return bodyRead.init(size, t, fin, isFragment, frameMasked);
     }
 
 
@@ -168,9 +169,11 @@ public class WebSocketReader<T> {
         private ContentType t;
         private byte[] result = new byte[0];
         private boolean fin;
+        private boolean frameMasked;
 
-        NioReader.State init(int size, ContentType t, boolean fin, boolean isFragment) {
+        NioReader.State init(int size, ContentType t, boolean fin, boolean isFragment, boolean frameMasked) {
             this.fin = fin;
+            this.frameMasked = frameMasked;
             if (!isFragment) {
                 this.t = t;
                 this.totalSize = 0;
@@ -191,19 +194,23 @@ public class WebSocketReader<T> {
 
         @Override
         public int minRequiredBytes() {
-            return size > 0 ? size + 4 : 0;
+            return frameMasked ? size + 4 : size;
         }
 
         @Override
         public NioReader.State processBytes(ByteBuffer bb) {
-            if (size > 0) {
+            if (frameMasked) {
                 final int maskPos = bb.position();
                 bb.position(bb.position() + 4);
                 int startPos = totalSize - size;
                 for (int i = 0; i < size; i++) {
                     result[i + startPos] = (byte) (bb.get() ^ bb.get((i % 4) + maskPos));
                 }
+            } else {
+                int startPos = totalSize - size;
+                bb.get(result, startPos, size);
             }
+
             if (fin) {
                 t.onComplete(handler, connection, state, result, totalSize, charset);
                 totalSize = 0;
