@@ -187,11 +187,8 @@ public class WebSocketReader<T> {
             if (!isFragment) {
                 this.t = t;
                 this.totalSize = 0;
-            } else if (t == null && totalSize == 0) {
+            } else if (this.t == null) {
                 return closeOnError("ContentType not specified for fragment.");
-            }
-            if (size == 0 && !fin) {
-                return closeOnError("Size: " + size + " but message is not finished.");
             }
             totalSize += size;
             this.size = size;
