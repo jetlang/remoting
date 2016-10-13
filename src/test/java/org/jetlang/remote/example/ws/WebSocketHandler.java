@@ -6,4 +6,6 @@ public interface WebSocketHandler<T> {
     void onMessage(WebSocketConnection connection, T state, String msg);
 
     void onClose(WebSocketConnection connection, T state);
+
+    void onError(String msg);
 }

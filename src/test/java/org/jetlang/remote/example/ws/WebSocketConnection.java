@@ -1,17 +1,16 @@
 package org.jetlang.remote.example.ws;
 
-import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
 
 public class WebSocketConnection {
 
-    private static final byte OPCODE_CONT = 0x0;
-    private static final byte OPCODE_TEXT = 0x1;
-    private static final byte OPCODE_BINARY = 0x2;
-    private static final byte OPCODE_CLOSE = 0x8;
-    private static final byte OPCODE_PING = 0x9;
-    private static final byte OPCODE_PONG = 0xA;
+    public static final byte OPCODE_CONT = 0x0;
+    public static final byte OPCODE_TEXT = 0x1;
+    public static final byte OPCODE_BINARY = 0x2;
+    public static final byte OPCODE_CLOSE = 0x8;
+    public static final byte OPCODE_PING = 0x9;
+    public static final byte OPCODE_PONG = 0xA;
     public static final byte[] empty = new byte[0];
     private final Charset charset;
     private final NioWriter writer;
@@ -90,7 +89,7 @@ public class WebSocketConnection {
         send(OPCODE_CLOSE, empty);
     }
 
-    public void close() throws IOException {
+    public void close() {
         writer.close();
     }
 }

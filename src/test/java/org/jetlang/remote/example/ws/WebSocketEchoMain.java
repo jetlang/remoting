@@ -59,6 +59,11 @@ public class WebSocketEchoMain {
             public void onClose(WebSocketConnection connection, Void nothing) {
                 System.out.println("WS Close");
             }
+
+            @Override
+            public void onError(String msg) {
+                System.err.println(msg);
+            }
         };
 
         WebServerConfigBuilder config = new WebServerConfigBuilder();
@@ -116,7 +121,7 @@ public class WebSocketEchoMain {
         System.out.println("perMs = " + perMs);
         System.out.println(perMs * 1000);
         client.shutdown();
-        //Thread.sleep(Long.MAX_VALUE);
+        Thread.sleep(Long.MAX_VALUE);
         acceptorFiber.dispose();
     }
 }

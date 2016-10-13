@@ -45,7 +45,8 @@ public class WebSocketReader<T> {
                         }
                     };
             }
-            throw new RuntimeException("Not supported: " + opcode);
+            handler.onError(opcode + " op code isn't supported.");
+            return createClose();
         }
 
         @Override
@@ -53,6 +54,15 @@ public class WebSocketReader<T> {
             handler.onClose(connection, state);
         }
     };
+
+    private NioReader.State createClose() {
+        return new NioReader.Close() {
+            @Override
+            public void onClosed() {
+                handler.onClose(connection, state);
+            }
+        };
+    }
 
     private final NioReader.State textFrame = new NioReader.State() {
 
@@ -94,7 +104,8 @@ public class WebSocketReader<T> {
                     }
                 };
             }
-            throw new RuntimeException("Unsupported size: " + size);
+            handler.onError("Unsupported size: " + size);
+            return createClose();
         }
 
         @Override

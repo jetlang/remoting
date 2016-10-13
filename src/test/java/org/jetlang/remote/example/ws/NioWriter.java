@@ -95,7 +95,11 @@ public class NioWriter {
         }
     }
 
-    public void close() throws IOException {
-        channel.close();
+    public void close() {
+        try {
+            channel.close();
+        } catch (IOException e) {
+
+        }
     }
 }
