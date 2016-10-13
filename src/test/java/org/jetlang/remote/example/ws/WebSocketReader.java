@@ -137,6 +137,9 @@ public class WebSocketReader<T> {
             if (size >= 0 && size <= 125) {
                 return bodyReadinit(size, t, fin, isFragment, frameMasked);
             }
+            if (t != null && !t.canBeFragmented) {
+                return closeOnError(t + " Max Size of 125.");
+            }
             if (size == 126) {
                 return new NioReader.State() {
                     @Override
@@ -177,6 +180,9 @@ public class WebSocketReader<T> {
     private NioReader.State bodyReadinit(int size, ContentType t, boolean fin, boolean isFragment, boolean frameMasked) {
         if (isFragment || !fin) {
             return fragment.init(size, t, fin, isFragment, frameMasked);
+        }
+        if (fragment.expectingFragment() && t.canBeFragmented) {
+            return closeOnError(t + " receiving when expecting fragment.");
         }
         return bodyRead.init(size, t, fin, isFragment, frameMasked);
     }
@@ -241,6 +247,10 @@ public class WebSocketReader<T> {
         @Override
         public void onClosed() {
             handler.onClose(connection, state);
+        }
+
+        public boolean expectingFragment() {
+            return t != null;
         }
     }
 
