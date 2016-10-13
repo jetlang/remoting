@@ -11,6 +11,7 @@ public class WebSocketReader<T> {
     private final WebSocketConnection connection;
     private final HttpRequest headers;
     private final BodyReader bodyRead = new BodyReader();
+    private final BodyReader fragment = new BodyReader();
     private final Frame textFrame = new Frame();
     private final T state;
 
@@ -114,7 +115,7 @@ public class WebSocketReader<T> {
             byte b = bb.get();
             final int size = (byte) (0x7F & b);
             if (size >= 0 && size <= 125) {
-                return bodyRead.init(size, t, fin, isFragment);
+                return bodyReadinit(size, t, fin, isFragment);
             }
             if (size == 126) {
                 return new NioReader.State() {
@@ -126,7 +127,7 @@ public class WebSocketReader<T> {
                     @Override
                     public NioReader.State processBytes(ByteBuffer bb) {
                         int size = ((bb.get() & 0xFF) << 8) + (bb.get() & 0xFF);
-                        return bodyRead.init(size, t, fin, isFragment);
+                        return bodyReadinit(size, t, fin, isFragment);
                     }
                 };
             }
@@ -139,7 +140,7 @@ public class WebSocketReader<T> {
 
                     @Override
                     public NioReader.State processBytes(ByteBuffer bb) {
-                        return bodyRead.init((int) bb.getLong(), t, fin, isFragment);
+                        return bodyReadinit((int) bb.getLong(), t, fin, isFragment);
                     }
                 };
             }
@@ -151,7 +152,15 @@ public class WebSocketReader<T> {
         public void onClosed() {
             handler.onClose(connection, state);
         }
-    };
+    }
+
+    private NioReader.State bodyReadinit(int size, ContentType t, boolean fin, boolean isFragment) {
+        if (isFragment || !fin) {
+            return fragment.init(size, t, fin, isFragment);
+        }
+        return bodyRead.init(size, t, fin, isFragment);
+    }
+
 
     private class BodyReader implements NioReader.State {
         private int totalSize;
