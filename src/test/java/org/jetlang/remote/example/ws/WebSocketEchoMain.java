@@ -15,6 +15,8 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
@@ -79,10 +81,12 @@ public class WebSocketEchoMain {
 
         final int cores = Runtime.getRuntime().availableProcessors();
         RoundRobinClientFactory readers = new RoundRobinClientFactory();
+        List<NioFiber> allReadFibers = new ArrayList<>();
         for (int i = 0; i < cores; i++) {
             NioFiber readFiber = new NioFiberImpl();
             readFiber.start();
             readers.add(config.create(readFiber));
+            allReadFibers.add(readFiber);
         }
 
         WebAcceptor.Config acceptorConfig = (serverChannel) -> {
@@ -141,6 +145,8 @@ public class WebSocketEchoMain {
         System.out.println(perMs * 1000);
         client.shutdown();
         Thread.sleep(Long.MAX_VALUE);
+
+        allReadFibers.forEach(NioFiber::dispose);
         acceptorFiber.dispose();
     }
 }
