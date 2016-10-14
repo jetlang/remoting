@@ -1,6 +1,7 @@
 package org.jetlang.remote.example.ws;
 
 import org.glassfish.tyrus.client.ClientManager;
+import org.jetlang.fibers.NioFiber;
 import org.jetlang.fibers.NioFiberImpl;
 
 import javax.websocket.ClientEndpointConfig;
@@ -76,7 +77,9 @@ public class WebSocketEchoMain {
         final URL resource = Thread.currentThread().getContextClassLoader().getResource("websocket.html");
         config.add("/", new StaticResource(new File(resource.getFile()).toPath()));
 
-        WebAcceptor acceptor = new WebAcceptor(8025, acceptorFiber, config.create(), () -> {
+        NioFiber readFiber = new NioFiberImpl();
+        readFiber.start();
+        WebAcceptor acceptor = new WebAcceptor(8025, acceptorFiber, config.create(readFiber), () -> {
         });
         acceptor.start();
         CountDownLatch messageLatch = new CountDownLatch(toSend);

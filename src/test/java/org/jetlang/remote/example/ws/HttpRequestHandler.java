@@ -15,7 +15,7 @@ public interface HttpRequestHandler {
         }
     }
 
-    public static class Default implements HttpRequestHandler {
+    class Default implements HttpRequestHandler {
         private Map<String, Handler> handlerMap;
 
         public Default(Map<String, Handler> handlerMap) {

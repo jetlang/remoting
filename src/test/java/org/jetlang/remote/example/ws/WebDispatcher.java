@@ -12,20 +12,24 @@ import java.nio.channels.SocketChannel;
 
 public class WebDispatcher implements NioAcceptorHandler.ClientFactory {
 
+    private final NioFiber readFiber;
     private final HttpRequestHandler handler;
     private final int readBufferSizeInBytes;
     private final int maxReadLoops;
 
-    public WebDispatcher(HttpRequestHandler handler, int readBufferSizeInBytes, int maxReadLoops) {
+    public WebDispatcher(NioFiber readFiber, HttpRequestHandler handler, int readBufferSizeInBytes, int maxReadLoops) {
+        this.readFiber = readFiber;
         this.handler = handler;
         this.readBufferSizeInBytes = readBufferSizeInBytes;
         this.maxReadLoops = maxReadLoops;
     }
 
     @Override
-    public void onAccept(NioFiber fiber, NioControls controls, SelectionKey key, SocketChannel channel) {
-        handler.configureNewClient(channel);
-        controls.addHandler(createHandler(key, channel, fiber, controls));
+    public void onAccept(NioFiber acceptorFiber, NioControls acceptorControls, SelectionKey key, SocketChannel channel) {
+        readFiber.execute((readControls) -> {
+            handler.configureNewClient(channel);
+            readControls.addHandler(createHandler(key, channel, readFiber, readControls));
+        });
     }
 
     protected NioChannelHandler createHandler(SelectionKey key, SocketChannel channel, NioFiber fiber, NioControls controls) {

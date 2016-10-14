@@ -1,5 +1,7 @@
 package org.jetlang.remote.example.ws;
 
+import org.jetlang.fibers.NioFiber;
+
 import javax.xml.bind.DatatypeConverter;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
@@ -80,13 +82,13 @@ public class WebServerConfigBuilder {
         }
     }
 
-    public WebDispatcher create() {
+    public WebDispatcher create(NioFiber readFiber) {
         Map<String, Handler> handlerMap = new HashMap<>();
         for (Consumer<Map<String, Handler>> event : events) {
             event.accept(handlerMap);
         }
         HttpRequestHandler handler = createHandler(handlerMap);
-        return new WebDispatcher(handler, readBufferSizeInBytes, maxReadLoops);
+        return new WebDispatcher(readFiber, handler, readBufferSizeInBytes, maxReadLoops);
     }
 
     protected HttpRequestHandler createHandler(final Map<String, Handler> handlerMap) {

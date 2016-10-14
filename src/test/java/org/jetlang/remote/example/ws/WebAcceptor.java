@@ -6,18 +6,18 @@ import org.jetlang.remote.acceptor.NioAcceptorHandler;
 public class WebAcceptor {
 
     private final int port;
-    private final NioFiber fiber;
+    private final NioFiber acceptorFiber;
     private NioAcceptorHandler.ClientFactory clientFactory;
     private Runnable onEnd;
 
-    public WebAcceptor(int port, NioFiber fiber, WebDispatcher clientFactory, Runnable onEnd) {
+    public WebAcceptor(int port, NioFiber acceptorFiber, NioAcceptorHandler.ClientFactory clientFactory, Runnable onEnd) {
         this.port = port;
-        this.fiber = fiber;
+        this.acceptorFiber = acceptorFiber;
         this.clientFactory = clientFactory;
         this.onEnd = onEnd;
     }
 
     public void start() {
-        fiber.addHandler(NioAcceptorHandler.create(port, clientFactory, onEnd));
+        acceptorFiber.addHandler(NioAcceptorHandler.create(port, clientFactory, onEnd));
     }
 }
