@@ -25,22 +25,30 @@ public class NioReader {
     }
 
     public boolean onRead() throws IOException {
-        for (int i = 0; i < maxReadLoops && channel.read(bb) > 0; i++) {
-            bb.flip();
-            current.begin(bb);
-            State result = current;
-            while (result != null) {
-                result = current.process(bb);
-                if (result != null) {
-                    current = result;
-                }
+        for (int i = 0; i < maxReadLoops; i++) {
+            int read = channel.read(bb);
+            if (read < 0) {
+                return false;
             }
-            current.end();
-            bb.compact();
-            if (bb.remaining() == 0 || bb.remaining() < current.minRequiredBytes()) {
-                ByteBuffer resize = bufferAllocate(bb.capacity() + Math.max(1024, current.minRequiredBytes()));
+            if (read > 0) {
                 bb.flip();
-                bb = resize.put(bb);
+                current.begin(bb);
+                State result = current;
+                while (result != null) {
+                    result = current.process(bb);
+                    if (result != null) {
+                        current = result;
+                    }
+                }
+                current.end();
+                bb.compact();
+                if (bb.remaining() == 0 || bb.remaining() < current.minRequiredBytes()) {
+                    ByteBuffer resize = bufferAllocate(bb.capacity() + Math.max(1024, current.minRequiredBytes()));
+                    bb.flip();
+                    bb = resize.put(bb);
+                }
+            } else {
+                break;
             }
         }
         return current.continueReading();

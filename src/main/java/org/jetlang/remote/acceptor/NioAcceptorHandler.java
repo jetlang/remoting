@@ -65,10 +65,19 @@ public class NioAcceptorHandler implements NioChannelHandler {
     }
 
     public static NioAcceptorHandler create(int port, ClientFactory clientHandler, Runnable onEnd) {
+        return create(port, clientHandler, onEnd, -1);
+    }
+
+    public static NioAcceptorHandler create(int port, ClientFactory clientHandler, Runnable onEnd, int backlogmax) {
         try {
             final ServerSocketChannel socketChannel = ServerSocketChannel.open();
             final InetSocketAddress address = new InetSocketAddress(port);
-            socketChannel.socket().bind(address);
+            if (backlogmax > 0) {
+                socketChannel.socket().bind(address, backlogmax);
+            } else {
+                socketChannel.socket().bind(address);
+
+            }
             socketChannel.configureBlocking(false);
             return new NioAcceptorHandler(socketChannel, clientHandler, onEnd);
         } catch (Exception failed) {

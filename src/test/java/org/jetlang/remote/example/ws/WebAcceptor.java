@@ -22,12 +22,14 @@ public class WebAcceptor {
     }
 
     public void start() {
-        NioAcceptorHandler handler = NioAcceptorHandler.create(port, clientFactory, onEnd);
+        NioAcceptorHandler handler = NioAcceptorHandler.create(port, clientFactory, onEnd, config.getBacklogMax());
         config.configure(handler.getChannel());
         acceptorFiber.addHandler(handler);
     }
 
     public interface Config {
         void configure(ServerSocketChannel channel);
+
+        int getBacklogMax();
     }
 }
