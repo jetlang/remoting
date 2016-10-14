@@ -77,9 +77,14 @@ public class WebSocketEchoMain {
         final URL resource = Thread.currentThread().getContextClassLoader().getResource("websocket.html");
         config.add("/", new StaticResource(new File(resource.getFile()).toPath()));
 
-        NioFiber readFiber = new NioFiberImpl();
-        readFiber.start();
-        WebAcceptor acceptor = new WebAcceptor(8025, acceptorFiber, config.create(readFiber), () -> {
+        final int cores = Runtime.getRuntime().availableProcessors();
+        RoundRobinClientFactory readers = new RoundRobinClientFactory();
+        for (int i = 0; i < cores; i++) {
+            NioFiber readFiber = new NioFiberImpl();
+            readFiber.start();
+            readers.add(config.create(readFiber));
+        }
+        WebAcceptor acceptor = new WebAcceptor(8025, acceptorFiber, readers, () -> {
         });
         acceptor.start();
         CountDownLatch messageLatch = new CountDownLatch(toSend);
