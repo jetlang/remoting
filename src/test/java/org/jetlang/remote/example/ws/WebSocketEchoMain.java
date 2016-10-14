@@ -84,8 +84,14 @@ public class WebSocketEchoMain {
             readFiber.start();
             readers.add(config.create(readFiber));
         }
-        WebAcceptor acceptor = new WebAcceptor(8025, acceptorFiber, readers, () -> {
+
+        WebAcceptor.Config acceptorConfig = (serverChannel) -> {
+        };
+
+        WebAcceptor acceptor = new WebAcceptor(8025, acceptorFiber, readers, acceptorConfig, () -> {
+            System.out.println("AcceptorEnd");
         });
+
         acceptor.start();
         CountDownLatch messageLatch = new CountDownLatch(toSend);
 

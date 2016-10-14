@@ -6,7 +6,6 @@ import org.jetlang.fibers.NioFiber;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.nio.channels.SelectableChannel;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
@@ -41,7 +40,7 @@ public class NioAcceptorHandler implements NioChannelHandler {
     }
 
     @Override
-    public SelectableChannel getChannel() {
+    public ServerSocketChannel getChannel() {
         return channel;
     }
 
