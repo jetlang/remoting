@@ -143,6 +143,7 @@ public class WebSocketEchoMain {
         double perMs = toSend / msDuration;
         System.out.println("perMs = " + perMs);
         System.out.println(perMs * 1000);
+        s.close();
         client.shutdown();
         Thread.sleep(Long.MAX_VALUE);
 
