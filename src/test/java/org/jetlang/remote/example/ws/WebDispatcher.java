@@ -27,7 +27,6 @@ public class WebDispatcher implements NioAcceptorHandler.ClientFactory {
     @Override
     public void onAccept(NioFiber acceptorFiber, NioControls acceptorControls, SelectionKey key, SocketChannel channel) {
         readFiber.execute((readControls) -> {
-            handler.configureNewClient(channel);
             readControls.addHandler(createHandler(key, channel, readFiber, readControls));
         });
     }

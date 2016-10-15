@@ -32,11 +32,17 @@ public class NioAcceptorHandler implements NioChannelHandler {
     public boolean onSelect(NioFiber nioFiber, NioControls controls, SelectionKey key) {
         try {
             final SocketChannel accept = channel.accept();
-            clientHandler.onAccept(nioFiber, controls, key, accept);
+            if (afterAccept(accept)) {
+                clientHandler.onAccept(nioFiber, controls, key, accept);
+            }
             return true;
         } catch (IOException e) {
             return false;
         }
+    }
+
+    protected boolean afterAccept(SocketChannel accept) {
+        return true;
     }
 
     @Override

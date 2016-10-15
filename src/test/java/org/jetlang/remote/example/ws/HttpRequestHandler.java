@@ -1,19 +1,9 @@
 package org.jetlang.remote.example.ws;
 
-import java.net.SocketException;
-import java.nio.channels.SocketChannel;
 import java.util.Map;
 
 public interface HttpRequestHandler {
     NioReader.State dispatch(HttpRequest headers, HeaderReader reader, NioWriter writer);
-
-    default void configureNewClient(SocketChannel channel) {
-        try {
-            channel.socket().setTcpNoDelay(true);
-        } catch (SocketException e) {
-
-        }
-    }
 
     class Default implements HttpRequestHandler {
         private Map<String, Handler> handlerMap;

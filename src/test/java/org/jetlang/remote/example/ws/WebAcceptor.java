@@ -6,6 +6,7 @@ import org.jetlang.remote.acceptor.NioAcceptorHandler;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.channels.ServerSocketChannel;
+import java.nio.channels.SocketChannel;
 
 public class WebAcceptor {
 
@@ -27,7 +28,19 @@ public class WebAcceptor {
         try {
             final ServerSocketChannel socketChannel = config.configure(port);
             socketChannel.configureBlocking(false);
-            NioAcceptorHandler acceptorHandler = new NioAcceptorHandler(socketChannel, clientFactory, onEnd);
+            NioAcceptorHandler acceptorHandler = new NioAcceptorHandler(socketChannel, clientFactory, onEnd) {
+                protected boolean afterAccept(SocketChannel newClient) {
+                    try {
+                        return config.configureNewClient(newClient);
+                    } catch (IOException e) {
+                        try {
+                            newClient.close();
+                        } catch (IOException e1) {
+                        }
+                        return false;
+                    }
+                }
+            };
             acceptorFiber.addHandler(acceptorHandler);
         } catch (IOException failed) {
             throw new RuntimeException(failed);
@@ -36,16 +49,16 @@ public class WebAcceptor {
 
     public static class Config {
 
-        public ServerSocketChannel configure(int port) {
-            try {
-                ServerSocketChannel socketChannel = ServerSocketChannel.open();
-                final InetSocketAddress address = new InetSocketAddress(port);
-                socketChannel.socket().bind(address);
-                return socketChannel;
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
+        public ServerSocketChannel configure(int port) throws IOException {
+            ServerSocketChannel socketChannel = ServerSocketChannel.open();
+            final InetSocketAddress address = new InetSocketAddress(port);
+            socketChannel.socket().bind(address);
+            return socketChannel;
         }
 
+        public boolean configureNewClient(SocketChannel newClient) throws IOException {
+            newClient.socket().setTcpNoDelay(true);
+            return true;
+        }
     }
 }
