@@ -12,9 +12,9 @@ public class WebAcceptor {
 
     private final int port;
     private final NioFiber acceptorFiber;
-    private NioAcceptorHandler.ClientFactory clientFactory;
+    private final NioAcceptorHandler.ClientFactory clientFactory;
     private final Config config;
-    private Runnable onEnd;
+    private final Runnable onEnd;
 
     public WebAcceptor(int port, NioFiber acceptorFiber, NioAcceptorHandler.ClientFactory clientFactory, Config config, Runnable onEnd) {
         this.port = port;
