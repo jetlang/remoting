@@ -3,6 +3,8 @@ package org.jetlang.remote.example.ws;
 import org.jetlang.fibers.NioFiber;
 import org.jetlang.remote.acceptor.NioAcceptorHandler;
 
+import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.nio.channels.ServerSocketChannel;
 
 public class WebAcceptor {
@@ -22,14 +24,28 @@ public class WebAcceptor {
     }
 
     public void start() {
-        NioAcceptorHandler handler = NioAcceptorHandler.create(port, clientFactory, onEnd, config.getBacklogMax());
-        config.configure(handler.getChannel());
-        acceptorFiber.addHandler(handler);
+        try {
+            final ServerSocketChannel socketChannel = config.configure(port);
+            socketChannel.configureBlocking(false);
+            NioAcceptorHandler acceptorHandler = new NioAcceptorHandler(socketChannel, clientFactory, onEnd);
+            acceptorFiber.addHandler(acceptorHandler);
+        } catch (IOException failed) {
+            throw new RuntimeException(failed);
+        }
     }
 
-    public interface Config {
-        void configure(ServerSocketChannel channel);
+    public static class Config {
 
-        int getBacklogMax();
+        public ServerSocketChannel configure(int port) {
+            try {
+                ServerSocketChannel socketChannel = ServerSocketChannel.open();
+                final InetSocketAddress address = new InetSocketAddress(port);
+                socketChannel.socket().bind(address);
+                return socketChannel;
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        }
+
     }
 }

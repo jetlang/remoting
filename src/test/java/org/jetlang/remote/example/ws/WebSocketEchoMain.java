@@ -4,12 +4,7 @@ import org.glassfish.tyrus.client.ClientManager;
 import org.jetlang.fibers.NioFiber;
 import org.jetlang.fibers.NioFiberImpl;
 
-import javax.websocket.ClientEndpointConfig;
-import javax.websocket.DeploymentException;
-import javax.websocket.Endpoint;
-import javax.websocket.EndpointConfig;
-import javax.websocket.MessageHandler;
-import javax.websocket.Session;
+import javax.websocket.*;
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
@@ -89,8 +84,7 @@ public class WebSocketEchoMain {
             allReadFibers.add(readFiber);
         }
 
-        WebAcceptor.Config acceptorConfig = (serverChannel) -> {
-        };
+        WebAcceptor.Config acceptorConfig = new WebAcceptor.Config();
 
         WebAcceptor acceptor = new WebAcceptor(8025, acceptorFiber, readers, acceptorConfig, () -> {
             System.out.println("AcceptorEnd");
