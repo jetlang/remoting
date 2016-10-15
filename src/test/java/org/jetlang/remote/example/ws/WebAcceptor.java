@@ -31,6 +31,7 @@ public class WebAcceptor {
             NioAcceptorHandler acceptorHandler = new NioAcceptorHandler(socketChannel, clientFactory, onEnd) {
                 protected boolean afterAccept(SocketChannel newClient) {
                     try {
+                        newClient.configureBlocking(false);
                         return config.configureNewClient(newClient);
                     } catch (IOException e) {
                         try {
