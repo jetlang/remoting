@@ -21,7 +21,7 @@ public class HeaderReader {
         this.fiber = fiber;
         this.controls = controls;
         this.handler = handler;
-        this.writer = new NioWriter(channel, fiber);
+        this.writer = new NioWriter(new Object(), channel, fiber);
     }
 
     public NioReader.State start() {

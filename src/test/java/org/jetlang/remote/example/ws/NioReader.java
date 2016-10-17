@@ -1,14 +1,17 @@
 package org.jetlang.remote.example.ws;
 
+import org.jetlang.fibers.NioChannelHandler;
 import org.jetlang.fibers.NioControls;
 import org.jetlang.fibers.NioFiber;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.nio.channels.SelectableChannel;
+import java.nio.channels.SelectionKey;
 import java.nio.channels.SocketChannel;
 
-public class NioReader {
+public class NioReader implements NioChannelHandler {
 
     private final HeaderReader headerReader;
     private ByteBuffer bb;
@@ -112,4 +115,34 @@ public class NioReader {
     }
 
     public static final State CLOSE = new Close();
+
+
+    @Override
+    public boolean onSelect(NioFiber nioFiber, NioControls nioControls, SelectionKey selectionKey) {
+        try {
+            return onRead();
+        } catch (IOException failed) {
+            return false;
+        }
+    }
+
+    @Override
+    public SelectableChannel getChannel() {
+        return channel;
+    }
+
+    @Override
+    public int getInterestSet() {
+        return SelectionKey.OP_READ;
+    }
+
+    @Override
+    public void onEnd() {
+        onClosed();
+    }
+
+    @Override
+    public void onSelectorEnd() {
+        onEnd();
+    }
 }

@@ -15,13 +15,14 @@ public class NioWriter {
 
     private final SocketChannel channel;
     private final NioFiber fiber;
-    private final Object writeLock = new Object();
+    private final Object writeLock;
     private NioFiberImpl.BufferedWrite<SocketChannel> bufferedWrite;
     private boolean closed = false;
 
-    public NioWriter(SocketChannel channel, NioFiber fiber) {
+    public NioWriter(Object lock, SocketChannel channel, NioFiber fiber) {
         this.channel = channel;
         this.fiber = fiber;
+        this.writeLock = lock;
     }
 
     public SendResult send(ByteBuffer bb) {
