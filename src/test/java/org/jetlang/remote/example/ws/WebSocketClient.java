@@ -35,15 +35,38 @@ public class WebSocketClient<T> {
         this.path = path;
     }
 
+    private class Connected implements State {
+
+        private WebSocketConnection connection;
+        private SocketChannel newChannel;
+
+        public Connected(WebSocketConnection connection, SocketChannel newChannel) {
+            this.connection = connection;
+            this.newChannel = newChannel;
+        }
+
+        @Override
+        public State attemptConnect() {
+            return this;
+        }
+
+        @Override
+        public State stop() {
+            return doClose(newChannel);
+        }
+
+        @Override
+        public SendResult send(String msg) {
+            return this.connection.send(msg);
+        }
+    }
+
     private class WebSocketClientReader implements State, HttpRequestHandler {
 
-        private final NioReader.State wsState;
         private SocketChannel newChannel;
 
         public WebSocketClientReader(SocketChannel newChannel, NioWriter writer, NioControls nioControls) {
             this.newChannel = newChannel;
-            HeaderReader headerReader = new HeaderReader(newChannel, fiber, nioControls, this);
-            wsState = headerReader.start();
         }
 
         @Override
@@ -51,6 +74,9 @@ public class WebSocketClient<T> {
             System.out.println("headers = " + headers);
             WebSocketConnection connection = new WebSocketConnection(writer);
             WebSocketReader<T> wsReader = new WebSocketReader<>(connection, headers, utf8, handler);
+            synchronized (writeLock) {
+                state = new Connected(connection, newChannel);
+            }
             return wsReader.start();
         }
 
@@ -62,6 +88,11 @@ public class WebSocketClient<T> {
         @Override
         public State stop() {
             return doClose(newChannel);
+        }
+
+        @Override
+        public SendResult send(String msg) {
+            return SendResult.Closed;
         }
     }
 
@@ -84,6 +115,11 @@ public class WebSocketClient<T> {
         @Override
         public State stop() {
             return doClose(newChannel);
+        }
+
+        @Override
+        public SendResult send(String msg) {
+            return SendResult.Closed;
         }
 
         @Override
@@ -148,12 +184,19 @@ public class WebSocketClient<T> {
         public State stop() {
             return this;
         }
+
+        @Override
+        public SendResult send(String msg) {
+            return SendResult.Closed;
+        }
     }
 
     interface State {
         State attemptConnect();
 
         State stop();
+
+        SendResult send(String msg);
     }
 
     public void start() {
@@ -190,7 +233,7 @@ public class WebSocketClient<T> {
     }
 
     public void send(String msg) {
-
+        state.send(msg);
     }
 
 

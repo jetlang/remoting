@@ -1,13 +1,11 @@
 package org.jetlang.remote.example.ws;
 
-import org.glassfish.tyrus.client.ClientManager;
 import org.jetlang.fibers.NioFiber;
 import org.jetlang.fibers.NioFiberImpl;
 
-import javax.websocket.*;
+import javax.websocket.DeploymentException;
 import java.io.File;
 import java.io.IOException;
-import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.ArrayList;
@@ -91,43 +89,45 @@ public class WebSocketEchoMain {
         });
 
         acceptor.start();
+        CountDownLatch onOPend = new CountDownLatch(1);
         CountDownLatch messageLatch = new CountDownLatch(toSend);
-
-        final ClientEndpointConfig cec = ClientEndpointConfig.Builder.create().build();
-
-        ClientManager client = ClientManager.createClient();
-        CountDownLatch onOPen = new CountDownLatch(1);
-        Session s = client.connectToServer(new Endpoint() {
+        WebSocketHandler<Void> clienthandler = new WebSocketHandler<Void>() {
+            @Override
+            public Void onOpen(WebSocketConnection connection) {
+                onOPend.countDown();
+                return null;
+            }
 
             @Override
-            public void onOpen(Session session, EndpointConfig config) {
-                onOPen.countDown();
-                session.addMessageHandler(new MessageHandler.Whole<String>() {
-                    boolean slept = false;
-                    @Override
-                    public void onMessage(String message) {
-                        assertEquals(SENT_MESSAGE, message);
-                        messageLatch.countDown();
-                        if (!slept) {
-                            try {
-                                if (sleepTimeOnFirstMessage > 0) {
-                                    Thread.sleep(sleepTimeOnFirstMessage);
-                                }
-                                slept = true;
-                            } catch (InterruptedException e) {
-                                throw new RuntimeException(e);
-                            }
-                        }
-                    }
-                });
+            public void onMessage(WebSocketConnection connection, Void state, String msg) {
+                assertEquals(SENT_MESSAGE, msg);
+                messageLatch.countDown();
             }
-        }, cec, new URI("ws://localhost:8025/websockets/echo"));
-        if (!onOPen.await(60, TimeUnit.SECONDS)) {
+
+            @Override
+            public void onClose(WebSocketConnection connection, Void state) {
+
+            }
+
+            @Override
+            public void onError(WebSocketConnection connection, Void state, String msg) {
+
+            }
+
+            @Override
+            public void onBinaryMessage(WebSocketConnection connection, Void state, byte[] result, int size) {
+
+            }
+        };
+        WebSocketClient<Void> client = new WebSocketClient<>(acceptorFiber, "localhost", 8025,
+                new WebSocketClient.Config(), clienthandler, "/websockets/echo");
+        client.start();
+        if (!onOPend.await(60, TimeUnit.SECONDS)) {
             throw new RuntimeException("Never connected");
         }
         long start = System.currentTimeMillis();
         for (int i = 0; i < toSend; i++) {
-            s.getBasicRemote().sendText(SENT_MESSAGE);
+            client.send(SENT_MESSAGE);
         }
         if (!messageLatch.await(20, TimeUnit.MINUTES)) {
             System.out.println("Nothing received");
@@ -137,8 +137,7 @@ public class WebSocketEchoMain {
         double perMs = toSend / msDuration;
         System.out.println("perMs = " + perMs);
         System.out.println(perMs * 1000);
-        s.close();
-        client.shutdown();
+        client.stop();
         Thread.sleep(Long.MAX_VALUE);
 
         allReadFibers.forEach(NioFiber::dispose);
