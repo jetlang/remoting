@@ -19,11 +19,27 @@ public class WebSocketClient<T> {
     private final int port;
     private final Config config;
     private final WebSocketHandler<T> handler;
-    private State state = new NotConnected();
+    private volatile State state = new NotConnected();
     private final Object writeLock = new Object();
     private final String path;
     private static final Charset ascii = Charset.forName("ASCII");
     private static final Charset utf8 = Charset.forName("UTF-8");
+    private static final State ClosedForGood = new State() {
+        @Override
+        public State attemptConnect() {
+            return ClosedForGood;
+        }
+
+        @Override
+        public State stop() {
+            return ClosedForGood;
+        }
+
+        @Override
+        public SendResult send(String msg) {
+            return SendResult.Closed;
+        }
+    };
 
 
     public WebSocketClient(NioFiber fiber, String host, int port, Config config, WebSocketHandler<T> handler, String path) {
@@ -98,9 +114,8 @@ public class WebSocketClient<T> {
 
     private State doClose(SocketChannel channel) {
         fiber.execute((controls) -> controls.close(channel));
-        return new NotConnected();
+        return ClosedForGood;
     }
-
 
     private class AwaitingConnection implements State, NioChannelHandler {
 
@@ -182,7 +197,7 @@ public class WebSocketClient<T> {
 
         @Override
         public State stop() {
-            return this;
+            return ClosedForGood;
         }
 
         @Override
@@ -225,7 +240,6 @@ public class WebSocketClient<T> {
             channel.configureBlocking(false);
             config.configure(channel);
             channel.connect(new InetSocketAddress(host, port));
-            System.out.println("channel.isConnectionPending() = " + channel.isConnectionPending());
             return channel;
         } catch (IOException failed) {
             throw new RuntimeException(failed);
