@@ -87,7 +87,6 @@ public class WebSocketClient<T> {
 
         @Override
         public NioReader.State dispatch(HttpRequest headers, HeaderReader reader, NioWriter writer) {
-            System.out.println("headers = " + headers);
             WebSocketConnection connection = new WebSocketConnection(writer);
             state = new Connected(connection, newChannel);
             WebSocketReader<T> wsReader = new WebSocketReader<>(connection, headers, utf8, handler);
@@ -240,8 +239,8 @@ public class WebSocketClient<T> {
         }
     }
 
-    public void send(String msg) {
-        state.send(msg);
+    public SendResult send(String msg) {
+        return state.send(msg);
     }
 
 

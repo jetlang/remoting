@@ -34,8 +34,8 @@ public class NioWriter {
             if (bufferedWrite != null) {
                 if (channel.isOpen() && channel.isRegistered()) {
                     int toBuffer = bb.remaining();
-                    bufferedWrite.buffer(bb);
-                    return new SendResult.Buffered(toBuffer, toBuffer);
+                    int totalBuffered = bufferedWrite.buffer(bb);
+                    return new SendResult.Buffered(toBuffer, totalBuffered);
                 } else {
                     bb.position(bb.position() + bb.remaining());
                     return SendResult.Closed;

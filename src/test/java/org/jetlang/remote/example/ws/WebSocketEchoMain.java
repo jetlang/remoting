@@ -41,10 +41,11 @@ public class WebSocketEchoMain {
 
             @Override
             public void onMessage(WebSocketConnection connection, Void nothing, String msg) {
-                if (connection.send(msg) instanceof SendResult.Buffered) {
+                SendResult send = connection.send(msg);
+                if (send instanceof SendResult.Buffered) {
 //                    try {
 //                        //connection.close();
-//                        System.out.println("Closed on buffer.");
+                    System.out.println("Buffered: " + ((SendResult.Buffered) send).getTotalBufferedInBytes());
 //                    } catch (IOException e) {
 //                        throw new RuntimeException(e);
 //                    }
@@ -127,7 +128,10 @@ public class WebSocketEchoMain {
         }
         long start = System.currentTimeMillis();
         for (int i = 0; i < toSend; i++) {
-            client.send(SENT_MESSAGE);
+            SendResult send = client.send(SENT_MESSAGE);
+            if (send instanceof SendResult.Buffered) {
+                System.out.println("Buffered = " + ((SendResult.Buffered) send).getTotalBufferedInBytes());
+            }
         }
         if (!messageLatch.await(toSend, TimeUnit.SECONDS)) {
             System.out.println("Nothing received");
