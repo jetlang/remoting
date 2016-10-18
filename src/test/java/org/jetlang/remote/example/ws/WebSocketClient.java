@@ -89,10 +89,8 @@ public class WebSocketClient<T> {
         public NioReader.State dispatch(HttpRequest headers, HeaderReader reader, NioWriter writer) {
             System.out.println("headers = " + headers);
             WebSocketConnection connection = new WebSocketConnection(writer);
+            state = new Connected(connection, newChannel);
             WebSocketReader<T> wsReader = new WebSocketReader<>(connection, headers, utf8, handler);
-            synchronized (writeLock) {
-                state = new Connected(connection, newChannel);
-            }
             return wsReader.start();
         }
 
@@ -147,16 +145,12 @@ public class WebSocketClient<T> {
             try {
                 newChannel.finishConnect();
             } catch (IOException e) {
-                synchronized (writeLock) {
-                    state = new NotConnected();
-                }
+                state = new NotConnected();
                 return false;
             }
             writer.send(createHandshake());
             WebSocketClientReader webSocketClientReader = new WebSocketClientReader(newChannel, writer, nioControls);
-            synchronized (writeLock) {
-                state = webSocketClientReader;
-            }
+            state = webSocketClientReader;
             nioControls.addHandler(new NioReader(newChannel, fiber, nioControls, webSocketClientReader,
                     config.getReadBufferSizeInBytes(),
                     config.getMaxReadLoops()));
@@ -215,9 +209,9 @@ public class WebSocketClient<T> {
     }
 
     public void start() {
-        synchronized (writeLock) {
+        fiber.execute(() -> {
             state = state.attemptConnect();
-        }
+        });
     }
 
     private ByteBuffer createHandshake() {
@@ -229,9 +223,9 @@ public class WebSocketClient<T> {
     }
 
     public void stop() {
-        synchronized (writeLock) {
+        fiber.execute(() -> {
             state = state.stop();
-        }
+        });
     }
 
     private SocketChannel openChannel() {

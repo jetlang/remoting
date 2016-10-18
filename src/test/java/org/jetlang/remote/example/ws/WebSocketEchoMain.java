@@ -129,7 +129,7 @@ public class WebSocketEchoMain {
         for (int i = 0; i < toSend; i++) {
             client.send(SENT_MESSAGE);
         }
-        if (!messageLatch.await(20, TimeUnit.MINUTES)) {
+        if (!messageLatch.await(toSend, TimeUnit.SECONDS)) {
             System.out.println("Nothing received");
         }
         long end = System.currentTimeMillis();
@@ -138,7 +138,6 @@ public class WebSocketEchoMain {
         System.out.println("perMs = " + perMs);
         System.out.println(perMs * 1000);
         client.stop();
-        Thread.sleep(Long.MAX_VALUE);
 
         allReadFibers.forEach(NioFiber::dispose);
         acceptorFiber.dispose();
