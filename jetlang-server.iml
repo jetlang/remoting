@@ -23,5 +23,7 @@
     <orderEntry type="library" scope="TEST" name="Maven: org.glassfish.grizzly:grizzly-framework:2.3.25" level="project" />
     <orderEntry type="library" scope="TEST" name="Maven: org.glassfish.grizzly:grizzly-http-server:2.3.25" level="project" />
     <orderEntry type="library" scope="TEST" name="Maven: org.glassfish.grizzly:grizzly-http:2.3.25" level="project" />
+    <orderEntry type="library" scope="TEST" name="Maven: org.webbitserver:webbit:0.4.15" level="project" />
+    <orderEntry type="library" scope="TEST" name="Maven: io.netty:netty:3.5.5.Final" level="project" />
   </component>
 </module>
