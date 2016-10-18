@@ -10,25 +10,11 @@ import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
-
-import static org.junit.Assert.assertEquals;
 
 public class WebSocketEchoMain {
 
 
     public static void main(String[] args) throws InterruptedException, URISyntaxException, IOException, DeploymentException {
-        int sleepTimeOnFirstMessage = 0;
-
-        int toSend = 100;
-
-        int msgSize = 1;
-        StringBuilder msg = new StringBuilder();
-        for (int i = 0; i < msgSize; i++) {
-            msg.append(" ");
-        }
-        String SENT_MESSAGE = msg.toString();
 
         NioFiberImpl acceptorFiber = new NioFiberImpl();
         acceptorFiber.start();
@@ -90,60 +76,14 @@ public class WebSocketEchoMain {
         });
 
         acceptor.start();
-        CountDownLatch onOPend = new CountDownLatch(1);
-        CountDownLatch messageLatch = new CountDownLatch(toSend);
-        WebSocketHandler<Void> clienthandler = new WebSocketHandler<Void>() {
+
+        Runtime.getRuntime().addShutdownHook(new Thread() {
             @Override
-            public Void onOpen(WebSocketConnection connection) {
-                onOPend.countDown();
-                return null;
+            public void run() {
+                allReadFibers.forEach(NioFiber::dispose);
+                acceptorFiber.dispose();
             }
-
-            @Override
-            public void onMessage(WebSocketConnection connection, Void state, String msg) {
-                assertEquals(SENT_MESSAGE, msg);
-                messageLatch.countDown();
-            }
-
-            @Override
-            public void onClose(WebSocketConnection connection, Void state) {
-
-            }
-
-            @Override
-            public void onError(WebSocketConnection connection, Void state, String msg) {
-
-            }
-
-            @Override
-            public void onBinaryMessage(WebSocketConnection connection, Void state, byte[] result, int size) {
-
-            }
-        };
-        WebSocketClient<Void> client = new WebSocketClient<>(acceptorFiber, "localhost", 8025,
-                new WebSocketClient.Config(), clienthandler, "/websockets/echo");
-        client.start();
-        if (!onOPend.await(60, TimeUnit.SECONDS)) {
-            throw new RuntimeException("Never connected");
-        }
-        long start = System.currentTimeMillis();
-        for (int i = 0; i < toSend; i++) {
-            SendResult send = client.send(SENT_MESSAGE);
-            if (send instanceof SendResult.Buffered) {
-                System.out.println("Buffered = " + ((SendResult.Buffered) send).getTotalBufferedInBytes());
-            }
-        }
-        if (!messageLatch.await(toSend, TimeUnit.SECONDS)) {
-            System.out.println("Nothing received");
-        }
-        long end = System.currentTimeMillis();
-        long msDuration = end - start;
-        double perMs = toSend / msDuration;
-        System.out.println("perMs = " + perMs);
-        System.out.println(perMs * 1000);
-        client.stop();
-
-        allReadFibers.forEach(NioFiber::dispose);
-        acceptorFiber.dispose();
+        });
+        Thread.sleep(Long.MAX_VALUE);
     }
 }
