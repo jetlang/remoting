@@ -68,6 +68,7 @@ public class WebSocketClient<T> {
 
         @Override
         public State stop() {
+            connection.sendClose();
             return doClose(newChannel);
         }
 
