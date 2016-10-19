@@ -14,7 +14,7 @@ import java.nio.charset.Charset;
 
 public class WebSocketClient<T> {
 
-    private final NioFiber fiber;
+    private final NioFiber readFiber;
     private final String host;
     private final int port;
     private final Config config;
@@ -42,8 +42,8 @@ public class WebSocketClient<T> {
     };
 
 
-    public WebSocketClient(NioFiber fiber, String host, int port, Config config, WebSocketHandler<T> handler, String path) {
-        this.fiber = fiber;
+    public WebSocketClient(NioFiber readFiber, String host, int port, Config config, WebSocketHandler<T> handler, String path) {
+        this.readFiber = readFiber;
         this.host = host;
         this.port = port;
         this.config = config;
@@ -110,7 +110,7 @@ public class WebSocketClient<T> {
     }
 
     private State doClose(SocketChannel channel) {
-        fiber.execute((controls) -> controls.close(channel));
+        readFiber.execute((controls) -> controls.close(channel));
         return ClosedForGood;
     }
 
@@ -150,7 +150,7 @@ public class WebSocketClient<T> {
             writer.send(createHandshake());
             WebSocketClientReader webSocketClientReader = new WebSocketClientReader(newChannel, writer, nioControls);
             state = webSocketClientReader;
-            nioControls.addHandler(new NioReader(newChannel, fiber, nioControls, webSocketClientReader,
+            nioControls.addHandler(new NioReader(newChannel, readFiber, nioControls, webSocketClientReader,
                     config.getReadBufferSizeInBytes(),
                     config.getMaxReadLoops()));
             System.out.println("Connected!");
@@ -182,9 +182,9 @@ public class WebSocketClient<T> {
         @Override
         public State attemptConnect() {
             SocketChannel newChannel = openChannel();
-            NioWriter writer = new NioWriter(writeLock, newChannel, fiber);
+            NioWriter writer = new NioWriter(writeLock, newChannel, readFiber);
             AwaitingConnection awaitingConnection = new AwaitingConnection(newChannel, writer);
-            fiber.addHandler(awaitingConnection);
+            readFiber.addHandler(awaitingConnection);
             return awaitingConnection;
         }
 
@@ -208,7 +208,7 @@ public class WebSocketClient<T> {
     }
 
     public void start() {
-        fiber.execute(() -> {
+        readFiber.execute(() -> {
             state = state.attemptConnect();
         });
     }
@@ -222,7 +222,7 @@ public class WebSocketClient<T> {
     }
 
     public void stop() {
-        fiber.execute(() -> {
+        readFiber.execute(() -> {
             state = state.stop();
         });
     }
