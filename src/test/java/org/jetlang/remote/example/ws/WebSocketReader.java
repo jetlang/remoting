@@ -8,6 +8,7 @@ public class WebSocketReader<T> {
 
     private final StringDecoder charset;
     private final WebSocketHandler<T> handler;
+    private final Runnable onClose;
     private final WebSocketConnection connection;
     private final HttpRequest headers;
     private final BodyReader bodyRead = new BodyReader();
@@ -15,11 +16,12 @@ public class WebSocketReader<T> {
     private final Frame textFrame = new Frame();
     private final T state;
 
-    public WebSocketReader(WebSocketConnection connection, HttpRequest headers, Charset charset, WebSocketHandler<T> handler) {
+    public WebSocketReader(WebSocketConnection connection, HttpRequest headers, Charset charset, WebSocketHandler<T> handler, Runnable onClose) {
         this.connection = connection;
         this.headers = headers;
         this.charset = StringDecoder.create(charset);
         this.handler = handler;
+        this.onClose = onClose;
         this.state = handler.onOpen(connection);
     }
 
@@ -70,6 +72,7 @@ public class WebSocketReader<T> {
             @Override
             public void onClosed() {
                 handler.onClose(connection, state);
+                onClose.run();
             }
         };
     }
