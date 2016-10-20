@@ -107,7 +107,6 @@ public class WebSocketClient<T> {
     }
 
     private State doClose(SocketChannel channel) {
-        System.out.println("close channel = " + channel);
         readFiber.execute((controls) -> controls.close(channel));
         return ClosedForGood;
     }
