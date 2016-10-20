@@ -21,7 +21,7 @@ public class WebSocketClient<T> {
     private final int port;
     private final Config config;
     private final WebSocketHandler<T> handler;
-    private boolean reconnectAllowed;
+    private boolean reconnectAllowed = true;
     private volatile State state = new NotConnected();
     private final Object writeLock = new Object();
     private final String path;
@@ -30,7 +30,7 @@ public class WebSocketClient<T> {
     private static final State ClosedForGood = new State() {
 
         @Override
-        public State stop() {
+        public State stop(NioControls nioControls) {
             return ClosedForGood;
         }
 
@@ -48,7 +48,6 @@ public class WebSocketClient<T> {
         this.config = config;
         this.handler = handler;
         this.path = path;
-        this.reconnectAllowed = config.getReconnectInterval() > 0;
     }
 
     private class Connected implements State {
@@ -62,9 +61,9 @@ public class WebSocketClient<T> {
         }
 
         @Override
-        public State stop() {
+        public State stop(NioControls nioControls) {
             connection.sendClose();
-            return doClose(newChannel);
+            return doClose(newChannel, nioControls);
         }
 
         @Override
@@ -91,8 +90,8 @@ public class WebSocketClient<T> {
         }
 
         @Override
-        public State stop() {
-            return doClose(newChannel);
+        public State stop(NioControls nioControls) {
+            return doClose(newChannel, nioControls);
         }
 
         @Override
@@ -103,14 +102,15 @@ public class WebSocketClient<T> {
 
     private void reconnectOnClose() {
         if (reconnectAllowed) {
-            readFiber.schedule(this::reconnect, config.getReconnectInterval(), config.getReconnectTimeUnit());
+            readFiber.schedule(this::reconnect, config.getConnectTimeout(), config.getConnectTimeoutUnit());
         }
     }
 
-    private State doClose(SocketChannel channel) {
-        readFiber.execute((controls) -> controls.close(channel));
+    private State doClose(SocketChannel newChannel, NioControls nioControls) {
+        nioControls.close(newChannel);
         return ClosedForGood;
     }
+
 
     private class AwaitingConnection implements State, NioChannelHandler {
 
@@ -124,8 +124,8 @@ public class WebSocketClient<T> {
         }
 
         @Override
-        public State stop() {
-            return doClose(newChannel);
+        public State stop(NioControls nioControls) {
+            return doClose(newChannel, nioControls);
         }
 
         @Override
@@ -187,7 +187,7 @@ public class WebSocketClient<T> {
     private class NotConnected implements State {
 
         @Override
-        public State stop() {
+        public State stop(NioControls nioControls) {
             return ClosedForGood;
         }
 
@@ -199,7 +199,7 @@ public class WebSocketClient<T> {
 
     interface State {
 
-        State stop();
+        State stop(NioControls nioControls);
 
         SendResult send(String msg);
     }
@@ -209,19 +209,19 @@ public class WebSocketClient<T> {
     }
 
     private void start(boolean isReconnect) {
-        readFiber.execute(() -> {
+        readFiber.execute((nioControls) -> {
             if (isReconnect && !reconnectAllowed) {
                 return;
             }
-            state = state.stop();
+            state = state.stop(nioControls);
             AwaitingConnection pendingConn = attemptConnect();
-            if (reconnectAllowed && config.getReconnectInterval() > 0) {
+            if (reconnectAllowed && config.getConnectTimeout() > 0) {
                 Runnable recon = () -> {
                     if (this.state == pendingConn) {
-                        this.state = pendingConn.stop();
+                        this.state = pendingConn.stop(nioControls);
                     }
                 };
-                readFiber.schedule(recon, config.getReconnectInterval(), config.getReconnectTimeUnit());
+                readFiber.schedule(recon, config.getConnectTimeout(), config.getConnectTimeoutUnit());
             }
             this.state = pendingConn;
         });
@@ -254,9 +254,9 @@ public class WebSocketClient<T> {
     }
 
     public void stop() {
-        readFiber.execute(() -> {
+        readFiber.execute((nioControls) -> {
             reconnectAllowed = false;
-            state = state.stop();
+            state = state.stop(nioControls);
         });
     }
 
@@ -291,11 +291,11 @@ public class WebSocketClient<T> {
             return 50;
         }
 
-        public int getReconnectInterval() {
-            return 2;
+        public int getConnectTimeout() {
+            return 5;
         }
 
-        public TimeUnit getReconnectTimeUnit() {
+        public TimeUnit getConnectTimeoutUnit() {
             return TimeUnit.SECONDS;
         }
     }
