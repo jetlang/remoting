@@ -26,10 +26,6 @@ public class WebSocketClient<T> {
     private static final Charset ascii = Charset.forName("ASCII");
     private static final Charset utf8 = Charset.forName("UTF-8");
     private static final State ClosedForGood = new State() {
-        @Override
-        public State attemptConnect() {
-            return ClosedForGood;
-        }
 
         @Override
         public State stop() {
@@ -63,11 +59,6 @@ public class WebSocketClient<T> {
         }
 
         @Override
-        public State attemptConnect() {
-            return this;
-        }
-
-        @Override
         public State stop() {
             connection.sendClose();
             return doClose(newChannel);
@@ -94,11 +85,6 @@ public class WebSocketClient<T> {
             state = new Connected(connection, newChannel);
             WebSocketReader<T> wsReader = new WebSocketReader<>(connection, headers, utf8, handler);
             return wsReader.start();
-        }
-
-        @Override
-        public State attemptConnect() {
-            return this;
         }
 
         @Override
@@ -135,11 +121,6 @@ public class WebSocketClient<T> {
         @Override
         public SendResult send(String msg) {
             return SendResult.Closed;
-        }
-
-        @Override
-        public State attemptConnect() {
-            return this;
         }
 
         @Override
@@ -180,16 +161,15 @@ public class WebSocketClient<T> {
         }
     }
 
-    private class NotConnected implements State {
+    private State attemptConnect() {
+        SocketChannel newChannel = openChannel();
+        NioWriter writer = new NioWriter(writeLock, newChannel, readFiber);
+        AwaitingConnection awaitingConnection = new AwaitingConnection(newChannel, writer);
+        readFiber.addHandler(awaitingConnection);
+        return awaitingConnection;
+    }
 
-        @Override
-        public State attemptConnect() {
-            SocketChannel newChannel = openChannel();
-            NioWriter writer = new NioWriter(writeLock, newChannel, readFiber);
-            AwaitingConnection awaitingConnection = new AwaitingConnection(newChannel, writer);
-            readFiber.addHandler(awaitingConnection);
-            return awaitingConnection;
-        }
+    private class NotConnected implements State {
 
         @Override
         public State stop() {
@@ -203,7 +183,6 @@ public class WebSocketClient<T> {
     }
 
     interface State {
-        State attemptConnect();
 
         State stop();
 
@@ -212,7 +191,8 @@ public class WebSocketClient<T> {
 
     public void start() {
         readFiber.execute(() -> {
-            state = state.attemptConnect();
+            state = state.stop();
+            state = attemptConnect();
         });
     }
 
