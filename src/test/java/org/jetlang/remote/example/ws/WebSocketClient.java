@@ -215,11 +215,13 @@ public class WebSocketClient<T> {
     }
 
     private ByteBuffer createHandshake() {
-        StringBuilder builder = new StringBuilder();
-        builder.append("GET " + path + " HTTP/1.1\r\n");
-        builder.append("Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n");
-        builder.append("\r\n");
-        return ByteBuffer.wrap(builder.toString().getBytes(ascii));
+        HttpRequest request = new HttpRequest("GET", path, "HTTP/1.1");
+        request.add("Host", host + ':' + port);
+        request.add("Connection", "Upgrade");
+        request.add("Upgrade", "websocket");
+        request.add("Sec-WebSocket-Version", "13");
+        request.add("Sec-WebSocket-Key", "dGhlIHNhbXBsZSBub25jZQ==");
+        return request.toByteBuffer(ascii);
     }
 
     public void stop() {
