@@ -3,6 +3,7 @@ package org.jetlang.remote.example.ws;
 import org.jetlang.fibers.NioChannelHandler;
 import org.jetlang.fibers.NioControls;
 import org.jetlang.fibers.NioFiber;
+import org.webbitserver.helpers.Base64;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -220,8 +221,20 @@ public class WebSocketClient<T> {
         request.add("Connection", "Upgrade");
         request.add("Upgrade", "websocket");
         request.add("Sec-WebSocket-Version", "13");
-        request.add("Sec-WebSocket-Key", "dGhlIHNhbXBsZSBub25jZQ==");
+        request.add("Sec-WebSocket-Key", secKey());
         return request.toByteBuffer(ascii);
+    }
+
+    private static byte randomByte() {
+        return (byte) ((int) (Math.random() * 256.0D));
+    }
+
+    private static String secKey() {
+        byte[] key = new byte[16];
+        for (int i = 0; i < 16; ++i) {
+            key[i] = randomByte();
+        }
+        return Base64.encode(key);
     }
 
     public void stop() {
