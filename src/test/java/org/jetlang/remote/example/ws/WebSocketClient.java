@@ -89,7 +89,8 @@ public class WebSocketClient<T> {
 
         @Override
         public NioReader.State dispatch(HttpRequest headers, HeaderReader reader, NioWriter writer) {
-            WebSocketConnection connection = new WebSocketConnection(writer);
+            byte[] mask = new byte[]{randomByte(), randomByte(), randomByte(), randomByte()};
+            WebSocketConnection connection = new WebSocketConnection(writer, mask);
             state = new Connected(connection, newChannel);
             WebSocketReader<T> wsReader = new WebSocketReader<>(connection, headers, utf8, handler);
             return wsReader.start();

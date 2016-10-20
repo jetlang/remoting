@@ -14,10 +14,12 @@ public class WebSocketConnection {
     public static final byte[] empty = new byte[0];
     private static final Charset charset = Charset.forName("UTF-8");
     private final NioWriter writer;
+    private final byte[] maskingBytes;
     private static final SizeType[] sizes = SizeType.values();
 
-    public WebSocketConnection(NioWriter writer) {
+    public WebSocketConnection(NioWriter writer, byte[] maskingBytes) {
         this.writer = writer;
+        this.maskingBytes = maskingBytes;
     }
 
     public SendResult send(String msg) {
@@ -33,22 +35,22 @@ public class WebSocketConnection {
     enum SizeType {
         Small(125, 1) {
             @Override
-            void write(ByteBuffer bb, int length) {
-                bb.put((byte) length);
+            void write(ByteBuffer bb, int length, boolean mask) {
+                bb.put(setMask((byte) length, mask));
             }
         },
         Medium(65535, 3) {
             @Override
-            void write(ByteBuffer bb, int length) {
-                bb.put((byte) 126);
+            void write(ByteBuffer bb, int length, boolean mask) {
+                bb.put(setMask((byte) 126, mask));
                 bb.put((byte) (length >>> 8));
                 bb.put((byte) length);
             }
         },
         Large(Integer.MAX_VALUE, 9) {
             @Override
-            void write(ByteBuffer bb, int length) {
-                bb.put((byte) 127);
+            void write(ByteBuffer bb, int length, boolean mask) {
+                bb.put(setMask((byte) 127, mask));
                 bb.putLong(length);
             }
         };
@@ -61,7 +63,14 @@ public class WebSocketConnection {
             this.bytes = bytes;
         }
 
-        abstract void write(ByteBuffer bb, int length);
+        private static byte setMask(byte b, boolean mask) {
+            if (mask) {
+                b |= 1;
+            }
+            return b;
+        }
+
+        abstract void write(ByteBuffer bb, int length, boolean mask);
     }
 
     public SendResult sendBinary(byte[] buffer, int offset, int length) {
@@ -72,12 +81,20 @@ public class WebSocketConnection {
         byte header = 0;
         header |= 1 << 7;
         header |= opCode % 128;
+        byte[] maskBytes = length > 0 ? maskingBytes : empty;
         SizeType sz = findSize(length);
-        ByteBuffer bb = NioReader.bufferAllocate(1 + length + sz.bytes);
+        ByteBuffer bb = NioReader.bufferAllocate(1 + length + sz.bytes + maskBytes.length);
         bb.put(header);
-        sz.write(bb, length);
-        if (bytes.length > 0) {
+        sz.write(bb, length, maskBytes.length > 0);
+        if (maskBytes.length > 0) {
+            bb.put(maskBytes);
+        }
+        if (bytes.length > 0 && maskBytes.length == 0) {
             bb.put(bytes, offset, length);
+        } else {
+            for (int i = 0; i < length; ++i) {
+                bb.put((byte) (bytes[i + offset] ^ maskBytes[i % 4]));
+            }
         }
         bb.flip();
         return writer.send(bb);
