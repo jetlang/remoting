@@ -65,7 +65,7 @@ public class WebSocketConnection {
 
         private static byte setMask(byte b, boolean mask) {
             if (mask) {
-                b |= 1;
+                b |= 1 << 7;
             }
             return b;
         }
@@ -81,7 +81,7 @@ public class WebSocketConnection {
         byte header = 0;
         header |= 1 << 7;
         header |= opCode % 128;
-        byte[] maskBytes = length > 0 ? maskingBytes : empty;
+        byte[] maskBytes = maskingBytes;
         SizeType sz = findSize(length);
         ByteBuffer bb = NioReader.bufferAllocate(1 + length + sz.bytes + maskBytes.length);
         bb.put(header);
