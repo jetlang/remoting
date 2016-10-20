@@ -12,6 +12,7 @@ import java.nio.channels.SelectableChannel;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.SocketChannel;
 import java.nio.charset.Charset;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 public class WebSocketClient<T> {
@@ -74,10 +75,12 @@ public class WebSocketClient<T> {
 
     private class WebSocketClientReader implements State, HttpRequestHandler {
 
-        private SocketChannel newChannel;
+        private final SocketChannel newChannel;
+        private final CountDownLatch latch;
 
-        public WebSocketClientReader(SocketChannel newChannel, NioWriter writer, NioControls nioControls) {
+        public WebSocketClientReader(SocketChannel newChannel, NioWriter writer, NioControls nioControls, CountDownLatch latch) {
             this.newChannel = newChannel;
+            this.latch = latch;
         }
 
         @Override
@@ -85,7 +88,8 @@ public class WebSocketClient<T> {
             byte[] mask = new byte[]{randomByte(), randomByte(), randomByte(), randomByte()};
             WebSocketConnection connection = new WebSocketConnection(writer, mask);
             state = new Connected(connection, newChannel);
-            WebSocketReader<T> wsReader = new WebSocketReader<>(connection, headers, utf8, handler, WebSocketClient.this::reconnectOnClose);
+            WebSocketReader<T> wsReader = new WebSocketReader<>(connection, headers, utf8, handler, () -> WebSocketClient.this.reconnectOnClose(new CountDownLatch(1)));
+            latch.countDown();
             return wsReader.start();
         }
 
@@ -100,9 +104,9 @@ public class WebSocketClient<T> {
         }
     }
 
-    private void reconnectOnClose() {
+    private void reconnectOnClose(CountDownLatch latch) {
         if (reconnectAllowed) {
-            readFiber.schedule(this::reconnect, config.getConnectTimeout(), config.getConnectTimeoutUnit());
+            readFiber.schedule(() -> reconnect(latch), config.getConnectTimeout(), config.getConnectTimeoutUnit());
         }
     }
 
@@ -116,11 +120,13 @@ public class WebSocketClient<T> {
 
         private final SocketChannel newChannel;
         private final NioWriter writer;
+        private final CountDownLatch latch;
         private boolean connected;
 
-        public AwaitingConnection(SocketChannel newChannel, NioWriter writer) {
+        public AwaitingConnection(SocketChannel newChannel, NioWriter writer, CountDownLatch latch) {
             this.newChannel = newChannel;
             this.writer = writer;
+            this.latch = latch;
         }
 
         @Override
@@ -141,7 +147,7 @@ public class WebSocketClient<T> {
                 return false;
             }
             writer.send(createHandshake());
-            WebSocketClientReader webSocketClientReader = new WebSocketClientReader(newChannel, writer, nioControls);
+            WebSocketClientReader webSocketClientReader = new WebSocketClientReader(newChannel, writer, nioControls, latch);
             state = webSocketClientReader;
             nioControls.addHandler(new NioReader(newChannel, readFiber, nioControls, webSocketClientReader,
                     config.getReadBufferSizeInBytes(),
@@ -163,7 +169,7 @@ public class WebSocketClient<T> {
         @Override
         public void onEnd() {
             if (!connected) {
-                reconnectOnClose();
+                reconnectOnClose(latch);
             }
         }
 
@@ -176,10 +182,10 @@ public class WebSocketClient<T> {
         }
     }
 
-    private AwaitingConnection attemptConnect() {
+    private AwaitingConnection attemptConnect(CountDownLatch latch) {
         SocketChannel newChannel = openChannel();
         NioWriter writer = new NioWriter(writeLock, newChannel, readFiber);
-        AwaitingConnection awaitingConnection = new AwaitingConnection(newChannel, writer);
+        AwaitingConnection awaitingConnection = new AwaitingConnection(newChannel, writer, latch);
         readFiber.addHandler(awaitingConnection);
         return awaitingConnection;
     }
@@ -204,17 +210,19 @@ public class WebSocketClient<T> {
         SendResult send(String msg);
     }
 
-    public void start() {
-        start(false);
+    public CountDownLatch start() {
+        CountDownLatch latch = new CountDownLatch(1);
+        start(false, latch);
+        return latch;
     }
 
-    private void start(boolean isReconnect) {
+    private void start(boolean isReconnect, CountDownLatch latch) {
         readFiber.execute((nioControls) -> {
             if (isReconnect && !reconnectAllowed) {
                 return;
             }
             state = state.stop(nioControls);
-            AwaitingConnection pendingConn = attemptConnect();
+            AwaitingConnection pendingConn = attemptConnect(latch);
             if (reconnectAllowed && config.getConnectTimeout() > 0) {
                 Runnable recon = () -> {
                     if (this.state == pendingConn) {
@@ -227,8 +235,8 @@ public class WebSocketClient<T> {
         });
     }
 
-    private void reconnect() {
-        start(true);
+    private void reconnect(CountDownLatch latch) {
+        start(true, latch);
     }
 
     private ByteBuffer createHandshake() {
