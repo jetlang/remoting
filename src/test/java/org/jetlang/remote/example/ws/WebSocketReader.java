@@ -62,17 +62,21 @@ public class WebSocketReader<T> {
 
         @Override
         public void onClosed() {
-            handler.onClose(connection, state);
+            doClose();
         }
     };
+
+    public void doClose() {
+        handler.onClose(connection, state);
+        onClose.run();
+    }
 
     private NioReader.State createClose() {
         connection.close();
         return new NioReader.Close() {
             @Override
             public void onClosed() {
-                handler.onClose(connection, state);
-                onClose.run();
+                doClose();
             }
         };
     }
@@ -179,7 +183,7 @@ public class WebSocketReader<T> {
 
         @Override
         public void onClosed() {
-            handler.onClose(connection, state);
+            doClose();
         }
     }
 
@@ -252,7 +256,7 @@ public class WebSocketReader<T> {
 
         @Override
         public void onClosed() {
-            handler.onClose(connection, state);
+            doClose();
         }
 
         public boolean expectingFragment() {
