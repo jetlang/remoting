@@ -1,6 +1,5 @@
 package org.jetlang.remote.example.ws;
 
-import org.jetlang.core.Disposable;
 import org.jetlang.fibers.NioChannelHandler;
 import org.jetlang.fibers.NioControls;
 import org.jetlang.fibers.NioFiber;
@@ -87,11 +86,7 @@ public class WebSocketClient<T> {
             byte[] mask = new byte[]{randomByte(), randomByte(), randomByte(), randomByte()};
             WebSocketConnection connection = new WebSocketConnection(writer, mask);
             state = new Connected(connection, newChannel);
-            WebSocketReader<T> wsReader = new WebSocketReader<>(connection, headers, utf8, handler, () -> {
-                if (reconnectAllowed) {
-                    readFiber.schedule(WebSocketClient.this::reconnect, config.getReconnectInterval(), config.getReconnectTimeUnit());
-                }
-            });
+            WebSocketReader<T> wsReader = new WebSocketReader<>(connection, headers, utf8, handler, WebSocketClient.this::reconnectOnClose);
             return wsReader.start();
         }
 
@@ -106,6 +101,12 @@ public class WebSocketClient<T> {
         }
     }
 
+    private void reconnectOnClose() {
+        if (reconnectAllowed) {
+            readFiber.schedule(this::reconnect, config.getReconnectInterval(), config.getReconnectTimeUnit());
+        }
+    }
+
     private State doClose(SocketChannel channel) {
         readFiber.execute((controls) -> controls.close(channel));
         return ClosedForGood;
@@ -115,12 +116,11 @@ public class WebSocketClient<T> {
 
         private final SocketChannel newChannel;
         private final NioWriter writer;
-        private final Disposable timerCancel;
+        private boolean connected;
 
-        public AwaitingConnection(SocketChannel newChannel, NioWriter writer, Disposable timerCancel) {
+        public AwaitingConnection(SocketChannel newChannel, NioWriter writer) {
             this.newChannel = newChannel;
             this.writer = writer;
-            this.timerCancel = timerCancel;
         }
 
         @Override
@@ -138,7 +138,6 @@ public class WebSocketClient<T> {
             try {
                 newChannel.finishConnect();
             } catch (IOException e) {
-                state = new NotConnected();
                 return false;
             }
             writer.send(createHandshake());
@@ -147,7 +146,7 @@ public class WebSocketClient<T> {
             nioControls.addHandler(new NioReader(newChannel, readFiber, nioControls, webSocketClientReader,
                     config.getReadBufferSizeInBytes(),
                     config.getMaxReadLoops()));
-            timerCancel.dispose();
+            connected = true;
             return false;
         }
 
@@ -163,18 +162,24 @@ public class WebSocketClient<T> {
 
         @Override
         public void onEnd() {
-
+            if (!connected) {
+                reconnectOnClose();
+            }
         }
 
         @Override
         public void onSelectorEnd() {
+            try {
+                newChannel.close();
+            } catch (IOException e) {
+            }
         }
     }
 
-    private State attemptConnect(Disposable timerCancel) {
+    private AwaitingConnection attemptConnect() {
         SocketChannel newChannel = openChannel();
         NioWriter writer = new NioWriter(writeLock, newChannel, readFiber);
-        AwaitingConnection awaitingConnection = new AwaitingConnection(newChannel, writer, timerCancel);
+        AwaitingConnection awaitingConnection = new AwaitingConnection(newChannel, writer);
         readFiber.addHandler(awaitingConnection);
         return awaitingConnection;
     }
@@ -208,14 +213,17 @@ public class WebSocketClient<T> {
             if (isReconnect && !reconnectAllowed) {
                 return;
             }
-            System.out.println("WebSocketClient.start: " + isReconnect);
             state = state.stop();
-            Disposable timerCancel = () -> {
-            };
+            AwaitingConnection pendingConn = attemptConnect();
             if (reconnectAllowed && config.getReconnectInterval() > 0) {
-                timerCancel = readFiber.schedule(this::start, config.getReconnectInterval(), config.getReconnectTimeUnit());
+                Runnable recon = () -> {
+                    if (this.state == pendingConn) {
+                        this.state = pendingConn.stop();
+                    }
+                };
+                readFiber.schedule(recon, config.getReconnectInterval(), config.getReconnectTimeUnit());
             }
-            state = attemptConnect(timerCancel);
+            this.state = pendingConn;
         });
     }
 
