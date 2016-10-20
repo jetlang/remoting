@@ -20,7 +20,7 @@ public class WebSocketEchoMain {
         acceptorFiber.start();
         WebSocketHandler<Void> handler = new WebSocketHandler<Void>() {
             @Override
-            public Void onOpen(WebSocketConnection connection) {
+            public Void onOpen(WebSocketConnection connection, HttpRequest headers) {
                 System.out.println("Open!");
                 return null;
             }

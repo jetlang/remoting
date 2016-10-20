@@ -13,7 +13,7 @@ public class WebSocketClientEchoMain {
         clientFiber.start();
         WebSocketHandler<Void> clienthandler = new WebSocketHandler<Void>() {
             @Override
-            public Void onOpen(WebSocketConnection connection) {
+            public Void onOpen(WebSocketConnection connection, HttpRequest headers) {
                 System.out.println("WebSocketClientEchoMain.onOpen");
                 return null;
             }

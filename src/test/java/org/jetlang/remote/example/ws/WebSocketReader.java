@@ -10,7 +10,6 @@ public class WebSocketReader<T> {
     private final WebSocketHandler<T> handler;
     private final Runnable onClose;
     private final WebSocketConnection connection;
-    private final HttpRequest headers;
     private final BodyReader bodyRead = new BodyReader();
     private final BodyReader fragment = new BodyReader();
     private final Frame textFrame = new Frame();
@@ -18,11 +17,10 @@ public class WebSocketReader<T> {
 
     public WebSocketReader(WebSocketConnection connection, HttpRequest headers, Charset charset, WebSocketHandler<T> handler, Runnable onClose) {
         this.connection = connection;
-        this.headers = headers;
         this.charset = StringDecoder.create(charset);
         this.handler = handler;
         this.onClose = onClose;
-        this.state = handler.onOpen(connection);
+        this.state = handler.onOpen(connection, headers);
     }
 
     public NioReader.State start() {
