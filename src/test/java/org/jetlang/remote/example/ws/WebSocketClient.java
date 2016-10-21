@@ -131,10 +131,11 @@ public class WebSocketClient<T> {
         private final CountDownLatch latch;
         private boolean connected;
 
-        public AwaitingConnection(SocketChannel newChannel, NioWriter writer, CountDownLatch latch) {
+        public AwaitingConnection(SocketChannel newChannel, NioWriter writer, CountDownLatch latch, boolean connected) {
             this.newChannel = newChannel;
             this.writer = writer;
             this.latch = latch;
+            this.connected = connected;
         }
 
         @Override
@@ -154,14 +155,18 @@ public class WebSocketClient<T> {
             } catch (IOException e) {
                 return false;
             }
+            handleConnection(nioControls);
+            connected = true;
+            return false;
+        }
+
+        public void handleConnection(NioControls nioControls) {
             writer.send(createHandshake());
             WebSocketClientReader webSocketClientReader = new WebSocketClientReader(newChannel, writer, nioControls, latch);
             state = webSocketClientReader;
             nioControls.addHandler(new NioReader(newChannel, readFiber, nioControls, webSocketClientReader,
                     config.getReadBufferSizeInBytes(),
                     config.getMaxReadLoops()));
-            connected = true;
-            return false;
         }
 
         @Override
@@ -191,11 +196,20 @@ public class WebSocketClient<T> {
     }
 
     private AwaitingConnection attemptConnect(CountDownLatch latch) {
-        SocketChannel newChannel = openChannel();
-        NioWriter writer = new NioWriter(writeLock, newChannel, readFiber);
-        AwaitingConnection awaitingConnection = new AwaitingConnection(newChannel, writer, latch);
-        readFiber.addHandler(awaitingConnection);
-        return awaitingConnection;
+        try {
+            SocketChannel channel = SocketChannel.open();
+            channel.configureBlocking(false);
+            config.configure(channel);
+            boolean connected = channel.connect(new InetSocketAddress(host, port));
+            NioWriter writer = new NioWriter(writeLock, channel, readFiber);
+            AwaitingConnection awaitingConnection = new AwaitingConnection(channel, writer, latch, connected);
+            if (!connected) {
+                readFiber.addHandler(awaitingConnection);
+            }
+            return awaitingConnection;
+        } catch (IOException failed) {
+            throw new RuntimeException(failed);
+        }
     }
 
     private class NotConnected implements State {
@@ -231,15 +245,19 @@ public class WebSocketClient<T> {
             }
             state = state.stop(nioControls);
             AwaitingConnection pendingConn = attemptConnect(latch);
-            if (reconnectAllowed && config.getConnectTimeout() > 0) {
-                Runnable recon = () -> {
-                    if (this.state == pendingConn) {
-                        this.state = pendingConn.stop(nioControls);
-                    }
-                };
-                readFiber.schedule(recon, config.getConnectTimeout(), config.getConnectTimeoutUnit());
+            if (!pendingConn.connected) {
+                if (reconnectAllowed && config.getConnectTimeout() > 0) {
+                    Runnable recon = () -> {
+                        if (this.state == pendingConn) {
+                            this.state = pendingConn.stop(nioControls);
+                        }
+                    };
+                    readFiber.schedule(recon, config.getConnectTimeout(), config.getConnectTimeoutUnit());
+                }
+                this.state = pendingConn;
+            } else {
+                pendingConn.handleConnection(nioControls);
             }
-            this.state = pendingConn;
         });
     }
 
@@ -286,18 +304,6 @@ public class WebSocketClient<T> {
             reconnectAllowed = false;
             state = state.stop(nioControls);
         });
-    }
-
-    private SocketChannel openChannel() {
-        try {
-            SocketChannel channel = SocketChannel.open();
-            channel.configureBlocking(false);
-            config.configure(channel);
-            channel.connect(new InetSocketAddress(host, port));
-            return channel;
-        } catch (IOException failed) {
-            throw new RuntimeException(failed);
-        }
     }
 
     public SendResult send(String msg) {
