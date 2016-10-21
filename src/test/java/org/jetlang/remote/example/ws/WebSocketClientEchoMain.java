@@ -40,6 +40,13 @@ public class WebSocketClientEchoMain {
             }
 
             @Override
+            public boolean onException(WebSocketConnection connection, Void state, Exception failed) {
+                System.err.println(failed.getMessage());
+                failed.printStackTrace(System.err);
+                return true;
+            }
+
+            @Override
             public void onBinaryMessage(WebSocketConnection connection, Void state, byte[] result, int size) {
 
             }

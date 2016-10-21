@@ -1,5 +1,7 @@
 package org.jetlang.web;
 
+import java.io.IOException;
+import java.net.SocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
 
@@ -20,6 +22,14 @@ public class WebSocketConnection {
     public WebSocketConnection(NioWriter writer, byte[] maskingBytes) {
         this.writer = writer;
         this.maskingBytes = maskingBytes;
+    }
+
+    public SocketAddress getRemoteAddress() {
+        try {
+            return writer.getChannel().getRemoteAddress();
+        } catch (IOException e) {
+            return null;
+        }
     }
 
     public SendResult send(String msg) {

@@ -102,4 +102,8 @@ public class NioWriter {
 
         }
     }
+
+    public SocketChannel getChannel() {
+        return channel;
+    }
 }

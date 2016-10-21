@@ -242,7 +242,7 @@ public class WebSocketReader<T> {
             }
 
             if (fin) {
-                boolean success = t.onComplete(handler, connection, state, result, totalSize, charset);
+                boolean success = invoke();
                 totalSize = 0;
                 t = null;
                 if (!success) {
@@ -250,6 +250,14 @@ public class WebSocketReader<T> {
                 }
             }
             return contentReader;
+        }
+
+        boolean invoke() {
+            try {
+                return t.onComplete(handler, connection, state, result, totalSize, charset);
+            } catch (Exception failed) {
+                return handler.onException(connection, state, failed);
+            }
         }
 
         @Override

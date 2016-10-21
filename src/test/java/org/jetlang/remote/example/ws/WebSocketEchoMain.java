@@ -60,6 +60,13 @@ public class WebSocketEchoMain {
             public void onError(WebSocketConnection connection, Void state, String msg) {
                 System.err.println(msg);
             }
+
+            @Override
+            public boolean onException(WebSocketConnection connection, Void state, Exception failed) {
+                System.err.print(failed.getMessage());
+                failed.printStackTrace(System.err);
+                return true;
+            }
         };
 
         WebServerConfigBuilder config = new WebServerConfigBuilder();
