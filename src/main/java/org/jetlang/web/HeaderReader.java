@@ -123,7 +123,7 @@ public class HeaderReader {
         throw new RuntimeException(c + " not found in " + new String(array, startPosition, length) + " " + startPosition + " " + length);
     }
 
-    private int stripEndOfLines(ByteBuffer buffer) {
+    private static int stripEndOfLines(ByteBuffer buffer) {
         int count = 0;
         while (buffer.remaining() > 0 && isCurrentCharEol(buffer)) {
             buffer.position(buffer.position() + 1);
@@ -132,7 +132,7 @@ public class HeaderReader {
         return count;
     }
 
-    private boolean isCurrentCharEol(ByteBuffer buffer) {
+    private static boolean isCurrentCharEol(ByteBuffer buffer) {
         return isEol(buffer.get(buffer.position()));
     }
 
