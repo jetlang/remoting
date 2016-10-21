@@ -6,12 +6,15 @@ import org.jetlang.fibers.NioFiber;
 import org.webbitserver.helpers.Base64;
 
 import java.io.IOException;
+import java.net.HttpCookie;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.SelectableChannel;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.SocketChannel;
 import java.nio.charset.Charset;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
@@ -26,6 +29,7 @@ public class WebSocketClient<T> {
     private volatile State state = new NotConnected();
     private final Object writeLock = new Object();
     private final String path;
+    private final List<HttpCookie> cookies = new ArrayList<>();
     private static final Charset ascii = Charset.forName("ASCII");
     private static final Charset utf8 = Charset.forName("UTF-8");
     private static final State ClosedForGood = new State() {
@@ -49,6 +53,10 @@ public class WebSocketClient<T> {
         this.config = config;
         this.handler = handler;
         this.path = path;
+    }
+
+    public void addCookie(HttpCookie httpCookie) {
+        this.cookies.add(httpCookie);
     }
 
     private class Connected implements State {
@@ -245,6 +253,18 @@ public class WebSocketClient<T> {
         request.add("Connection", "Upgrade");
         request.add("Upgrade", "websocket");
         request.add("Sec-WebSocket-Version", "13");
+        if (!cookies.isEmpty()) {
+            StringBuilder builder = new StringBuilder();
+            for (int i = 0; i < cookies.size(); i++) {
+                HttpCookie cookie = cookies.get(i);
+                if (i > 0) {
+                    builder.append("; ");
+                }
+
+                builder.append(cookie.toString());
+            }
+            request.add("Cookie", builder.toString());
+        }
         request.add("Sec-WebSocket-Key", secKey());
         return request.toByteBuffer(ascii);
     }
