@@ -2,6 +2,14 @@ package org.jetlang.remote.example.ws;
 
 import org.jetlang.fibers.NioFiber;
 import org.jetlang.fibers.NioFiberImpl;
+import org.jetlang.web.HttpRequest;
+import org.jetlang.web.RoundRobinClientFactory;
+import org.jetlang.web.SendResult;
+import org.jetlang.web.StaticResource;
+import org.jetlang.web.WebAcceptor;
+import org.jetlang.web.WebServerConfigBuilder;
+import org.jetlang.web.WebSocketConnection;
+import org.jetlang.web.WebSocketHandler;
 
 import javax.websocket.DeploymentException;
 import java.io.File;

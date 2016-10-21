@@ -1,4 +1,4 @@
-package org.jetlang.remote.example.ws;
+package org.jetlang.web;
 
 public class SendResult {
 

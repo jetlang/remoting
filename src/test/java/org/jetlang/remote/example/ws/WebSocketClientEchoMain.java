@@ -1,6 +1,10 @@
 package org.jetlang.remote.example.ws;
 
 import org.jetlang.fibers.NioFiberImpl;
+import org.jetlang.web.HttpRequest;
+import org.jetlang.web.WebSocketClient;
+import org.jetlang.web.WebSocketConnection;
+import org.jetlang.web.WebSocketHandler;
 
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -48,6 +52,7 @@ public class WebSocketClientEchoMain {
             throw new RuntimeException("Never connected");
         } else {
             System.out.println("start = " + start);
+            client.send("Hello World");
         }
         Thread.sleep(Long.MAX_VALUE);
         client.stop();

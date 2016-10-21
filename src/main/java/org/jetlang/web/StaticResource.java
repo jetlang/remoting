@@ -1,4 +1,4 @@
-package org.jetlang.remote.example.ws;
+package org.jetlang.web;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;

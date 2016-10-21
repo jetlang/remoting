@@ -1,9 +1,8 @@
-package org.jetlang.remote.example.ws;
+package org.jetlang.web;
 
 import org.jetlang.fibers.NioChannelHandler;
 import org.jetlang.fibers.NioControls;
 import org.jetlang.fibers.NioFiber;
-import org.webbitserver.helpers.Base64;
 
 import java.io.IOException;
 import java.net.HttpCookie;
@@ -15,11 +14,14 @@ import java.nio.channels.SelectionKey;
 import java.nio.channels.SocketChannel;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 public class WebSocketClient<T> {
+
+    private static final Base64.Encoder encoder = Base64.getEncoder();
 
     private final NioFiber readFiber;
     private final String host;
@@ -316,7 +318,7 @@ public class WebSocketClient<T> {
         for (int i = 0; i < 16; ++i) {
             key[i] = randomByte();
         }
-        return Base64.encode(key);
+        return encoder.encodeToString(key);
     }
 
     public void stop() {
