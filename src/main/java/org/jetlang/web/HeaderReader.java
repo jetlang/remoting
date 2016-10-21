@@ -37,8 +37,6 @@ public class HeaderReader {
             while (buffer.remaining() > 0) {
                 if (isCurrentCharEol(buffer)) {
                     addFirstLine(buffer.array(), startPosition, buffer.position() - startPosition);
-                    //System.out.println("line = " + line);
-                    //buffer.position(buffer.position() + 1);
                     return new HeaderLine(headers);
                 } else {
                     buffer.position(buffer.position() + 1);

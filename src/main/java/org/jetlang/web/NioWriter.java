@@ -49,7 +49,6 @@ public class NioWriter {
                 return new SendResult.FailedWithError(e);
             }
             if (!bb.hasRemaining()) {
-                //System.out.println("sent : " + bytes.length);
                 return SendResult.SUCCESS;
             }
             bufferedWrite = new NioFiberImpl.BufferedWrite<SocketChannel>(channel, new NioFiberImpl.WriteFailure() {
