@@ -8,6 +8,7 @@ import org.webbitserver.helpers.Base64;
 import java.io.IOException;
 import java.net.HttpCookie;
 import java.net.InetSocketAddress;
+import java.net.URI;
 import java.nio.ByteBuffer;
 import java.nio.channels.SelectableChannel;
 import java.nio.channels.SelectionKey;
@@ -46,13 +47,32 @@ public class WebSocketClient<T> {
     };
 
 
-    public WebSocketClient(NioFiber readFiber, String host, int port, Config config, WebSocketHandler<T> handler, String path) {
+    public WebSocketClient(NioFiber readFiber, URI uri, Config config, WebSocketHandler<T> handler) {
         this.readFiber = readFiber;
-        this.host = host;
-        this.port = port;
+        String scheme = uri.getScheme() == null ? "ws" : uri.getScheme();
+        host = uri.getHost() == null ? "localhost" : uri.getHost();
+        port = getPort(uri, scheme);
         this.config = config;
         this.handler = handler;
-        this.path = path;
+        this.path = getPath(uri);
+    }
+
+    private static String getPath(URI uri) {
+        String path = uri.getPath();
+        return "".equals(path) ? "/" : path;
+    }
+
+    private static int getPort(URI uri, String scheme) {
+        int port = uri.getPort();
+        boolean ssl = scheme.equalsIgnoreCase("wss");
+        if (port == -1) {
+            if (scheme.equalsIgnoreCase("ws")) {
+                port = 80;
+            } else if (ssl) {
+                port = 443;
+            }
+        }
+        return port;
     }
 
     public void addCookie(HttpCookie httpCookie) {

@@ -2,13 +2,15 @@ package org.jetlang.remote.example.ws;
 
 import org.jetlang.fibers.NioFiberImpl;
 
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 public class WebSocketClientEchoMain {
 
 
-    public static void main(String[] args) throws InterruptedException {
+    public static void main(String[] args) throws InterruptedException, URISyntaxException {
         NioFiberImpl clientFiber = new NioFiberImpl();
         clientFiber.start();
         WebSocketHandler<Void> clienthandler = new WebSocketHandler<Void>() {
@@ -38,8 +40,8 @@ public class WebSocketClientEchoMain {
 
             }
         };
-        WebSocketClient<Void> client = new WebSocketClient<>(clientFiber, "localhost", 8025,
-                new WebSocketClient.Config(), clienthandler, "/websockets/echo");
+        WebSocketClient<Void> client = new WebSocketClient<>(clientFiber, new URI("ws://localhost:8025/websockets/echo"),
+                new WebSocketClient.Config(), clienthandler);
         CountDownLatch start = client.start();
         if (!start.await(60, TimeUnit.SECONDS)) {
             client.stop();
