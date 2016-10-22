@@ -28,6 +28,10 @@ public class HeaderReader {
         return new FirstLine();
     }
 
+    public NioFiber getReadFiber() {
+        return fiber;
+    }
+
     public class FirstLine implements NioReader.State {
         private final HttpRequest headers = new HttpRequest();
 

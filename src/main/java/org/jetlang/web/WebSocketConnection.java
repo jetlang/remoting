@@ -1,11 +1,18 @@
 package org.jetlang.web;
 
+import org.jetlang.core.Disposable;
+import org.jetlang.core.Scheduler;
+import org.jetlang.fibers.NioFiber;
+
 import java.io.IOException;
 import java.net.SocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
 
-public class WebSocketConnection {
+public class WebSocketConnection implements Scheduler {
 
     public static final byte OPCODE_CONT = 0x0;
     public static final byte OPCODE_TEXT = 0x1;
@@ -17,11 +24,15 @@ public class WebSocketConnection {
     private static final Charset charset = Charset.forName("UTF-8");
     private final NioWriter writer;
     private final byte[] maskingBytes;
+    private NioFiber readFiber;
     private static final SizeType[] sizes = SizeType.values();
+    private boolean closed;
+    private final List<Disposable> disposables = new ArrayList<>();
 
-    public WebSocketConnection(NioWriter writer, byte[] maskingBytes) {
+    public WebSocketConnection(NioWriter writer, byte[] maskingBytes, NioFiber readFiber) {
         this.writer = writer;
         this.maskingBytes = maskingBytes;
+        this.readFiber = readFiber;
     }
 
     public SocketAddress getRemoteAddress() {
@@ -39,6 +50,10 @@ public class WebSocketConnection {
 
     public SendResult sendPong(byte[] bytes, int offset, int length) {
         return send(OPCODE_PONG, bytes, offset, length);
+    }
+
+    void onClose() {
+        closed = true;
     }
 
 
@@ -125,5 +140,47 @@ public class WebSocketConnection {
 
     public void close() {
         writer.close();
+    }
+
+    @Override
+    public Disposable schedule(Runnable runnable, long l, TimeUnit timeUnit) {
+        return readFiber.schedule(runIfActive(runnable), l, timeUnit);
+    }
+
+    private Runnable runIfActive(Runnable runnable) {
+        return () -> {
+            if (!closed) {
+                runnable.run();
+            }
+        };
+    }
+
+    @Override
+    public Disposable scheduleWithFixedDelay(Runnable runnable, long l, long l1, TimeUnit timeUnit) {
+        Disposable disposable = readFiber.scheduleWithFixedDelay(runIfActive(runnable), l, l1, timeUnit);
+        addIfActive(disposable);
+        return disposable;
+    }
+
+    private void addIfActive(Disposable disposable) {
+        readFiber.execute(() -> {
+            if (!closed) {
+                disposables.add(disposable);
+            } else {
+                disposable.dispose();
+            }
+        });
+    }
+
+    @Override
+    public Disposable scheduleAtFixedRate(Runnable runnable, long initialDelay, long delay, TimeUnit timeUnit) {
+        Disposable disposable = readFiber.scheduleAtFixedRate(runIfActive(runnable), initialDelay, delay, timeUnit);
+        addIfActive(disposable);
+        return disposable;
+    }
+
+    @Override
+    public void dispose() {
+        close();
     }
 }

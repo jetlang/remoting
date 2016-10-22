@@ -66,6 +66,7 @@ public class WebSocketReader<T> {
 
     public void doClose() {
         handler.onClose(connection, state);
+        connection.onClose();
         onClose.run();
     }
 

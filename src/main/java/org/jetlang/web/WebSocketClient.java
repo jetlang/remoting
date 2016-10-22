@@ -116,7 +116,7 @@ public class WebSocketClient<T> {
         @Override
         public NioReader.State dispatch(HttpRequest headers, HeaderReader reader, NioWriter writer) {
             byte[] mask = new byte[]{randomByte(), randomByte(), randomByte(), randomByte()};
-            WebSocketConnection connection = new WebSocketConnection(writer, mask);
+            WebSocketConnection connection = new WebSocketConnection(writer, mask, reader.getReadFiber());
             state = new Connected(connection, newChannel);
             WebSocketReader<T> wsReader = new WebSocketReader<>(connection, headers, utf8, handler, () -> WebSocketClient.this.reconnectOnClose(new CountDownLatch(1)));
             latch.countDown();
