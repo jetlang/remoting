@@ -81,6 +81,11 @@ public class WebSocketClient<T> {
         this.cookies.add(httpCookie);
     }
 
+    public void clearCookies() {
+        this.cookies.clear();
+    }
+
+
     private class Connected implements State {
 
         private WebSocketConnection connection;
