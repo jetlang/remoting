@@ -88,10 +88,10 @@ public class WebSocketClient<T> {
 
     private class Connected implements State {
 
-        private WebSocketConnection connection;
+        private WebSocketConnectionImpl connection;
         private SocketChannel newChannel;
 
-        public Connected(WebSocketConnection connection, SocketChannel newChannel) {
+        public Connected(WebSocketConnectionImpl connection, SocketChannel newChannel) {
             this.connection = connection;
             this.newChannel = newChannel;
         }
@@ -121,7 +121,7 @@ public class WebSocketClient<T> {
         @Override
         public NioReader.State dispatch(HttpRequest headers, HeaderReader reader, NioWriter writer) {
             byte[] mask = new byte[]{randomByte(), randomByte(), randomByte(), randomByte()};
-            WebSocketConnection connection = new WebSocketConnection(writer, mask, reader.getReadFiber());
+            WebSocketConnectionImpl connection = new WebSocketConnectionImpl(writer, mask, reader.getReadFiber());
             state = new Connected(connection, newChannel);
             WebSocketReader<T> wsReader = new WebSocketReader<>(connection, headers, utf8, handler, () -> WebSocketClient.this.reconnectOnClose(new CountDownLatch(1)));
             latch.countDown();

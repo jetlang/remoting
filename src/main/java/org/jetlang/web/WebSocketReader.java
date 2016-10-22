@@ -9,13 +9,13 @@ public class WebSocketReader<T> {
     private final StringDecoder charset;
     private final WebSocketHandler<T> handler;
     private final Runnable onClose;
-    private final WebSocketConnection connection;
+    private final WebSocketConnectionImpl connection;
     private final BodyReader bodyRead = new BodyReader();
     private final BodyReader fragment = new BodyReader();
     private final Frame textFrame = new Frame();
     private final T state;
 
-    public WebSocketReader(WebSocketConnection connection, HttpRequest headers, Charset charset, WebSocketHandler<T> handler, Runnable onClose) {
+    public WebSocketReader(WebSocketConnectionImpl connection, HttpRequest headers, Charset charset, WebSocketHandler<T> handler, Runnable onClose) {
         this.connection = connection;
         this.charset = StringDecoder.create(charset);
         this.handler = handler;
@@ -40,17 +40,17 @@ public class WebSocketReader<T> {
             }
             byte opcode = (byte) (b & 0x0F);
             switch (opcode) {
-                case WebSocketConnection.OPCODE_TEXT:
+                case WebSocketConnectionImpl.OPCODE_TEXT:
                     return textFrame.init(ContentType.Text, fin, false);
-                case WebSocketConnection.OPCODE_BINARY:
+                case WebSocketConnectionImpl.OPCODE_BINARY:
                     return textFrame.init(ContentType.Binary, fin, false);
-                case WebSocketConnection.OPCODE_PING:
+                case WebSocketConnectionImpl.OPCODE_PING:
                     return textFrame.init(ContentType.PING, fin, false);
-                case WebSocketConnection.OPCODE_PONG:
+                case WebSocketConnectionImpl.OPCODE_PONG:
                     return textFrame.init(ContentType.PONG, fin, false);
-                case WebSocketConnection.OPCODE_CONT:
+                case WebSocketConnectionImpl.OPCODE_CONT:
                     return textFrame.init(null, fin, true);
-                case WebSocketConnection.OPCODE_CLOSE:
+                case WebSocketConnectionImpl.OPCODE_CLOSE:
                     connection.sendClose();
                     return createClose();
             }
