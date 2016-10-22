@@ -1,6 +1,7 @@
 package org.jetlang.web;
 
 import org.jetlang.core.Disposable;
+import org.jetlang.core.DisposingExecutor;
 import org.jetlang.core.Scheduler;
 import org.jetlang.fibers.NioFiber;
 
@@ -12,7 +13,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
-public class WebSocketConnection implements Scheduler {
+public class WebSocketConnection implements Scheduler, DisposingExecutor {
 
     public static final byte OPCODE_CONT = 0x0;
     public static final byte OPCODE_TEXT = 0x1;
@@ -53,7 +54,10 @@ public class WebSocketConnection implements Scheduler {
     }
 
     void onClose() {
-        closed = true;
+        synchronized (disposables) {
+            closed = true;
+            disposables.forEach(Disposable::dispose);
+        }
     }
 
 
@@ -156,27 +160,55 @@ public class WebSocketConnection implements Scheduler {
     }
 
     @Override
-    public Disposable scheduleWithFixedDelay(Runnable runnable, long l, long l1, TimeUnit timeUnit) {
-        Disposable disposable = readFiber.scheduleWithFixedDelay(runIfActive(runnable), l, l1, timeUnit);
-        addIfActive(disposable);
-        return disposable;
+    public Disposable scheduleWithFixedDelay(Runnable runnable, long initialDelay, long delay, TimeUnit timeUnit) {
+        return register(readFiber.scheduleWithFixedDelay(runIfActive(runnable), initialDelay, delay, timeUnit));
     }
 
-    private void addIfActive(Disposable disposable) {
-        readFiber.execute(() -> {
+    private Disposable register(Disposable disposable) {
+        add(disposable);
+        return () -> {
+            disposable.dispose();
+            remove(disposable);
+        };
+    }
+
+    @Override
+    public Disposable scheduleAtFixedRate(Runnable runnable, long initialDelay, long delay, TimeUnit timeUnit) {
+        return register(readFiber.scheduleAtFixedRate(runIfActive(runnable), initialDelay, delay, timeUnit));
+    }
+
+    @Override
+    public void add(Disposable disposable) {
+        synchronized (disposables) {
             if (!closed) {
                 disposables.add(disposable);
             } else {
                 disposable.dispose();
             }
-        });
+        }
     }
 
     @Override
-    public Disposable scheduleAtFixedRate(Runnable runnable, long initialDelay, long delay, TimeUnit timeUnit) {
-        Disposable disposable = readFiber.scheduleAtFixedRate(runIfActive(runnable), initialDelay, delay, timeUnit);
-        addIfActive(disposable);
-        return disposable;
+    public boolean remove(Disposable disposable) {
+        synchronized (disposables) {
+            return disposables.remove(disposable);
+        }
+    }
+
+    @Override
+    public int size() {
+        synchronized (disposables) {
+            return disposables.size();
+        }
+    }
+
+    @Override
+    public void execute(Runnable command) {
+        readFiber.execute(() -> {
+            if (!closed) {
+                command.run();
+            }
+        });
     }
 
     @Override
