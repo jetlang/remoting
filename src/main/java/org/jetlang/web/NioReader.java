@@ -35,7 +35,6 @@ public class NioReader implements NioChannelHandler {
             }
             if (read > 0) {
                 bb.flip();
-                current.begin(bb);
                 State result = current;
                 while (result != null) {
                     result = current.process(bb);
@@ -43,7 +42,6 @@ public class NioReader implements NioChannelHandler {
                         current = result;
                     }
                 }
-                current.end();
                 bb.compact();
                 if (bb.remaining() == 0 || bb.remaining() < current.minRequiredBytes()) {
                     ByteBuffer resize = bufferAllocate(bb.capacity() + Math.max(1024, current.minRequiredBytes()));
@@ -71,10 +69,6 @@ public class NioReader implements NioChannelHandler {
             return 1;
         }
 
-        default void begin(ByteBuffer bb) throws IOException {
-
-        }
-
         default State process(ByteBuffer bb) {
             if (bb.remaining() < minRequiredBytes()) {
                 return null;
@@ -83,10 +77,6 @@ public class NioReader implements NioChannelHandler {
         }
 
         State processBytes(ByteBuffer bb);
-
-        default void end() {
-
-        }
 
         default boolean continueReading() {
             return true;
