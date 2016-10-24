@@ -24,6 +24,11 @@ public interface WebSocketConnection extends Scheduler, DisposingExecutor {
     SendResult sendPong(byte[] bytes, int offset, int length);
 
     /**
+     * Non-Blocking send
+     */
+    SendResult sendPing(byte[] bytes, int offset, int length);
+
+    /**
      * Non-Blocking send of a binary message.
      */
     SendResult sendBinary(byte[] buffer, int offset, int length);

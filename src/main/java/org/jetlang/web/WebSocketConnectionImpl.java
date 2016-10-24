@@ -54,6 +54,11 @@ public class WebSocketConnectionImpl implements WebSocketConnection {
         return send(OPCODE_PONG, bytes, offset, length);
     }
 
+    @Override
+    public SendResult sendPing(byte[] bytes, int offset, int length) {
+        return send(OPCODE_PING, bytes, offset, length);
+    }
+
     void onClose() {
         synchronized (disposables) {
             closed = true;
