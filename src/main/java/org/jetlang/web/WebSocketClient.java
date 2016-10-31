@@ -270,22 +270,37 @@ public class WebSocketClient<T> {
             if (isReconnect && !reconnectAllowed) {
                 return;
             }
-            state = state.stop(nioControls);
-            AwaitingConnection pendingConn = attemptConnect(latch);
-            if (!pendingConn.connected) {
-                if (reconnectAllowed && config.getConnectTimeout() > 0) {
-                    Runnable recon = () -> {
-                        if (this.state == pendingConn) {
-                            this.state = pendingConn.stop(nioControls);
-                        }
-                    };
-                    readFiber.schedule(recon, config.getConnectTimeout(), config.getConnectTimeoutUnit());
+            if (canAttemptConnect()) {
+                state = state.stop(nioControls);
+                AwaitingConnection pendingConn = attemptConnect(latch);
+                if (!pendingConn.connected) {
+                    if (reconnectAllowed && config.getConnectTimeout() > 0) {
+                        Runnable recon = () -> {
+                            if (this.state == pendingConn) {
+                                this.state = pendingConn.stop(nioControls);
+                            }
+                        };
+                        readFiber.schedule(recon, config.getConnectTimeout(), config.getConnectTimeoutUnit());
+                    }
+                    this.state = pendingConn;
+                } else {
+                    pendingConn.handleConnection(nioControls);
                 }
-                this.state = pendingConn;
             } else {
-                pendingConn.handleConnection(nioControls);
+                readFiber.schedule(() -> {
+                    start(isReconnect, latch);
+                }, config.getConnectTimeout(), config.getConnectTimeoutUnit());
             }
         });
+    }
+
+    /**
+     * hook method to allow subclasses to implement custom connect conditions.
+     *
+     * @return false to delay connection for connect timeout.
+     */
+    protected boolean canAttemptConnect() {
+        return true;
     }
 
     private void reconnect(CountDownLatch latch) {
