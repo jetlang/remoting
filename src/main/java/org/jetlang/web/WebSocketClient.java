@@ -81,6 +81,18 @@ public class WebSocketClient<T> {
         this.cookies.add(httpCookie);
     }
 
+    public void setCookie(HttpCookie httpCookie) {
+        String name = httpCookie.getName();
+        removeCookie(name);
+        addCookie(httpCookie);
+    }
+
+    public void removeCookie(String name) {
+        this.cookies.removeIf((cookie) -> {
+            return cookie.getName().equals(name);
+        });
+    }
+
     public void clearCookies() {
         this.cookies.clear();
     }
