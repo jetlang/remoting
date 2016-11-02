@@ -11,18 +11,15 @@ import org.jetlang.web.WebServerConfigBuilder;
 import org.jetlang.web.WebSocketConnection;
 import org.jetlang.web.WebSocketHandler;
 
-import javax.websocket.DeploymentException;
 import java.io.File;
-import java.io.IOException;
-import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
 
-public class WebSocketEchoMain {
+public class WebSocketServerEchoMain {
 
 
-    public static void main(String[] args) throws InterruptedException, URISyntaxException, IOException, DeploymentException {
+    public static void main(String[] args) throws InterruptedException {
 
         NioFiberImpl acceptorFiber = new NioFiberImpl();
         acceptorFiber.start();
@@ -37,12 +34,7 @@ public class WebSocketEchoMain {
             public void onMessage(WebSocketConnection connection, Void nothing, String msg) {
                 SendResult send = connection.send(msg);
                 if (send instanceof SendResult.Buffered) {
-//                    try {
-//                        //connection.close();
                     System.out.println("Buffered: " + ((SendResult.Buffered) send).getTotalBufferedInBytes());
-//                    } catch (IOException e) {
-//                        throw new RuntimeException(e);
-//                    }
                 }
             }
 
