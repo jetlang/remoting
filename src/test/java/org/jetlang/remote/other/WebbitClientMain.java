@@ -1,4 +1,4 @@
-package org.jetlang.remote.example.ws;
+package org.jetlang.remote.other;
 
 import org.webbitserver.BaseWebSocketHandler;
 import org.webbitserver.WebSocketConnection;
