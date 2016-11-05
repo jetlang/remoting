@@ -1,10 +1,11 @@
-Jetlang Remoting provides a language agnostic wire level protocol and threading model for asynchronous distributed messaging.
+Jetlang Remoting project provides apis for connecting distributed systems. Jetlang provides a language agnostic wire level protocol and threading model for asynchronous distributed messaging.
+The library also contains client and server websocket implementations.
 
 The latest version is available in the maven repository.
 
 https://repo1.maven.org/maven2/org/jetlang/jetlang.remoting/
 
-#Features
+#Jetlang Remoting Api Features
 
   * Language agnostic messaging protocol - https://github.com/jetlang/remoting/wiki
   * Stateful distributed sessions
@@ -22,4 +23,16 @@ https://repo1.maven.org/maven2/org/jetlang/jetlang.remoting/
 #Getting Started
 
 https://github.com/jetlang/remoting/tree/master/src/test/java/org/jetlang/remote/example/chat
+
+#WebSocket Features
+  * Client and Server implementations
+  * The jetlang core library is the only dependency
+  * Websocket connections can subscribe and schedule jetlang events
+  * Low latency
+  * Minimal allocations
+  * Non-blocking sends
+
+#Getting Started
+
+https://github.com/jetlang/remoting/tree/master/src/test/java/org/jetlang/remote/example/ws
   
