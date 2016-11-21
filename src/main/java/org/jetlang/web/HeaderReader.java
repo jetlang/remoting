@@ -18,6 +18,7 @@ public class HeaderReader<T> {
     private boolean sessionInit;
     private T session;
     private final NioWriter writer;
+    private final HttpResponseWriter httpWriter;
 
     public HeaderReader(SocketChannel channel, NioFiber fiber, NioControls controls, HttpRequestHandler<T> handler, SessionFactory<T> sessionFactory) {
         this.channel = channel;
@@ -26,6 +27,7 @@ public class HeaderReader<T> {
         this.handler = handler;
         this.sessionFactory = sessionFactory;
         this.writer = new NioWriter(new Object(), channel, fiber);
+        this.httpWriter = new HttpResponseWriter(writer);
     }
 
     public NioReader.State start() {
@@ -40,6 +42,10 @@ public class HeaderReader<T> {
         if (sessionInit) {
             sessionFactory.onClose(session);
         }
+    }
+
+    public HttpResponseWriter getHttpResponseWriter() {
+        return httpWriter;
     }
 
     public class FirstLine implements NioReader.State {

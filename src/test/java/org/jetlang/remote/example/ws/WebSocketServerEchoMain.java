@@ -7,7 +7,7 @@ import org.jetlang.web.HttpRequest;
 import org.jetlang.web.RoundRobinClientFactory;
 import org.jetlang.web.SendResult;
 import org.jetlang.web.SessionFactory;
-import org.jetlang.web.StaticResource;
+import org.jetlang.web.StaticHtml;
 import org.jetlang.web.WebAcceptor;
 import org.jetlang.web.WebServerConfigBuilder;
 import org.jetlang.web.WebSocketConnection;
@@ -112,7 +112,7 @@ public class WebSocketServerEchoMain {
         WebServerConfigBuilder<MyConnectionState> config = new WebServerConfigBuilder<>(fact);
         config.add("/websockets/echo", handler);
         final URL resource = Thread.currentThread().getContextClassLoader().getResource("websocket.html");
-        config.add("/", new StaticResource(new File(resource.getFile()).toPath()));
+        config.add("/", new StaticHtml(new File(resource.getFile()).toPath()));
 
         final int cores = Runtime.getRuntime().availableProcessors();
         RoundRobinClientFactory readers = new RoundRobinClientFactory();
