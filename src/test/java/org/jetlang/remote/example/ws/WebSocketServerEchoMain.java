@@ -5,6 +5,7 @@ import org.jetlang.fibers.NioFiberImpl;
 import org.jetlang.web.HttpRequest;
 import org.jetlang.web.RoundRobinClientFactory;
 import org.jetlang.web.SendResult;
+import org.jetlang.web.SessionFactory;
 import org.jetlang.web.StaticResource;
 import org.jetlang.web.WebAcceptor;
 import org.jetlang.web.WebServerConfigBuilder;
@@ -14,7 +15,9 @@ import org.jetlang.web.WebSocketHandler;
 import java.io.File;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class WebSocketServerEchoMain {
 
@@ -23,15 +26,15 @@ public class WebSocketServerEchoMain {
 
         NioFiberImpl acceptorFiber = new NioFiberImpl();
         acceptorFiber.start();
-        WebSocketHandler<Void> handler = new WebSocketHandler<Void>() {
+        WebSocketHandler<Void, Map<String, String>> handler = new WebSocketHandler<Void, Map<String, String>>() {
             @Override
-            public Void onOpen(WebSocketConnection connection, HttpRequest headers) {
+            public Map<String, String> onOpen(WebSocketConnection connection, HttpRequest headers, Void httpSessionState) {
                 System.out.println("Open!");
-                return null;
+                return new HashMap<>();
             }
 
             @Override
-            public void onMessage(WebSocketConnection connection, Void nothing, String msg) {
+            public void onMessage(WebSocketConnection connection, Map<String, String> wsState, String msg) {
                 SendResult send = connection.send(msg);
                 if (send instanceof SendResult.Buffered) {
                     System.out.println("Buffered: " + ((SendResult.Buffered) send).getTotalBufferedInBytes());
@@ -39,29 +42,29 @@ public class WebSocketServerEchoMain {
             }
 
             @Override
-            public void onBinaryMessage(WebSocketConnection connection, Void state, byte[] result, int size) {
+            public void onBinaryMessage(WebSocketConnection connection, Map<String, String> state, byte[] result, int size) {
                 connection.sendBinary(result, 0, size);
             }
 
             @Override
-            public void onClose(WebSocketConnection connection, Void nothing) {
+            public void onClose(WebSocketConnection connection, Map<String, String> nothing) {
                 System.out.println("WS Close");
             }
 
             @Override
-            public void onError(WebSocketConnection connection, Void state, String msg) {
+            public void onError(WebSocketConnection connection, Map<String, String> state, String msg) {
                 System.err.println(msg);
             }
 
             @Override
-            public boolean onException(WebSocketConnection connection, Void state, Exception failed) {
+            public boolean onException(WebSocketConnection connection, Map<String, String> state, Exception failed) {
                 System.err.print(failed.getMessage());
                 failed.printStackTrace(System.err);
                 return true;
             }
         };
 
-        WebServerConfigBuilder config = new WebServerConfigBuilder();
+        WebServerConfigBuilder<Void> config = new WebServerConfigBuilder<>(SessionFactory.none());
         config.add("/websockets/echo", handler);
         final URL resource = Thread.currentThread().getContextClassLoader().getResource("websocket.html");
         config.add("/", new StaticResource(new File(resource.getFile()).toPath()));

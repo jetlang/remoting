@@ -1,8 +1,8 @@
 package org.jetlang.web;
 
-public interface WebSocketHandler<T> {
+public interface WebSocketHandler<S, T> {
 
-    T onOpen(WebSocketConnection connection, HttpRequest headers);
+    T onOpen(WebSocketConnection connection, HttpRequest headers, S sessionState);
 
     void onMessage(WebSocketConnection connection, T state, String msg);
 

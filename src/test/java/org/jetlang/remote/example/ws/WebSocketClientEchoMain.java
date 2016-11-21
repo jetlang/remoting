@@ -2,12 +2,14 @@ package org.jetlang.remote.example.ws;
 
 import org.jetlang.fibers.NioFiberImpl;
 import org.jetlang.web.HttpRequest;
+import org.jetlang.web.SessionFactory;
 import org.jetlang.web.WebSocketClient;
 import org.jetlang.web.WebSocketConnection;
 import org.jetlang.web.WebSocketHandler;
 
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
@@ -17,9 +19,9 @@ public class WebSocketClientEchoMain {
     public static void main(String[] args) throws InterruptedException, URISyntaxException {
         NioFiberImpl clientFiber = new NioFiberImpl();
         clientFiber.start();
-        WebSocketHandler<Void> clienthandler = new WebSocketHandler<Void>() {
+        WebSocketHandler<Map<String, Object>, Void> clienthandler = new WebSocketHandler<Map<String, Object>, Void>() {
             @Override
-            public Void onOpen(WebSocketConnection connection, HttpRequest headers) {
+            public Void onOpen(WebSocketConnection connection, HttpRequest headers, Map<String, Object> state) {
                 System.out.println("WebSocketClientEchoMain.onOpen");
                 return null;
             }
@@ -51,8 +53,8 @@ public class WebSocketClientEchoMain {
 
             }
         };
-        WebSocketClient<Void> client = new WebSocketClient<>(clientFiber, new URI("ws://localhost:8025/websockets/echo"),
-                new WebSocketClient.Config(), clienthandler);
+        WebSocketClient<Map<String, Object>, Void> client = new WebSocketClient<Map<String, Object>, Void>(clientFiber, new URI("ws://localhost:8025/websockets/echo"),
+                new WebSocketClient.Config(), clienthandler, SessionFactory.mapPerClient());
         CountDownLatch start = client.start();
         if (!start.await(60, TimeUnit.SECONDS)) {
             client.stop();

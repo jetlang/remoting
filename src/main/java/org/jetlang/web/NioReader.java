@@ -11,18 +11,18 @@ import java.nio.channels.SelectableChannel;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.SocketChannel;
 
-public class NioReader implements NioChannelHandler {
+public class NioReader<T> implements NioChannelHandler {
 
-    private final HeaderReader headerReader;
+    private final HeaderReader<T> headerReader;
     private ByteBuffer bb;
     private final SocketChannel channel;
     private final int maxReadLoops;
     private State current;
 
-    public NioReader(SocketChannel channel, NioFiber fiber, NioControls controls, HttpRequestHandler handler, int readBufferSizeInBytes, int maxReadLoops) {
+    public NioReader(SocketChannel channel, NioFiber fiber, NioControls controls, HttpRequestHandler<T> handler, int readBufferSizeInBytes, int maxReadLoops, SessionFactory<T> fact) {
         this.channel = channel;
         this.maxReadLoops = maxReadLoops;
-        this.headerReader = new HeaderReader(channel, fiber, controls, handler);
+        this.headerReader = new HeaderReader<>(channel, fiber, controls, handler, fact);
         this.current = headerReader.start();
         this.bb = bufferAllocate(readBufferSizeInBytes);
     }
@@ -60,6 +60,7 @@ public class NioReader implements NioChannelHandler {
     }
 
     public void onClosed() {
+        this.headerReader.onClose();
         current.onClosed();
     }
 

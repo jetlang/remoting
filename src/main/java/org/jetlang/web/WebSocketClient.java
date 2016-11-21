@@ -19,7 +19,7 @@ import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
-public class WebSocketClient<T> {
+public class WebSocketClient<S, T> {
 
     private static final Base64.Encoder encoder = Base64.getEncoder();
 
@@ -27,7 +27,7 @@ public class WebSocketClient<T> {
     private final String host;
     private final int port;
     private final Config config;
-    private final WebSocketHandler<T> handler;
+    private final WebSocketHandler<S, T> handler;
     private boolean reconnectAllowed = true;
     private volatile State state = new NotConnected();
     private final Object writeLock = new Object();
@@ -47,10 +47,12 @@ public class WebSocketClient<T> {
             return SendResult.Closed;
         }
     };
+    private final SessionFactory<S> sessionFactory;
 
 
-    public WebSocketClient(NioFiber readFiber, URI uri, Config config, WebSocketHandler<T> handler) {
+    public WebSocketClient(NioFiber readFiber, URI uri, Config config, WebSocketHandler<S, T> handler, SessionFactory<S> sessionFactory) {
         this.readFiber = readFiber;
+        this.sessionFactory = sessionFactory;
         String scheme = uri.getScheme() == null ? "ws" : uri.getScheme();
         host = uri.getHost() == null ? "localhost" : uri.getHost();
         port = getPort(uri, scheme);
@@ -120,22 +122,24 @@ public class WebSocketClient<T> {
         }
     }
 
-    private class WebSocketClientReader implements State, HttpRequestHandler {
+    private class WebSocketClientReader<S, T> implements State, HttpRequestHandler<S> {
 
         private final SocketChannel newChannel;
         private final CountDownLatch latch;
+        private final WebSocketHandler<S, T> handler;
 
-        public WebSocketClientReader(SocketChannel newChannel, NioWriter writer, NioControls nioControls, CountDownLatch latch) {
+        public WebSocketClientReader(SocketChannel newChannel, NioWriter writer, NioControls nioControls, CountDownLatch latch, WebSocketHandler<S, T> handler) {
             this.newChannel = newChannel;
             this.latch = latch;
+            this.handler = handler;
         }
 
         @Override
-        public NioReader.State dispatch(HttpRequest headers, HeaderReader reader, NioWriter writer) {
+        public NioReader.State dispatch(HttpRequest headers, HeaderReader reader, NioWriter writer, S sessionState) {
             byte[] mask = new byte[]{randomByte(), randomByte(), randomByte(), randomByte()};
             WebSocketConnectionImpl connection = new WebSocketConnectionImpl(writer, mask, reader.getReadFiber());
             state = new Connected(connection, newChannel);
-            WebSocketReader<T> wsReader = new WebSocketReader<>(connection, headers, utf8, handler, () -> WebSocketClient.this.reconnectOnClose(new CountDownLatch(1)));
+            WebSocketReader<S, T> wsReader = new WebSocketReader<S, T>(connection, headers, utf8, this.handler, () -> WebSocketClient.this.reconnectOnClose(new CountDownLatch(1)), sessionState);
             latch.countDown();
             return wsReader.start();
         }
@@ -201,11 +205,11 @@ public class WebSocketClient<T> {
 
         public void handleConnection(NioControls nioControls) {
             writer.send(createHandshake());
-            WebSocketClientReader webSocketClientReader = new WebSocketClientReader(newChannel, writer, nioControls, latch);
+            WebSocketClientReader<S, T> webSocketClientReader = new WebSocketClientReader<>(newChannel, writer, nioControls, latch, handler);
             state = webSocketClientReader;
             nioControls.addHandler(new NioReader(newChannel, readFiber, nioControls, webSocketClientReader,
                     config.getReadBufferSizeInBytes(),
-                    config.getMaxReadLoops()));
+                    config.getMaxReadLoops(), sessionFactory));
         }
 
         @Override

@@ -5,7 +5,7 @@ import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
-public class StaticResource implements Handler {
+public class StaticResource<T> implements Handler<T> {
     private final Path resource;
 
     public StaticResource(Path resource) {
@@ -13,7 +13,7 @@ public class StaticResource implements Handler {
     }
 
     @Override
-    public NioReader.State start(HttpRequest headers, HeaderReader headerReader, NioWriter writer) {
+    public NioReader.State start(HttpRequest headers, HeaderReader headerReader, NioWriter writer, T sessionState) {
         StringBuilder response = new StringBuilder();
         response.append("HTTP/1.0 200 OK\r\n");
         response.append("Content-Type: text/html\r\n");

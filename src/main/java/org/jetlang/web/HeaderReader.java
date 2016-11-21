@@ -7,20 +7,24 @@ import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
 import java.nio.charset.Charset;
 
-public class HeaderReader {
+public class HeaderReader<T> {
 
     public static final Charset ascii = Charset.forName("ASCII");
     private final SocketChannel channel;
     private final NioFiber fiber;
     private final NioControls controls;
-    private final HttpRequestHandler handler;
+    private final HttpRequestHandler<T> handler;
+    private final SessionFactory<T> sessionFactory;
+    private boolean sessionInit;
+    private T session;
     private final NioWriter writer;
 
-    public HeaderReader(SocketChannel channel, NioFiber fiber, NioControls controls, HttpRequestHandler handler) {
+    public HeaderReader(SocketChannel channel, NioFiber fiber, NioControls controls, HttpRequestHandler<T> handler, SessionFactory<T> sessionFactory) {
         this.channel = channel;
         this.fiber = fiber;
         this.controls = controls;
         this.handler = handler;
+        this.sessionFactory = sessionFactory;
         this.writer = new NioWriter(new Object(), channel, fiber);
     }
 
@@ -30,6 +34,12 @@ public class HeaderReader {
 
     public NioFiber getReadFiber() {
         return fiber;
+    }
+
+    public void onClose() {
+        if (sessionInit) {
+            sessionFactory.onClose(session);
+        }
     }
 
     public class FirstLine implements NioReader.State {
@@ -76,7 +86,11 @@ public class HeaderReader {
             int stripped = stripEndOfLines(buffer);
             eol += stripped;
             if (eol == 4) {
-                return handler.dispatch(headers, HeaderReader.this, writer);
+                if (!sessionInit) {
+                    sessionInit = true;
+                    session = sessionFactory.create(channel, fiber, controls, headers);
+                }
+                return handler.dispatch(headers, HeaderReader.this, writer, session);
             }
             if (buffer.hasRemaining() && eol == 2) {
                 return new ReadHeader(headers);

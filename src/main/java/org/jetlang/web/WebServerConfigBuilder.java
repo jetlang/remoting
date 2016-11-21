@@ -13,12 +13,17 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 
-public class WebServerConfigBuilder {
+public class WebServerConfigBuilder<S> {
 
+    private final SessionFactory<S> factory;
     private Charset websocketCharset = Charset.forName("UTF-8");
     private List<Consumer<Map<String, Handler>>> events = new ArrayList<>();
     private int readBufferSizeInBytes = 1024;
     private int maxReadLoops = 50;
+
+    public WebServerConfigBuilder(SessionFactory<S> factory) {
+        this.factory = factory;
+    }
 
     public int getMaxReadLoops() {
         return maxReadLoops;
@@ -45,22 +50,22 @@ public class WebServerConfigBuilder {
         return this;
     }
 
-    public <T> WebServerConfigBuilder add(String path, WebSocketHandler<T> handler) {
+    public <T> WebServerConfigBuilder add(String path, WebSocketHandler<S, T> handler) {
         events.add((map) -> {
-            map.put(path, new Handler() {
+            map.put(path, new Handler<S>() {
                 private final MessageDigest msgDigest = getDigest("SHA-1");
                 private final Charset local = websocketCharset;
 
                 @Override
-                public NioReader.State start(HttpRequest headers, HeaderReader headerReader, NioWriter writer) {
+                public NioReader.State start(HttpRequest headers, HeaderReader headerReader, NioWriter writer, S sessionState) {
                     StringBuilder handshake = new StringBuilder("HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: ");
                     String key = headers.get("Sec-WebSocket-Key") + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
                     String reply = DatatypeConverter.printBase64Binary(msgDigest.digest(key.getBytes(headerReader.ascii)));
                     handshake.append(reply).append("\r\n\r\n");
                     writer.send(ByteBuffer.wrap(handshake.toString().getBytes(headerReader.ascii)));
                     WebSocketConnectionImpl connection = new WebSocketConnectionImpl(writer, new byte[0], headerReader.getReadFiber());
-                    WebSocketReader<T> reader = new WebSocketReader<>(connection, headers, local, handler, () -> {
-                    });
+                    WebSocketReader<S, T> reader = new WebSocketReader<S, T>(connection, headers, local, handler, () -> {
+                    }, sessionState);
                     return reader.start();
                 }
             });
@@ -83,13 +88,13 @@ public class WebServerConfigBuilder {
         }
     }
 
-    public WebDispatcher create(NioFiber readFiber) {
+    public WebDispatcher<S> create(NioFiber readFiber) {
         Map<String, Handler> handlerMap = new HashMap<>();
         for (Consumer<Map<String, Handler>> event : events) {
             event.accept(handlerMap);
         }
         HttpRequestHandler handler = createHandler(handlerMap);
-        return new WebDispatcher(readFiber, handler, readBufferSizeInBytes, maxReadLoops);
+        return new WebDispatcher<>(readFiber, handler, readBufferSizeInBytes, maxReadLoops, factory);
     }
 
     protected HttpRequestHandler createHandler(final Map<String, Handler> handlerMap) {
