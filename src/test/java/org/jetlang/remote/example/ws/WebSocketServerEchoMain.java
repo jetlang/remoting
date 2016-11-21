@@ -18,9 +18,7 @@ import java.net.URL;
 import java.nio.channels.SocketChannel;
 import java.util.ArrayList;
 import java.util.Date;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 public class WebSocketServerEchoMain {
 
@@ -41,20 +39,36 @@ public class WebSocketServerEchoMain {
         }
     }
 
+    static class MyWebsocketState {
+
+        private final MyConnectionState httpSessionState;
+
+        public MyWebsocketState(MyConnectionState httpSessionState) {
+            this.httpSessionState = httpSessionState;
+        }
+
+        @Override
+        public String toString() {
+            return "MyWebsocketState{" +
+                    "httpSessionState=" + httpSessionState +
+                    '}';
+        }
+    }
+
 
     public static void main(String[] args) throws InterruptedException {
 
         NioFiberImpl acceptorFiber = new NioFiberImpl();
         acceptorFiber.start();
-        WebSocketHandler<MyConnectionState, Map<String, String>> handler = new WebSocketHandler<MyConnectionState, Map<String, String>>() {
+        WebSocketHandler<MyConnectionState, MyWebsocketState> handler = new WebSocketHandler<MyConnectionState, MyWebsocketState>() {
             @Override
-            public Map<String, String> onOpen(WebSocketConnection connection, HttpRequest headers, MyConnectionState httpSessionState) {
+            public MyWebsocketState onOpen(WebSocketConnection connection, HttpRequest headers, MyConnectionState httpSessionState) {
                 System.out.println("Open!");
-                return new HashMap<>();
+                return new MyWebsocketState(httpSessionState);
             }
 
             @Override
-            public void onMessage(WebSocketConnection connection, Map<String, String> wsState, String msg) {
+            public void onMessage(WebSocketConnection connection, MyWebsocketState wsState, String msg) {
                 SendResult send = connection.send(msg);
                 if (send instanceof SendResult.Buffered) {
                     System.out.println("Buffered: " + ((SendResult.Buffered) send).getTotalBufferedInBytes());
@@ -62,22 +76,22 @@ public class WebSocketServerEchoMain {
             }
 
             @Override
-            public void onBinaryMessage(WebSocketConnection connection, Map<String, String> state, byte[] result, int size) {
+            public void onBinaryMessage(WebSocketConnection connection, MyWebsocketState state, byte[] result, int size) {
                 connection.sendBinary(result, 0, size);
             }
 
             @Override
-            public void onClose(WebSocketConnection connection, Map<String, String> nothing) {
-                System.out.println("WS Close");
+            public void onClose(WebSocketConnection connection, MyWebsocketState nothing) {
+                System.out.println("WS Close: " + nothing);
             }
 
             @Override
-            public void onError(WebSocketConnection connection, Map<String, String> state, String msg) {
+            public void onError(WebSocketConnection connection, MyWebsocketState state, String msg) {
                 System.err.println(msg);
             }
 
             @Override
-            public boolean onException(WebSocketConnection connection, Map<String, String> state, Exception failed) {
+            public boolean onException(WebSocketConnection connection, MyWebsocketState state, Exception failed) {
                 System.err.print(failed.getMessage());
                 failed.printStackTrace(System.err);
                 return true;
