@@ -7,9 +7,11 @@ public interface HttpRequestHandler<T> {
 
     class Default<T> implements HttpRequestHandler<T> {
         private Map<String, Handler<T>> handlerMap;
+        private final Handler<T> defaultHandler;
 
-        public Default(Map<String, Handler<T>> handlerMap) {
+        public Default(Map<String, Handler<T>> handlerMap, Handler<T> defaultHandler) {
             this.handlerMap = handlerMap;
+            this.defaultHandler = defaultHandler;
         }
 
         @Override
@@ -18,8 +20,7 @@ public interface HttpRequestHandler<T> {
             if (h != null) {
                 return h.start(headers, reader, writer, sessionState);
             } else {
-                reader.getHttpResponseWriter().sendResponse("404 Not Found", "text/plain", headers.getRequestUri() + " Not Found", HeaderReader.ascii);
-                return reader.start();
+                return defaultHandler.start(headers, reader, writer, sessionState);
             }
         }
     }

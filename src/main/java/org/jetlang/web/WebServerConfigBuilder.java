@@ -26,6 +26,13 @@ public class WebServerConfigBuilder<S> {
             return handler;
         }
     };
+    private Handler<S> defaultHandler = new Handler<S>() {
+        @Override
+        public NioReader.State start(HttpRequest headers, HeaderReader<S> reader, NioWriter writer, S sessionState) {
+            reader.getHttpResponseWriter().sendResponse("404 Not Found", "text/plain", headers.getRequestUri() + " Not Found", HeaderReader.ascii);
+            return reader.start();
+        }
+    };
 
     public WebServerConfigBuilder(SessionFactory<S> factory) {
         this.factory = factory;
@@ -37,6 +44,14 @@ public class WebServerConfigBuilder<S> {
 
     public void setDecorator(RequestDecorator<S> decorator) {
         this.decorator = decorator;
+    }
+
+    public Handler<S> getDefaultHandler() {
+        return defaultHandler;
+    }
+
+    public void setDefaultHandler(Handler<S> defaultHandler) {
+        this.defaultHandler = defaultHandler;
     }
 
     public int getMaxReadLoops() {
@@ -71,7 +86,7 @@ public class WebServerConfigBuilder<S> {
                 private final Charset local = websocketCharset;
 
                 @Override
-                public NioReader.State start(HttpRequest headers, HeaderReader headerReader, NioWriter writer, S sessionState) {
+                public NioReader.State start(HttpRequest headers, HeaderReader<S> headerReader, NioWriter writer, S sessionState) {
                     StringBuilder handshake = new StringBuilder("HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: ");
                     String key = headers.get("Sec-WebSocket-Key") + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
                     String reply = DatatypeConverter.printBase64Binary(msgDigest.digest(key.getBytes(headerReader.ascii)));
@@ -117,6 +132,6 @@ public class WebServerConfigBuilder<S> {
     }
 
     protected HttpRequestHandler<S> createHandler(final Map<String, Handler<S>> handlerMap) {
-        return new HttpRequestHandler.Default<>(handlerMap);
+        return new HttpRequestHandler.Default<>(handlerMap, defaultHandler);
     }
 }
