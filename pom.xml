@@ -5,7 +5,7 @@
     <artifactId>jetlang.remoting</artifactId>
     <packaging>jar</packaging>
 
-    <version>0.6.18</version>
+    <version>0.6.18-SNAPSHOT</version>
     <name>Jetlang Remoting</name>
     <url>hhttps://github.com/jetlang/remoting</url>
 
@@ -26,7 +26,7 @@
         <connection>scm:git:https://github.com/jetlang/remoting.git</connection>
         <developerConnection>scm:git:git@github.com:jetlang/remoting.git</developerConnection>
         <url>https://github.com/jetlang/remoting</url>
-        <tag>jetlang.remoting-0.6.18</tag>
+        <tag>HEAD</tag>
     </scm>
 
     <developers>
