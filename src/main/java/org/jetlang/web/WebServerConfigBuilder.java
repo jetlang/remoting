@@ -73,7 +73,7 @@ public class WebServerConfigBuilder<S> {
         return this;
     }
 
-    public WebServerConfigBuilder add(String path, StaticHtml rs) {
+    public WebServerConfigBuilder add(String path, HttpHandler rs) {
         events.add((map) -> {
             map.put(path, rs);
         });
