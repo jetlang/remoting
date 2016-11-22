@@ -36,4 +36,11 @@ public class HttpResponseWriter {
         response.append("Content-Length: ").append(b.length).append("\r\n\r\n");
         return send(ByteBuffer.wrap(response.toString().getBytes()));
     }
+
+    public SendResult sendStatusOnly(String statusTxt) {
+        StringBuilder response = new StringBuilder();
+        response.append("HTTP/1.0 ").append(statusTxt).append("\r\n\r\n");
+        return send(ByteBuffer.wrap(response.toString().getBytes()));
+    }
+
 }
