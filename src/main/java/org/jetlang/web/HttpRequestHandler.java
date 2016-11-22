@@ -18,8 +18,7 @@ public interface HttpRequestHandler<T> {
             if (h != null) {
                 return h.start(headers, reader, writer, sessionState);
             } else {
-                TextPlainResponse response = new TextPlainResponse(404, "Not Found", headers.getRequestUri() + " Not Found", HeaderReader.ascii);
-                writer.send(response.getByteBuffer());
+                reader.getHttpResponseWriter().sendResponse("404 Not Found", "text/plain", headers.getRequestUri() + " Not Found", HeaderReader.ascii);
                 return reader.start();
             }
         }
