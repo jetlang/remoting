@@ -5,7 +5,7 @@ import org.jetlang.fibers.NioFiber;
 public interface HttpHandler<T> extends Handler<T> {
 
     @Override
-    default NioReader.State start(HttpRequest headers, HeaderReader headerReader, NioWriter writer, T sessionState) {
+    default NioReader.State start(HttpRequest headers, HeaderReader<T> headerReader, NioWriter writer, T sessionState) {
         handle(headerReader.getReadFiber(), headers, headerReader.getHttpResponseWriter(), sessionState);
         return headerReader.start();
     }
