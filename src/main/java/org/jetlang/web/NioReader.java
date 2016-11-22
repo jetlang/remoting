@@ -64,7 +64,7 @@ public class NioReader<T> implements NioChannelHandler {
         current.onClosed();
     }
 
-    interface State {
+    public interface State {
 
         default int minRequiredBytes() {
             return 1;

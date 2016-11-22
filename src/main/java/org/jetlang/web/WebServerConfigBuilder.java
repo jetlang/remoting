@@ -20,9 +20,23 @@ public class WebServerConfigBuilder<S> {
     private List<Consumer<Map<String, Handler<S>>>> events = new ArrayList<>();
     private int readBufferSizeInBytes = 1024;
     private int maxReadLoops = 50;
+    private RequestDecorator<S> decorator = new RequestDecorator<S>() {
+        @Override
+        public HttpRequestHandler<S> decorate(HttpRequestHandler<S> handler) {
+            return handler;
+        }
+    };
 
     public WebServerConfigBuilder(SessionFactory<S> factory) {
         this.factory = factory;
+    }
+
+    public RequestDecorator<S> getDecorator() {
+        return decorator;
+    }
+
+    public void setDecorator(RequestDecorator<S> decorator) {
+        this.decorator = decorator;
     }
 
     public int getMaxReadLoops() {
@@ -88,12 +102,17 @@ public class WebServerConfigBuilder<S> {
         }
     }
 
+    public interface RequestDecorator<S> {
+
+        HttpRequestHandler<S> decorate(HttpRequestHandler<S> handler);
+    }
+
     public WebDispatcher<S> create(NioFiber readFiber) {
         Map<String, Handler<S>> handlerMap = new HashMap<>();
         for (Consumer<Map<String, Handler<S>>> event : events) {
             event.accept(handlerMap);
         }
-        HttpRequestHandler<S> handler = createHandler(handlerMap);
+        HttpRequestHandler<S> handler = decorator.decorate(createHandler(handlerMap));
         return new WebDispatcher<>(readFiber, handler, readBufferSizeInBytes, maxReadLoops, factory);
     }
 
