@@ -32,8 +32,8 @@ public class HttpResponseWriter {
         StringBuilder response = new StringBuilder();
         response.append("HTTP/1.0 ").append(statusTxt).append("\r\n");
         response.append("Content-Type: ").append(contentType).append("\r\n");
-        response.append(content);
         response.append("Content-Length: ").append(b.length).append("\r\n\r\n");
+        response.append(content);
         return send(ByteBuffer.wrap(response.toString().getBytes()));
     }
 
