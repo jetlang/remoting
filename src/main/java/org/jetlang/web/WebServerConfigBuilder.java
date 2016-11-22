@@ -17,7 +17,7 @@ public class WebServerConfigBuilder<S> {
 
     private final SessionFactory<S> factory;
     private Charset websocketCharset = Charset.forName("UTF-8");
-    private List<Consumer<Map<String, Handler>>> events = new ArrayList<>();
+    private List<Consumer<Map<String, Handler<S>>>> events = new ArrayList<>();
     private int readBufferSizeInBytes = 1024;
     private int maxReadLoops = 50;
 
@@ -50,7 +50,7 @@ public class WebServerConfigBuilder<S> {
         return this;
     }
 
-    public <T> WebServerConfigBuilder add(String path, WebSocketHandler<S, T> handler) {
+    public <T> WebServerConfigBuilder<S> add(String path, WebSocketHandler<S, T> handler) {
         events.add((map) -> {
             map.put(path, new Handler<S>() {
                 private final MessageDigest msgDigest = getDigest("SHA-1");
@@ -73,7 +73,7 @@ public class WebServerConfigBuilder<S> {
         return this;
     }
 
-    public WebServerConfigBuilder add(String path, HttpHandler rs) {
+    public WebServerConfigBuilder<S> add(String path, HttpHandler<S> rs) {
         events.add((map) -> {
             map.put(path, rs);
         });
@@ -89,15 +89,15 @@ public class WebServerConfigBuilder<S> {
     }
 
     public WebDispatcher<S> create(NioFiber readFiber) {
-        Map<String, Handler> handlerMap = new HashMap<>();
-        for (Consumer<Map<String, Handler>> event : events) {
+        Map<String, Handler<S>> handlerMap = new HashMap<>();
+        for (Consumer<Map<String, Handler<S>>> event : events) {
             event.accept(handlerMap);
         }
-        HttpRequestHandler handler = createHandler(handlerMap);
+        HttpRequestHandler<S> handler = createHandler(handlerMap);
         return new WebDispatcher<>(readFiber, handler, readBufferSizeInBytes, maxReadLoops, factory);
     }
 
-    protected HttpRequestHandler createHandler(final Map<String, Handler> handlerMap) {
-        return new HttpRequestHandler.Default(handlerMap);
+    protected HttpRequestHandler<S> createHandler(final Map<String, Handler<S>> handlerMap) {
+        return new HttpRequestHandler.Default<>(handlerMap);
     }
 }
