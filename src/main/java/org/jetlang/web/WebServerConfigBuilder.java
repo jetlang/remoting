@@ -3,8 +3,6 @@ package org.jetlang.web;
 import org.jetlang.fibers.NioFiber;
 
 import java.nio.charset.Charset;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -89,14 +87,6 @@ public class WebServerConfigBuilder<S> {
             map.put(path, rs);
         });
         return this;
-    }
-
-    private MessageDigest getDigest(String s) {
-        try {
-            return MessageDigest.getInstance(s);
-        } catch (NoSuchAlgorithmException e) {
-            throw new RuntimeException(e);
-        }
     }
 
     public interface RequestDecorator<S> {
