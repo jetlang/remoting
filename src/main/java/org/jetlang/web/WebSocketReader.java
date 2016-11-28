@@ -257,7 +257,8 @@ public class WebSocketReader<S, T> {
             try {
                 return t.onComplete(handler, connection, state, result, totalSize, charset);
             } catch (Exception failed) {
-                return handler.onException(connection, state, failed);
+                handler.onException(connection, state, failed);
+                return true;
             }
         }
 

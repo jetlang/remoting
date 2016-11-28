@@ -10,10 +10,7 @@ public interface WebSocketHandler<S, T> {
 
     void onError(WebSocketConnection connection, T state, String msg);
 
-    /**
-     * @return false to close connection
-     */
-    boolean onException(WebSocketConnection connection, T state, Exception failed);
+    void onException(WebSocketConnection connection, T state, Exception failed);
 
     void onBinaryMessage(WebSocketConnection connection, T state, byte[] result, int size);
 

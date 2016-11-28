@@ -44,6 +44,7 @@ public class HeaderReader<T> {
     public void onClose() {
         if (sessionInit) {
             sessionFactory.onClose(session);
+            sessionDispatcher.onClose(session);
         }
     }
 

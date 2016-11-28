@@ -91,10 +91,9 @@ public class WebSocketServerEchoMain {
             }
 
             @Override
-            public boolean onException(WebSocketConnection connection, MyWebsocketState state, Exception failed) {
+            public void onException(WebSocketConnection connection, MyWebsocketState state, Exception failed) {
                 System.err.print(failed.getMessage());
                 failed.printStackTrace(System.err);
-                return true;
             }
         };
 
