@@ -125,7 +125,7 @@ public class WebSocketServerEchoMain {
 
         config.add("/websockets/echo", handler);
         final URL resource = Thread.currentThread().getContextClassLoader().getResource("websocket.html");
-        config.add("/", new StaticHtml(new File(resource.getFile()).toPath()));
+        config.add("/", new StaticHtml<>(new File(resource.getFile()).toPath()));
 
         RoundRobinClientFactory readers = new RoundRobinClientFactory();
         List<NioFiber> allReadFibers = new ArrayList<>();
