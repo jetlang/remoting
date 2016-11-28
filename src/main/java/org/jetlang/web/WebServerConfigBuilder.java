@@ -35,6 +35,14 @@ public class WebServerConfigBuilder<S> {
         this.factory = factory;
     }
 
+    public SessionDispatcherFactory<S> getDispatcher() {
+        return dispatcher;
+    }
+
+    public void setDispatcher(SessionDispatcherFactory<S> dispatcher) {
+        this.dispatcher = dispatcher;
+    }
+
     public RequestDecorator<S> getDecorator() {
         return decorator;
     }

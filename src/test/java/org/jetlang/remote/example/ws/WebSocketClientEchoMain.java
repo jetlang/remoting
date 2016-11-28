@@ -23,6 +23,7 @@ public class WebSocketClientEchoMain {
             @Override
             public Void onOpen(WebSocketConnection connection, HttpRequest headers, Map<String, Object> state) {
                 System.out.println("WebSocketClientEchoMain.onOpen");
+                connection.send("Hello World");
                 return null;
             }
 
@@ -60,7 +61,6 @@ public class WebSocketClientEchoMain {
             throw new RuntimeException("Never connected");
         } else {
             System.out.println("start = " + start);
-            client.send("Hello World");
         }
         Thread.sleep(Long.MAX_VALUE);
         client.stop();

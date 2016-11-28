@@ -57,7 +57,9 @@ public interface SessionDispatcherFactory<S> {
 
         @Override
         public SessionDispatcher<S> createOnNewSession(S session, HttpRequest headers) {
-            return new FiberSession<S>(fiberFactory.get());
+            Fiber fiber = fiberFactory.get();
+            fiber.start();
+            return new FiberSession<S>(fiber);
         }
     }
 

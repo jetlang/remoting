@@ -3,9 +3,11 @@ package org.jetlang.remote.example.ws;
 import org.jetlang.fibers.NioControls;
 import org.jetlang.fibers.NioFiber;
 import org.jetlang.fibers.NioFiberImpl;
+import org.jetlang.fibers.PoolFiberFactory;
 import org.jetlang.web.HttpRequest;
 import org.jetlang.web.RoundRobinClientFactory;
 import org.jetlang.web.SendResult;
+import org.jetlang.web.SessionDispatcherFactory;
 import org.jetlang.web.SessionFactory;
 import org.jetlang.web.StaticHtml;
 import org.jetlang.web.WebAcceptor;
@@ -19,6 +21,8 @@ import java.nio.channels.SocketChannel;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class WebSocketServerEchoMain {
 
@@ -109,14 +113,23 @@ public class WebSocketServerEchoMain {
             }
         };
         WebServerConfigBuilder<MyConnectionState> config = new WebServerConfigBuilder<>(fact);
+
+        //half of the cores for reading from sockets and half for handling requests.
+        //this will give very good throughput, but isn't ideal for every use case.
+        final int halfOfCores = Math.max(Runtime.getRuntime().availableProcessors() / 2, 1);
+
+        ExecutorService executorService = Executors.newFixedThreadPool(halfOfCores);
+        //Each tcp connection will be given a pool fiber which will serialize incoming http or web requests.
+        PoolFiberFactory poolFiberFactory = new PoolFiberFactory(executorService);
+        config.setDispatcher(new SessionDispatcherFactory.FiberSessionFactory<MyConnectionState>(poolFiberFactory));
+
         config.add("/websockets/echo", handler);
         final URL resource = Thread.currentThread().getContextClassLoader().getResource("websocket.html");
         config.add("/", new StaticHtml(new File(resource.getFile()).toPath()));
 
-        final int cores = Runtime.getRuntime().availableProcessors();
         RoundRobinClientFactory readers = new RoundRobinClientFactory();
         List<NioFiber> allReadFibers = new ArrayList<>();
-        for (int i = 0; i < cores; i++) {
+        for (int i = 0; i < halfOfCores; i++) {
             NioFiber readFiber = new NioFiberImpl();
             readFiber.start();
             readers.add(config.create(readFiber));
@@ -136,6 +149,7 @@ public class WebSocketServerEchoMain {
             public void run() {
                 allReadFibers.forEach(NioFiber::dispose);
                 acceptorFiber.dispose();
+                executorService.shutdownNow();
             }
         });
         Thread.sleep(Long.MAX_VALUE);
