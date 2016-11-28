@@ -22,13 +22,14 @@ public class WebServerConfigBuilder<S> {
             return handler;
         }
     };
-    private Handler<S> defaultHandler = new Handler<S>() {
+    private Handler<S> defaultHandler = new HttpHandler<S>() {
         @Override
-        public NioReader.State start(HttpRequest headers, HeaderReader<S> reader, NioWriter writer, S sessionState) {
-            reader.getHttpResponseWriter().sendResponse("404 Not Found", "text/plain", headers.getRequestUri() + " Not Found", HeaderReader.ascii);
-            return reader.start();
+        public void handle(NioFiber readFiber, HttpRequest headers, HttpResponseWriter writer, S sessionState) {
+            writer.sendResponse("404 Not Found", "text/plain", headers.getRequestUri() + " Not Found", HeaderReader.ascii);
         }
     };
+
+    private SessionDispatcherFactory<S> dispatcher = new SessionDispatcherFactory.OnReadThreadDispatcher<S>();
 
     public WebServerConfigBuilder(SessionFactory<S> factory) {
         this.factory = factory;
@@ -100,7 +101,7 @@ public class WebServerConfigBuilder<S> {
             event.accept(handlerMap);
         }
         HttpRequestHandler<S> handler = decorator.decorate(createHandler(handlerMap));
-        return new WebDispatcher<>(readFiber, handler, readBufferSizeInBytes, maxReadLoops, factory);
+        return new WebDispatcher<>(readFiber, handler, readBufferSizeInBytes, maxReadLoops, factory, dispatcher);
     }
 
     protected HttpRequestHandler<S> createHandler(final Map<String, Handler<S>> handlerMap) {

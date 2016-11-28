@@ -15,17 +15,20 @@ public class HeaderReader<T> {
     private final NioControls controls;
     private final HttpRequestHandler<T> handler;
     private final SessionFactory<T> sessionFactory;
+    private final SessionDispatcherFactory<T> dispatcher;
     private boolean sessionInit;
     private T session;
+    private SessionDispatcherFactory.SessionDispatcher<T> sessionDispatcher;
     private final NioWriter writer;
     private final HttpResponseWriter httpWriter;
 
-    public HeaderReader(SocketChannel channel, NioFiber fiber, NioControls controls, HttpRequestHandler<T> handler, SessionFactory<T> sessionFactory) {
+    public HeaderReader(SocketChannel channel, NioFiber fiber, NioControls controls, HttpRequestHandler<T> handler, SessionFactory<T> sessionFactory, SessionDispatcherFactory<T> dispatcher) {
         this.channel = channel;
         this.fiber = fiber;
         this.controls = controls;
         this.handler = handler;
         this.sessionFactory = sessionFactory;
+        this.dispatcher = dispatcher;
         this.writer = new NioWriter(new Object(), channel, fiber);
         this.httpWriter = new HttpResponseWriter(writer);
     }
@@ -95,8 +98,9 @@ public class HeaderReader<T> {
                 if (!sessionInit) {
                     sessionInit = true;
                     session = sessionFactory.create(channel, fiber, controls, headers);
+                    sessionDispatcher = dispatcher.createOnNewSession(session, headers);
                 }
-                return handler.dispatch(headers, HeaderReader.this, writer, session);
+                return handler.dispatch(sessionDispatcher, headers, HeaderReader.this, writer, session);
             }
             if (buffer.hasRemaining() && eol == 2) {
                 return new ReadHeader(headers);

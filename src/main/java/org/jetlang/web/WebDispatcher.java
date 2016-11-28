@@ -15,13 +15,15 @@ public class WebDispatcher<S> implements NioAcceptorHandler.ClientFactory {
     private final int readBufferSizeInBytes;
     private final int maxReadLoops;
     private final SessionFactory<S> factory;
+    private final SessionDispatcherFactory<S> dispatcherFact;
 
-    public WebDispatcher(NioFiber readFiber, HttpRequestHandler<S> handler, int readBufferSizeInBytes, int maxReadLoops, SessionFactory<S> factory) {
+    public WebDispatcher(NioFiber readFiber, HttpRequestHandler<S> handler, int readBufferSizeInBytes, int maxReadLoops, SessionFactory<S> factory, SessionDispatcherFactory<S> dispatcherFact) {
         this.readFiber = readFiber;
         this.handler = handler;
         this.readBufferSizeInBytes = readBufferSizeInBytes;
         this.maxReadLoops = maxReadLoops;
         this.factory = factory;
+        this.dispatcherFact = dispatcherFact;
     }
 
     @Override
@@ -32,6 +34,6 @@ public class WebDispatcher<S> implements NioAcceptorHandler.ClientFactory {
     }
 
     protected NioChannelHandler createHandler(SelectionKey key, SocketChannel channel, NioFiber fiber, NioControls controls) {
-        return new NioReader<S>(channel, fiber, controls, handler, readBufferSizeInBytes, maxReadLoops, factory);
+        return new NioReader<S>(channel, fiber, controls, handler, readBufferSizeInBytes, maxReadLoops, factory, dispatcherFact);
     }
 }

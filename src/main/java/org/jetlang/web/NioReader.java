@@ -19,10 +19,10 @@ public class NioReader<T> implements NioChannelHandler {
     private final int maxReadLoops;
     private State current;
 
-    public NioReader(SocketChannel channel, NioFiber fiber, NioControls controls, HttpRequestHandler<T> handler, int readBufferSizeInBytes, int maxReadLoops, SessionFactory<T> fact) {
+    public NioReader(SocketChannel channel, NioFiber fiber, NioControls controls, HttpRequestHandler<T> handler, int readBufferSizeInBytes, int maxReadLoops, SessionFactory<T> fact, SessionDispatcherFactory<T> dispatcherFact) {
         this.channel = channel;
         this.maxReadLoops = maxReadLoops;
-        this.headerReader = new HeaderReader<>(channel, fiber, controls, handler, fact);
+        this.headerReader = new HeaderReader<>(channel, fiber, controls, handler, fact, dispatcherFact);
         this.current = headerReader.start();
         this.bb = bufferAllocate(readBufferSizeInBytes);
     }

@@ -135,11 +135,11 @@ public class WebSocketClient<S, T> {
         }
 
         @Override
-        public NioReader.State dispatch(HttpRequest headers, HeaderReader<S> reader, NioWriter writer, S sessionState) {
+        public NioReader.State dispatch(SessionDispatcherFactory.SessionDispatcher<S> dispatcher, HttpRequest headers, HeaderReader<S> reader, NioWriter writer, S sessionState) {
             byte[] mask = new byte[]{randomByte(), randomByte(), randomByte(), randomByte()};
             WebSocketConnectionImpl connection = new WebSocketConnectionImpl(writer, mask, reader.getReadFiber());
             state = new Connected(connection, newChannel);
-            WebSocketReader<S, T> wsReader = new WebSocketReader<S, T>(connection, headers, utf8, this.handler, () -> WebSocketClient.this.reconnectOnClose(new CountDownLatch(1)), sessionState);
+            WebSocketReader<S, T> wsReader = new WebSocketReader<S, T>(connection, headers, utf8, dispatcher.createOnNewSession(this.handler, headers, sessionState), () -> WebSocketClient.this.reconnectOnClose(new CountDownLatch(1)), sessionState);
             latch.countDown();
             return wsReader.start();
         }
@@ -207,9 +207,10 @@ public class WebSocketClient<S, T> {
             writer.send(createHandshake());
             WebSocketClientReader<S, T> webSocketClientReader = new WebSocketClientReader<>(newChannel, writer, nioControls, latch, handler);
             state = webSocketClientReader;
-            nioControls.addHandler(new NioReader(newChannel, readFiber, nioControls, webSocketClientReader,
+            SessionDispatcherFactory.OnReadThreadDispatcher<S> sOnReadThreadDispatcher = new SessionDispatcherFactory.OnReadThreadDispatcher<>();
+            nioControls.addHandler(new NioReader<>(newChannel, readFiber, nioControls, webSocketClientReader,
                     config.getReadBufferSizeInBytes(),
-                    config.getMaxReadLoops(), sessionFactory));
+                    config.getMaxReadLoops(), sessionFactory, sOnReadThreadDispatcher));
         }
 
         @Override
