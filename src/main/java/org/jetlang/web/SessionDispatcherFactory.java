@@ -64,6 +64,7 @@ public interface SessionDispatcherFactory<S> {
     class FiberSession<S> implements SessionDispatcher<S> {
 
         private final Fiber fiber;
+        private boolean isWebsocket;
 
         public FiberSession(Fiber fiber) {
             this.fiber = fiber;
@@ -71,6 +72,7 @@ public interface SessionDispatcherFactory<S> {
 
         @Override
         public <T> WebSocketHandler<S, T> createOnNewSession(WebSocketHandler<S, T> handler, HttpRequest headers, S sessionState) {
+            isWebsocket = true;
             return new WebSocketHandler<S, T>() {
                 private WebFiberConnection fiberConn;
                 private T threadState;
@@ -95,6 +97,7 @@ public interface SessionDispatcherFactory<S> {
                 public void onClose(WebSocketConnection connection, T state) {
                     fiber.execute(() -> {
                         handler.onClose(fiberConn, threadState);
+                        fiber.dispose();
                     });
                 }
 
@@ -132,7 +135,9 @@ public interface SessionDispatcherFactory<S> {
 
         @Override
         public void onClose(S session) {
-            fiber.dispose();
+            if (!isWebsocket) {
+                fiber.dispose();
+            }
         }
     }
 }
