@@ -85,11 +85,16 @@ public class WebServerConfigBuilder<S> {
     }
 
     public <T> WebServerConfigBuilder<S> add(String path, WebSocketHandler<S, T> handler) {
+        return add(path, handler, WebSocketSecurity.none());
+    }
+
+    public <T> WebServerConfigBuilder<S> add(String path, WebSocketHandler<S, T> handler, WebSocketSecurity<S> security) {
         events.add((map) -> {
-            map.put(path, new WebSocketRequestHandler<>(websocketCharset, handler));
+            map.put(path, new WebSocketRequestHandler<>(websocketCharset, handler, security));
         });
         return this;
     }
+
 
     public WebServerConfigBuilder<S> add(String path, HttpHandler<S> rs) {
         events.add((map) -> {
