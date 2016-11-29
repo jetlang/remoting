@@ -150,6 +150,7 @@ public class WebSocketServerEchoMain {
                 allReadFibers.forEach(NioFiber::dispose);
                 acceptorFiber.dispose();
                 executorService.shutdownNow();
+                poolFiberFactory.dispose();
             }
         });
         Thread.sleep(Long.MAX_VALUE);
