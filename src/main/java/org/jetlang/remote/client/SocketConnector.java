@@ -3,12 +3,8 @@ package org.jetlang.remote.client;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.Socket;
+import java.net.SocketException;
 
-/**
- * User: mrettig
- * Date: 4/5/11
- * Time: 11:39 AM
- */
 public class SocketConnector {
 
     private final String host;
@@ -16,6 +12,8 @@ public class SocketConnector {
     private boolean tcpNoDelay = true;
     private int readTimeoutInMs = 3000;
     private int connectTimeoutInMs = 4000;
+    private int receiveBufferSize = -1;
+    private int sendBufferSize = -1;
 
     public SocketConnector(String host, int port) {
         this.host = host;
@@ -46,12 +44,37 @@ public class SocketConnector {
         return connectTimeoutInMs;
     }
 
+    public int getReceiveBufferSize() {
+        return receiveBufferSize;
+    }
+
+    public void setReceiveBufferSize(int receiveBufferSize) {
+        this.receiveBufferSize = receiveBufferSize;
+    }
+
+    public int getSendBufferSize() {
+        return sendBufferSize;
+    }
+
+    public void setSendBufferSize(int sendBufferSize) {
+        this.sendBufferSize = sendBufferSize;
+    }
+
     public Socket connect() throws IOException {
         InetSocketAddress endpoint = new InetSocketAddress(host, port);
+        Socket socket = configureSocket();
+        socket.connect(endpoint, connectTimeoutInMs);
+        return socket;
+    }
+
+    public Socket configureSocket() throws SocketException {
         Socket socket = new Socket();
         socket.setTcpNoDelay(tcpNoDelay);
         socket.setSoTimeout(readTimeoutInMs);
-        socket.connect(endpoint, connectTimeoutInMs);
+        if (receiveBufferSize > 0)
+            socket.setReceiveBufferSize(receiveBufferSize);
+        if (sendBufferSize > 0)
+            socket.setSendBufferSize(sendBufferSize);
         return socket;
     }
 }
