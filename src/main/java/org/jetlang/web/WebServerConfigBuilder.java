@@ -103,6 +103,11 @@ public class WebServerConfigBuilder<S> {
         return this;
     }
 
+    public WebServerConfigBuilder<S> add(String path, HttpHandler<S> rs, HttpSecurity<S> security) {
+        return add(path, new AuthHttpHandler<S>(rs, security));
+    }
+
+
     public interface RequestDecorator<S> {
 
         HttpRequestHandler<S> decorate(HttpRequestHandler<S> handler);
