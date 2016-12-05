@@ -62,7 +62,8 @@ public class WebSocketConnectionImpl implements WebSocketConnection {
     void onClose() {
         synchronized (disposables) {
             closed = true;
-            disposables.forEach(Disposable::dispose);
+            //clone to prevent concurrent mod
+            new ArrayList<>(disposables).forEach(Disposable::dispose);
         }
     }
 
