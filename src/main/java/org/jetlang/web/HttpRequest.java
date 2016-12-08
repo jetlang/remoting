@@ -7,10 +7,13 @@ import java.util.List;
 
 public class HttpRequest {
 
+    private static final byte[] empty = new byte[0];
     private final List<Header> headers = new ArrayList<>();
     String method;
     String requestUri;
     String protocolVersion;
+    int contentLength;
+    byte[] content = empty;
 
     public HttpRequest(String method, String uri, String protocolVersion) {
         this.method = method;
@@ -30,6 +33,10 @@ public class HttpRequest {
             }
         }
         return null;
+    }
+
+    public byte[] getContent() {
+        return content;
     }
 
     void put(String name, String value) {

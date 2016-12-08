@@ -104,12 +104,37 @@ public class HeaderReader<T> {
             int stripped = stripEndOfLines(buffer);
             eol += stripped;
             if (eol == 4) {
-                return dispatchHttpRequest(headers);
+                if (headers.contentLength == 0) {
+                    return dispatchHttpRequest(headers);
+                } else {
+                    return new ContentReader(headers);
+                }
             }
             if (buffer.hasRemaining() && eol == 2) {
                 return new ReadHeader(headers);
             }
             return null;
+        }
+    }
+
+    private class ContentReader implements NioReader.State {
+
+        private final HttpRequest headers;
+
+        public ContentReader(HttpRequest headers) {
+            this.headers = headers;
+        }
+
+        @Override
+        public int minRequiredBytes() {
+            return headers.contentLength;
+        }
+
+        @Override
+        public NioReader.State processBytes(ByteBuffer bb) {
+            byte[] content = new byte[this.headers.contentLength];
+            bb.get(content);
+            return dispatchHttpRequest(headers);
         }
     }
 
@@ -142,6 +167,11 @@ public class HeaderReader<T> {
             String name = new String(array, startPosition, nameLength, ascii);
             String value = new String(array, startPosition + nameLength + 2, length - nameLength - 2, ascii);
             headers.put(name, value);
+            switch (name) {
+                case "Content-Length":
+                    headers.contentLength = Integer.parseInt(value);
+                    break;
+            }
         }
     }
 
