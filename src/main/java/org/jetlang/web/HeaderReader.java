@@ -81,6 +81,14 @@ public class HeaderReader<T> {
         }
     }
 
+    public NioReader.State dispatchHttpRequest(HttpRequest headers) {
+        if (!sessionInit) {
+            sessionInit = true;
+            session = sessionFactory.create(channel, fiber, controls, headers);
+            sessionDispatcher = dispatcher.createOnNewSession(session, headers);
+        }
+        return handler.dispatch(sessionDispatcher, headers, HeaderReader.this, writer, session);
+    }
 
     public class HeaderLine implements NioReader.State {
 
@@ -96,12 +104,7 @@ public class HeaderReader<T> {
             int stripped = stripEndOfLines(buffer);
             eol += stripped;
             if (eol == 4) {
-                if (!sessionInit) {
-                    sessionInit = true;
-                    session = sessionFactory.create(channel, fiber, controls, headers);
-                    sessionDispatcher = dispatcher.createOnNewSession(session, headers);
-                }
-                return handler.dispatch(sessionDispatcher, headers, HeaderReader.this, writer, session);
+                return dispatchHttpRequest(headers);
             }
             if (buffer.hasRemaining() && eol == 2) {
                 return new ReadHeader(headers);
