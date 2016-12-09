@@ -134,6 +134,7 @@ public class HeaderReader<T> {
         public NioReader.State processBytes(ByteBuffer bb) {
             byte[] content = new byte[this.headers.contentLength];
             bb.get(content);
+            headers.content = content;
             return dispatchHttpRequest(headers);
         }
     }
