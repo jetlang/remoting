@@ -4,16 +4,14 @@ import org.jetlang.fibers.NioFiber;
 
 import java.nio.charset.Charset;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.function.Consumer;
 
 public class WebServerConfigBuilder<S> {
 
     private final SessionFactory<S> factory;
     private Charset websocketCharset = Charset.forName("UTF-8");
-    private List<Consumer<Map<String, Handler<S>>>> events = new ArrayList<>();
+    private List<Consumer<PathMatcher.List<S>>> events = new ArrayList<>();
     private int readBufferSizeInBytes = 1024;
     private int maxReadLoops = 50;
     private RequestDecorator<S> decorator = new RequestDecorator<S>() {
@@ -84,26 +82,26 @@ public class WebServerConfigBuilder<S> {
         return this;
     }
 
-    public <T> WebServerConfigBuilder<S> add(String path, WebSocketHandler<S, T> handler) {
+    public <T> WebServerConfigBuilder<S> add(PathMatcher<S> path, WebSocketHandler<S, T> handler) {
         return add(path, handler, WebSocketSecurity.none());
     }
 
-    public <T> WebServerConfigBuilder<S> add(String path, WebSocketHandler<S, T> handler, WebSocketSecurity<S> security) {
+    public <T> WebServerConfigBuilder<S> add(PathMatcher<S> path, WebSocketHandler<S, T> handler, WebSocketSecurity<S> security) {
         events.add((map) -> {
-            map.put(path, new WebSocketRequestHandler<>(websocketCharset, handler, security));
+            map.add(path, new WebSocketRequestHandler<>(websocketCharset, handler, security));
         });
         return this;
     }
 
 
-    public WebServerConfigBuilder<S> add(String path, HttpHandler<S> rs) {
+    public WebServerConfigBuilder<S> add(PathMatcher<S> path, HttpHandler<S> rs) {
         events.add((map) -> {
-            map.put(path, rs);
+            map.add(path, rs);
         });
         return this;
     }
 
-    public WebServerConfigBuilder<S> add(String path, HttpHandler<S> rs, HttpSecurity<S> security) {
+    public WebServerConfigBuilder<S> add(PathMatcher<S> path, HttpHandler<S> rs, HttpSecurity<S> security) {
         return add(path, new AuthHttpHandler<S>(rs, security));
     }
 
@@ -114,15 +112,15 @@ public class WebServerConfigBuilder<S> {
     }
 
     public WebDispatcher<S> create(NioFiber readFiber) {
-        Map<String, Handler<S>> handlerMap = new HashMap<>();
-        for (Consumer<Map<String, Handler<S>>> event : events) {
-            event.accept(handlerMap);
+        PathMatcher.List<S> all = new PathMatcher.List<S>();
+        for (Consumer<PathMatcher.List<S>> event : events) {
+            event.accept(all);
         }
-        HttpRequestHandler<S> handler = decorator.decorate(createHandler(handlerMap));
+        HttpRequestHandler<S> handler = decorator.decorate(createHandler(all));
         return new WebDispatcher<>(readFiber, handler, readBufferSizeInBytes, maxReadLoops, factory, dispatcher);
     }
 
-    protected HttpRequestHandler<S> createHandler(final Map<String, Handler<S>> handlerMap) {
+    protected HttpRequestHandler<S> createHandler(final PathMatcher.List<S> handlerMap) {
         return new HttpRequestHandler.Default<>(handlerMap, defaultHandler);
     }
 }

@@ -4,16 +4,7 @@ import org.jetlang.fibers.NioControls;
 import org.jetlang.fibers.NioFiber;
 import org.jetlang.fibers.NioFiberImpl;
 import org.jetlang.fibers.PoolFiberFactory;
-import org.jetlang.web.HttpRequest;
-import org.jetlang.web.RoundRobinClientFactory;
-import org.jetlang.web.SendResult;
-import org.jetlang.web.SessionDispatcherFactory;
-import org.jetlang.web.SessionFactory;
-import org.jetlang.web.StaticHtml;
-import org.jetlang.web.WebAcceptor;
-import org.jetlang.web.WebServerConfigBuilder;
-import org.jetlang.web.WebSocketConnection;
-import org.jetlang.web.WebSocketHandler;
+import org.jetlang.web.*;
 
 import java.io.File;
 import java.net.URL;
@@ -23,6 +14,8 @@ import java.util.Date;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+
+import static org.jetlang.web.PathMatcher.uriEq;
 
 public class WebSocketServerEchoMain {
 
@@ -123,9 +116,9 @@ public class WebSocketServerEchoMain {
         PoolFiberFactory poolFiberFactory = new PoolFiberFactory(executorService);
         config.setDispatcher(new SessionDispatcherFactory.FiberSessionFactory<MyConnectionState>(poolFiberFactory));
 
-        config.add("/websockets/echo", handler);
+        config.add(uriEq("/websockets/echo"), handler);
         final URL resource = Thread.currentThread().getContextClassLoader().getResource("websocket.html");
-        config.add("/", new StaticHtml<>(new File(resource.getFile()).toPath()));
+        config.add(uriEq("/"), new StaticHtml<>(new File(resource.getFile()).toPath()));
 
         RoundRobinClientFactory readers = new RoundRobinClientFactory();
         List<NioFiber> allReadFibers = new ArrayList<>();
