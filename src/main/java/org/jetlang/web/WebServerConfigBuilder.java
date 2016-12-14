@@ -101,6 +101,13 @@ public class WebServerConfigBuilder<S> {
         return this;
     }
 
+    public WebServerConfigBuilder<S> add(HandlerLocator<S> locator) {
+        events.add((map) -> {
+            map.add(locator);
+        });
+        return this;
+    }
+
     public WebServerConfigBuilder<S> add(PathMatcher<S> path, HttpHandler<S> rs, HttpSecurity<S> security) {
         return add(path, new AuthHttpHandler<S>(rs, security));
     }

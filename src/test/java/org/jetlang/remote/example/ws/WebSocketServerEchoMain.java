@@ -4,11 +4,21 @@ import org.jetlang.fibers.NioControls;
 import org.jetlang.fibers.NioFiber;
 import org.jetlang.fibers.NioFiberImpl;
 import org.jetlang.fibers.PoolFiberFactory;
-import org.jetlang.web.*;
+import org.jetlang.web.HandlerLocator;
+import org.jetlang.web.HttpRequest;
+import org.jetlang.web.RoundRobinClientFactory;
+import org.jetlang.web.SendResult;
+import org.jetlang.web.SessionDispatcherFactory;
+import org.jetlang.web.SessionFactory;
+import org.jetlang.web.WebAcceptor;
+import org.jetlang.web.WebServerConfigBuilder;
+import org.jetlang.web.WebSocketConnection;
+import org.jetlang.web.WebSocketHandler;
 
-import java.io.File;
+import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.channels.SocketChannel;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -53,7 +63,7 @@ public class WebSocketServerEchoMain {
     }
 
 
-    public static void main(String[] args) throws InterruptedException {
+    public static void main(String[] args) throws InterruptedException, URISyntaxException {
 
         NioFiberImpl acceptorFiber = new NioFiberImpl();
         acceptorFiber.start();
@@ -117,8 +127,8 @@ public class WebSocketServerEchoMain {
         config.setDispatcher(new SessionDispatcherFactory.FiberSessionFactory<MyConnectionState>(poolFiberFactory));
 
         config.add(uriEq("/websockets/echo"), handler);
-        final URL resource = Thread.currentThread().getContextClassLoader().getResource("websocket.html");
-        config.add(uriEq("/"), new StaticHtml<>(new File(resource.getFile()).toPath()));
+        final URL resource = Thread.currentThread().getContextClassLoader().getResource("web");
+        config.add(new HandlerLocator.ResourcesDirectory<>(Paths.get(resource.toURI())));
 
         RoundRobinClientFactory readers = new RoundRobinClientFactory();
         List<NioFiber> allReadFibers = new ArrayList<>();

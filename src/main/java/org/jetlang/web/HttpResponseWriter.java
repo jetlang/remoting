@@ -13,11 +13,10 @@ public class HttpResponseWriter {
         this.writer = writer;
     }
 
-    public SendResult sendResponse(int statusCode, String statusTxt, String contentType, Path resource, Charset charset) {
+    public SendResult sendResponse(int statusCode, String statusTxt, String contentType, Path resource) {
         try {
             final byte[] b = Files.readAllBytes(resource);
-            String str = new String(b, charset);
-            return sendResponse(statusCode, statusTxt, contentType, str, charset);
+            return sendResponse(statusCode, statusTxt, contentType, b);
         } catch (IOException failed) {
             throw new RuntimeException(failed);
         }
@@ -29,12 +28,20 @@ public class HttpResponseWriter {
 
     public SendResult sendResponse(int statusCode, String statusTxt, String contentType, String content, Charset ascii) {
         byte[] b = content.getBytes(ascii);
+        return sendResponse(statusCode, statusTxt, contentType, b);
+    }
+
+    public SendResult sendResponse(int statusCode, String statusTxt, String contentType, byte[] content) {
         StringBuilder response = new StringBuilder();
         response.append("HTTP/1.0 ").append(statusCode).append(' ').append(statusTxt).append("\r\n");
         response.append("Content-Type: ").append(contentType).append("\r\n");
-        response.append("Content-Length: ").append(b.length).append("\r\n\r\n");
-        response.append(content);
-        return send(ByteBuffer.wrap(response.toString().getBytes()));
+        response.append("Content-Length: ").append(content.length).append("\r\n\r\n");
+        byte[] header = response.toString().getBytes(HeaderReader.ascii);
+        ByteBuffer bb = ByteBuffer.allocate(header.length + content.length);
+        bb.put(header);
+        bb.put(content);
+        bb.flip();
+        return send(bb);
     }
 
 }
