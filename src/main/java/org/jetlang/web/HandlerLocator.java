@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -36,15 +37,34 @@ public interface HandlerLocator<T> {
         }
     }
 
-    static Map<String, String> createContentTypeMap() {
+    static Map<String, String> createDefaultMimeTypeMap() {
         Map<String, String> map = new HashMap<>();
         map.put("html", "text/html");
         map.put("htm", "text/html");
+        map.put("txt", "text/plain");
+        map.put("css", "text/css");
+        map.put("csv", "text/csv");
+        map.put("xml", "text/xml");
+        map.put("js", "text/javascript");
+        map.put("xhtml", "application/xhtml+xml");
+        map.put("json", "application/json");
+        map.put("pdf", "application/pdf");
+        map.put("zip", "application/zip");
+        map.put("tar", "application/x-tar");
+        map.put("gif", "image/gif");
+        map.put("jpeg", "image/jpeg");
+        map.put("jpg", "image/jpeg");
+        map.put("tiff", "image/tiff");
+        map.put("tif", "image/tiff");
+        map.put("png", "image/png");
+        map.put("svg", "image/svg+xml");
+        map.put("ico", "image/vnd.microsoft.icon");
         return map;
     }
 
     class ResourcesDirectory<T> implements HandlerLocator<T> {
 
+        public static final Map<String, String> defaultMimeTypes = Collections.unmodifiableMap(createDefaultMimeTypeMap());
         private final HttpSecurity<T> security;
         private final Map<String, String> fileExtensionToContentType;
         private final Path path;
@@ -56,7 +76,7 @@ public interface HandlerLocator<T> {
         }
 
         public ResourcesDirectory(Path dir) {
-            this(dir, HttpSecurity.none(), createContentTypeMap());
+            this(dir, HttpSecurity.none(), defaultMimeTypes);
         }
 
         @Override
