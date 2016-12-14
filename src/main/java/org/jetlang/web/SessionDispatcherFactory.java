@@ -89,6 +89,20 @@ public interface SessionDispatcherFactory<S> {
                 }
 
                 @Override
+                public void onPing(WebSocketConnection connection, T state, byte[] result, int size, StringDecoder charset) {
+                    fiber.execute(() -> {
+                        handler.onPing(fiberConn, threadState, result, size, charset);
+                    });
+                }
+
+                @Override
+                public void onPong(WebSocketConnection connection, T state, byte[] result, int size) {
+                    fiber.execute(() -> {
+                        handler.onPong(fiberConn, threadState, result, size);
+                    });
+                }
+
+                @Override
                 public void onMessage(WebSocketConnection connection, T state, String msg) {
                     fiber.execute(() -> {
                         handler.onMessage(fiberConn, threadState, msg);
