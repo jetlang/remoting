@@ -11,7 +11,7 @@ public class WebServerConfigBuilder<S> {
 
     private final SessionFactory<S> factory;
     private Charset websocketCharset = Charset.forName("UTF-8");
-    private List<Consumer<PathMatcher.List<S>>> events = new ArrayList<>();
+    private List<Consumer<HandlerLocator.List<S>>> events = new ArrayList<>();
     private int readBufferSizeInBytes = 1024;
     private int maxReadLoops = 50;
     private RequestDecorator<S> decorator = new RequestDecorator<S>() {
@@ -112,15 +112,15 @@ public class WebServerConfigBuilder<S> {
     }
 
     public WebDispatcher<S> create(NioFiber readFiber) {
-        PathMatcher.List<S> all = new PathMatcher.List<S>();
-        for (Consumer<PathMatcher.List<S>> event : events) {
+        HandlerLocator.List<S> all = new HandlerLocator.List<S>();
+        for (Consumer<HandlerLocator.List<S>> event : events) {
             event.accept(all);
         }
         HttpRequestHandler<S> handler = decorator.decorate(createHandler(all));
         return new WebDispatcher<>(readFiber, handler, readBufferSizeInBytes, maxReadLoops, factory, dispatcher);
     }
 
-    protected HttpRequestHandler<S> createHandler(final PathMatcher.List<S> handlerMap) {
+    protected HttpRequestHandler<S> createHandler(final HandlerLocator.List<S> handlerMap) {
         return new HttpRequestHandler.Default<>(handlerMap, defaultHandler);
     }
 }

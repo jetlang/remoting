@@ -4,10 +4,10 @@ public interface HttpRequestHandler<T> {
     NioReader.State dispatch(SessionDispatcherFactory.SessionDispatcher<T> dispatcher, HttpRequest headers, HeaderReader<T> reader, NioWriter writer, T sessionState);
 
     class Default<T> implements HttpRequestHandler<T> {
-        private PathMatcher.List<T> handlerMap;
+        private HandlerLocator.List<T> handlerMap;
         private final Handler<T> defaultHandler;
 
-        public Default(PathMatcher.List<T> handlerMap, Handler<T> defaultHandler) {
+        public Default(HandlerLocator.List<T> handlerMap, Handler<T> defaultHandler) {
             this.handlerMap = handlerMap;
             this.defaultHandler = defaultHandler;
         }
