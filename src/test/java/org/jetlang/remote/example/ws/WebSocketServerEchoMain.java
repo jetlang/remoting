@@ -25,7 +25,7 @@ import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import static org.jetlang.web.PathMatcher.uriEq;
+import static org.jetlang.web.PathMatcher.pathEq;
 
 public class WebSocketServerEchoMain {
 
@@ -126,7 +126,7 @@ public class WebSocketServerEchoMain {
         PoolFiberFactory poolFiberFactory = new PoolFiberFactory(executorService);
         config.setDispatcher(new SessionDispatcherFactory.FiberSessionFactory<MyConnectionState>(poolFiberFactory));
 
-        config.add(uriEq("/websockets/echo"), handler);
+        config.add(pathEq("/websockets/echo"), handler);
         final URL resource = Thread.currentThread().getContextClassLoader().getResource("web");
         config.add(new HandlerLocator.ResourcesDirectory<>(Paths.get(resource.toURI())));
 

@@ -81,16 +81,17 @@ public interface HandlerLocator<T> {
 
         @Override
         public Handler<T> find(HttpRequest headers, T sessionState) {
-            int i = headers.getRequestUri().lastIndexOf('.');
+            String path = headers.getPath();
+            int i = path.lastIndexOf('.');
             if (i == -1) {
                 return null;
             }
-            String contentType = fileExtensionToContentType.get(headers.getRequestUri().substring(i + 1));
+            String contentType = fileExtensionToContentType.get(path.substring(i + 1));
             if (contentType == null) {
                 return null;
             }
-            String requestUri = headers.getRequestUri().startsWith("/") ? headers.getRequestUri().substring(1) : headers.getRequestUri();
-            Path resource = path.resolve(requestUri);
+            String requestUri = path.startsWith("/") ? path.substring(1) : path;
+            Path resource = this.path.resolve(requestUri);
             if (Files.exists(resource)) {
                 return new AuthHttpHandler<T>(new HttpHandler<T>() {
                     @Override

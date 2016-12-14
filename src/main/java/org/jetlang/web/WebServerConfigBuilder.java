@@ -23,7 +23,7 @@ public class WebServerConfigBuilder<S> {
     private Handler<S> defaultHandler = new HttpHandler<S>() {
         @Override
         public void handle(NioFiber readFiber, HttpRequest headers, HttpResponseWriter writer, S sessionState) {
-            writer.sendResponse(404, "Not Found", "text/plain", headers.getRequestUri() + " Not Found", HeaderReader.ascii);
+            writer.sendResponse(404, "Not Found", "text/plain", headers.getPath() + " Not Found", HeaderReader.ascii);
         }
     };
 

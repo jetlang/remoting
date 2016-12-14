@@ -1,5 +1,6 @@
 package org.jetlang.web;
 
+import java.net.URI;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
@@ -10,14 +11,14 @@ public class HttpRequest {
     private static final byte[] empty = new byte[0];
     private final List<Header> headers = new ArrayList<>();
     String method;
-    String requestUri;
+    URI requestUri;
     String protocolVersion;
     int contentLength;
     byte[] content = empty;
 
     public HttpRequest(String method, String uri, String protocolVersion) {
         this.method = method;
-        this.requestUri = uri;
+        this.requestUri = URI.create(uri);
         this.protocolVersion = protocolVersion;
     }
 
@@ -51,8 +52,12 @@ public class HttpRequest {
         return method;
     }
 
-    public String getRequestUri() {
+    public URI getRequestUri() {
         return requestUri;
+    }
+
+    public String getPath() {
+        return requestUri.getPath();
     }
 
     public String getProtocolVersion() {

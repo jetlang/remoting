@@ -3,6 +3,7 @@ package org.jetlang.web;
 import org.jetlang.fibers.NioControls;
 import org.jetlang.fibers.NioFiber;
 
+import java.net.URI;
 import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
 import java.nio.charset.Charset;
@@ -76,7 +77,7 @@ public class HeaderReader<T> {
             headers.method = new String(array, startPosition, firstLength, ascii);
             int second = find(array, first + 1, length - firstLength, ' ');
             int secondLength = second - first - 1;
-            headers.requestUri = new String(array, startPosition + firstLength + 1, secondLength, ascii);
+            headers.requestUri = URI.create(new String(array, startPosition + firstLength + 1, secondLength, ascii));
             headers.protocolVersion = new String(array, startPosition + firstLength + secondLength + 2, length - firstLength - secondLength - 2, ascii);
         }
     }
