@@ -82,6 +82,9 @@ public interface HandlerLocator<T> {
         @Override
         public Handler<T> find(HttpRequest headers, T sessionState) {
             String path = headers.getPath();
+            if (path.endsWith("/") || path.isEmpty()) {
+                path += "index.html";
+            }
             int i = path.lastIndexOf('.');
             if (i == -1) {
                 return null;
