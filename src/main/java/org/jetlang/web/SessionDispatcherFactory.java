@@ -46,34 +46,46 @@ public interface SessionDispatcherFactory<S> {
 
     class FiberSessionFactory<S> implements SessionDispatcherFactory<S> {
         private final Supplier<Fiber> fiberFactory;
+        private final boolean useForWebsocket;
+        private final boolean useForHttp;
 
-        public FiberSessionFactory(Supplier<Fiber> fiberFactory) {
+        public FiberSessionFactory(Supplier<Fiber> fiberFactory, boolean useForWebsockets, boolean useForHttp) {
             this.fiberFactory = fiberFactory;
+            this.useForWebsocket = useForWebsockets;
+            this.useForHttp = useForHttp;
         }
 
-        public FiberSessionFactory(PoolFiberFactory poolFiberFactory) {
-            this(poolFiberFactory::create);
+        public FiberSessionFactory(PoolFiberFactory poolFiberFactory, boolean useForWebsockets, boolean useForHttp) {
+            this(poolFiberFactory::create, useForWebsockets, useForHttp);
         }
 
         @Override
         public SessionDispatcher<S> createOnNewSession(S session, HttpRequest headers) {
             Fiber fiber = fiberFactory.get();
             fiber.start();
-            return new FiberSession<S>(fiber);
+            return new FiberSession<S>(fiber, useForHttp, useForWebsocket);
         }
     }
 
     class FiberSession<S> implements SessionDispatcher<S> {
 
         private final Fiber fiber;
+        private final boolean useForHttp;
+        private final boolean useForWebsocket;
         private boolean isWebsocket;
+        private static final final OnReadThread<S> onReadThread = new OnReadThread<S>();
 
-        public FiberSession(Fiber fiber) {
+        public FiberSession(Fiber fiber, boolean useForHttp, boolean useForWebsocket) {
             this.fiber = fiber;
+            this.useForHttp = useForHttp;
+            this.useForWebsocket = useForWebsocket;
         }
 
         @Override
         public <T> WebSocketHandler<S, T> createOnNewSession(WebSocketHandler<S, T> handler, HttpRequest headers, S sessionState) {
+            if (!useForWebsocket) {
+                return onReadThread.createOnNewSession(handler, headers, sessionState);
+            }
             isWebsocket = true;
             return new WebSocketHandler<S, T>() {
                 private WebFiberConnection fiberConn;
@@ -145,10 +157,14 @@ public interface SessionDispatcherFactory<S> {
 
         @Override
         public NioReader.State dispatch(HttpHandler<S> handler, HttpRequest headers, HeaderReader<S> headerReader, NioWriter writer, S sessionState) {
-            fiber.execute(() -> {
-                handler.handle(headerReader.getReadFiber(), headers, headerReader.getHttpResponseWriter(), sessionState);
-            });
-            return headerReader.start();
+            if (useForHttp) {
+                fiber.execute(() -> {
+                    handler.handle(headerReader.getReadFiber(), headers, headerReader.getHttpResponseWriter(), sessionState);
+                });
+                return headerReader.start();
+            } else {
+                return onReadThread.dispatch(handler, headers, headerReader, writer, sessionState);
+            }
         }
 
         @Override

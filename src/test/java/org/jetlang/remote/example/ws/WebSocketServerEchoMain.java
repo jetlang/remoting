@@ -4,16 +4,7 @@ import org.jetlang.fibers.NioControls;
 import org.jetlang.fibers.NioFiber;
 import org.jetlang.fibers.NioFiberImpl;
 import org.jetlang.fibers.PoolFiberFactory;
-import org.jetlang.web.HandlerLocator;
-import org.jetlang.web.HttpRequest;
-import org.jetlang.web.RoundRobinClientFactory;
-import org.jetlang.web.SendResult;
-import org.jetlang.web.SessionDispatcherFactory;
-import org.jetlang.web.SessionFactory;
-import org.jetlang.web.WebAcceptor;
-import org.jetlang.web.WebServerConfigBuilder;
-import org.jetlang.web.WebSocketConnection;
-import org.jetlang.web.WebSocketHandler;
+import org.jetlang.web.*;
 
 import java.net.URISyntaxException;
 import java.net.URL;
@@ -124,7 +115,7 @@ public class WebSocketServerEchoMain {
         ExecutorService executorService = Executors.newFixedThreadPool(halfOfCores);
         //Each tcp connection will be given a pool fiber which will serialize incoming http or web requests.
         PoolFiberFactory poolFiberFactory = new PoolFiberFactory(executorService);
-        config.setDispatcher(new SessionDispatcherFactory.FiberSessionFactory<MyConnectionState>(poolFiberFactory));
+        config.setDispatcher(new SessionDispatcherFactory.FiberSessionFactory<MyConnectionState>(poolFiberFactory, true, true));
 
         config.add(pathEq("/websockets/echo"), handler);
         final URL resource = Thread.currentThread().getContextClassLoader().getResource("web");
