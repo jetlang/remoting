@@ -73,7 +73,7 @@ public interface SessionDispatcherFactory<S> {
         private final boolean useForHttp;
         private final boolean useForWebsocket;
         private boolean isWebsocket;
-        private static final final OnReadThread<S> onReadThread = new OnReadThread<S>();
+        private final OnReadThread<S> onReadThread = new OnReadThread<>();
 
         public FiberSession(Fiber fiber, boolean useForHttp, boolean useForWebsocket) {
             this.fiber = fiber;
