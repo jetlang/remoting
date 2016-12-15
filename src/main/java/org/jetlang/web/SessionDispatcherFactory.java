@@ -90,15 +90,17 @@ public interface SessionDispatcherFactory<S> {
 
                 @Override
                 public void onPing(WebSocketConnection connection, T state, byte[] result, int size, StringDecoder charset) {
+                    final byte[] copy = Arrays.copyOf(result, size);
                     fiber.execute(() -> {
-                        handler.onPing(fiberConn, threadState, result, size, charset);
+                        handler.onPing(fiberConn, threadState, copy, size, charset);
                     });
                 }
 
                 @Override
                 public void onPong(WebSocketConnection connection, T state, byte[] result, int size) {
+                    final byte[] copy = Arrays.copyOf(result, size);
                     fiber.execute(() -> {
-                        handler.onPong(fiberConn, threadState, result, size);
+                        handler.onPong(fiberConn, threadState, copy, size);
                     });
                 }
 
