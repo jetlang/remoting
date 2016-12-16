@@ -21,7 +21,7 @@ public class HeaderReader<T> {
     private T session;
     private SessionDispatcherFactory.SessionDispatcher<T> sessionDispatcher;
     private final NioWriter writer;
-    private final HttpResponseWriter httpWriter;
+    private final HttpResponse httpWriter;
 
     public HeaderReader(SocketChannel channel, NioFiber fiber, NioControls controls, HttpRequestHandler<T> handler, SessionFactory<T> sessionFactory, SessionDispatcherFactory<T> dispatcher) {
         this.channel = channel;
@@ -31,7 +31,7 @@ public class HeaderReader<T> {
         this.sessionFactory = sessionFactory;
         this.dispatcher = dispatcher;
         this.writer = new NioWriter(new Object(), channel, fiber);
-        this.httpWriter = new HttpResponseWriter(writer);
+        this.httpWriter = new HttpResponse.Default(writer);
     }
 
     public NioReader.State start() {
@@ -49,7 +49,7 @@ public class HeaderReader<T> {
         }
     }
 
-    public HttpResponseWriter getHttpResponseWriter() {
+    public HttpResponse getHttpResponseWriter() {
         return httpWriter;
     }
 
@@ -168,7 +168,7 @@ public class HeaderReader<T> {
             final int nameLength = first - startPosition;
             String name = new String(array, startPosition, nameLength, ascii);
             String value = new String(array, startPosition + nameLength + 2, length - nameLength - 2, ascii);
-            headers.put(name, value);
+            headers.add(name, value);
             switch (name) {
                 case "Content-Length":
                     headers.contentLength = Integer.parseInt(value);

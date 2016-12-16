@@ -9,5 +9,5 @@ public interface HttpHandler<T> extends Handler<T> {
         return dispatcher.dispatch(this, headers, headerReader, writer, sessionState);
     }
 
-    void handle(NioFiber readFiber, HttpRequest headers, HttpResponseWriter writer, T sessionState);
+    void handle(NioFiber readFiber, HttpRequest headers, HttpResponse writer, T sessionState);
 }

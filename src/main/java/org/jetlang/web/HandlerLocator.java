@@ -98,7 +98,7 @@ public interface HandlerLocator<T> {
             if (Files.exists(resource)) {
                 return new AuthHttpHandler<T>(new HttpHandler<T>() {
                     @Override
-                    public void handle(NioFiber readFiber, HttpRequest headers, HttpResponseWriter writer, T sessionState) {
+                    public void handle(NioFiber readFiber, HttpRequest headers, HttpResponse writer, T sessionState) {
                         try {
                             byte[] bytes = Files.readAllBytes(resource);
                             writer.sendResponse(200, "OK", contentType, bytes);

@@ -13,7 +13,7 @@ public class AuthHttpHandler<T> implements HttpHandler<T> {
     }
 
     @Override
-    public void handle(NioFiber readFiber, HttpRequest headers, HttpResponseWriter writer, T sessionState) {
+    public void handle(NioFiber readFiber, HttpRequest headers, HttpResponse writer, T sessionState) {
         if (security.passes(readFiber, headers, writer, sessionState)) {
             target.handle(readFiber, headers, writer, sessionState);
         }

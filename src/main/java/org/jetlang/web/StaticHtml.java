@@ -12,7 +12,7 @@ public class StaticHtml<T> implements HttpHandler<T> {
     }
 
     @Override
-    public void handle(NioFiber readFiber, HttpRequest headers, HttpResponseWriter writer, T sessionState) {
+    public void handle(NioFiber readFiber, HttpRequest headers, HttpResponse writer, T sessionState) {
         writer.sendResponse(200, "OK", "text/html", resource);
     }
 }

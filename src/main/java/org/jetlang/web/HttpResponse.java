@@ -6,14 +6,10 @@ import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
-public class HttpResponseWriter {
-    private final NioWriter writer;
+public interface HttpResponse {
 
-    public HttpResponseWriter(NioWriter writer) {
-        this.writer = writer;
-    }
 
-    public SendResult sendResponse(int statusCode, String statusTxt, String contentType, Path resource) {
+    default SendResult sendResponse(int statusCode, String statusTxt, String contentType, Path resource) {
         try {
             final byte[] b = Files.readAllBytes(resource);
             return sendResponse(statusCode, statusTxt, contentType, b);
@@ -22,19 +18,22 @@ public class HttpResponseWriter {
         }
     }
 
-    public SendResult send(ByteBuffer fullResponse) {
-        return writer.send(fullResponse);
-    }
-
-    public SendResult sendResponse(int statusCode, String statusTxt, String contentType, String content, Charset ascii) {
+    default SendResult sendResponse(int statusCode, String statusTxt, String contentType, String content, Charset ascii) {
         byte[] b = content.getBytes(ascii);
         return sendResponse(statusCode, statusTxt, contentType, b);
     }
 
-    public SendResult sendResponse(int statusCode, String statusTxt, String contentType, byte[] content) {
+    default SendResult sendResponse(int statusCode, String statusTxt, String contentType, byte[] content) {
+        return sendResponse(statusCode, statusTxt, contentType, null, content);
+    }
+
+    default SendResult sendResponse(int statusCode, String statusTxt, String contentType, HeaderList headers, byte[] content) {
         StringBuilder response = new StringBuilder();
         response.append("HTTP/1.0 ").append(statusCode).append(' ').append(statusTxt).append("\r\n");
         response.append("Content-Type: ").append(contentType).append("\r\n");
+        if (headers != null) {
+            headers.appendTo(response);
+        }
         response.append("Content-Length: ").append(content.length).append("\r\n\r\n");
         byte[] header = response.toString().getBytes(HeaderReader.ascii);
         ByteBuffer bb = ByteBuffer.allocate(header.length + content.length);
@@ -42,6 +41,21 @@ public class HttpResponseWriter {
         bb.put(content);
         bb.flip();
         return send(bb);
+    }
+
+    SendResult send(ByteBuffer fullResponse);
+
+    class Default implements HttpResponse {
+        private final NioWriter writer;
+
+        public Default(NioWriter writer) {
+            this.writer = writer;
+        }
+
+        public SendResult send(ByteBuffer fullResponse) {
+            return writer.send(fullResponse);
+        }
+
     }
 
 }
