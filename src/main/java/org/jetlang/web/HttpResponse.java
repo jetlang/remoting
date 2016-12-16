@@ -45,6 +45,16 @@ public interface HttpResponse {
 
     SendResult send(ByteBuffer fullResponse);
 
+    default void sendWebsocketHandshake(String reply, HeaderList additionalHeaders) {
+        StringBuilder handshake = new StringBuilder("HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: ");
+        handshake.append(reply).append("\r\n");
+        if (additionalHeaders != null) {
+            additionalHeaders.appendTo(handshake);
+        }
+        handshake.append("\r\n");
+        send(ByteBuffer.wrap(handshake.toString().getBytes(HeaderReader.ascii)));
+    }
+
     class Default implements HttpResponse {
         private final NioWriter writer;
 

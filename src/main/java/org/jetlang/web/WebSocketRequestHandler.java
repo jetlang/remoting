@@ -1,7 +1,6 @@
 package org.jetlang.web;
 
 import javax.xml.bind.DatatypeConverter;
-import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -22,11 +21,9 @@ public class WebSocketRequestHandler<S, T> implements Handler<S> {
     @Override
     public NioReader.State start(SessionDispatcherFactory.SessionDispatcher<S> dispatcher, HttpRequest headers, HeaderReader<S> headerReader, NioWriter writer, S sessionState) {
         if (security.passes(headerReader.getReadFiber(), headers, sessionState)) {
-            StringBuilder handshake = new StringBuilder("HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: ");
-            String key = headers.get("Sec-WebSocket-Key") + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
-            String reply = DatatypeConverter.printBase64Binary(msgDigest.digest(key.getBytes(headerReader.ascii)));
-            handshake.append(reply).append("\r\n\r\n");
-            writer.send(ByteBuffer.wrap(handshake.toString().getBytes(headerReader.ascii)));
+            final String key = headers.get("Sec-WebSocket-Key") + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
+            final String reply = DatatypeConverter.printBase64Binary(msgDigest.digest(key.getBytes(headerReader.ascii)));
+            headerReader.getHttpResponseWriter().sendWebsocketHandshake(reply, null);
             WebSocketConnectionImpl connection = new WebSocketConnectionImpl(writer, new byte[0], headerReader.getReadFiber());
             WebSocketReader<S, T> reader = new WebSocketReader<S, T>(connection, headers, local, dispatcher.createOnNewSession(handler, headers, sessionState), () -> {
             }, sessionState);
