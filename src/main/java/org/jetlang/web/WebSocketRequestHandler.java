@@ -19,11 +19,11 @@ public class WebSocketRequestHandler<S, T> implements Handler<S> {
     }
 
     @Override
-    public NioReader.State start(SessionDispatcherFactory.SessionDispatcher<S> dispatcher, HttpRequest headers, HeaderReader<S> headerReader, NioWriter writer, S sessionState) {
+    public NioReader.State start(SessionDispatcherFactory.SessionDispatcher<S> dispatcher, HttpRequest headers, HttpResponse response, HeaderReader<S> headerReader, NioWriter writer, S sessionState) {
         if (security.passes(headerReader.getReadFiber(), headers, sessionState)) {
             final String key = headers.get("Sec-WebSocket-Key") + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
             final String reply = DatatypeConverter.printBase64Binary(msgDigest.digest(key.getBytes(headerReader.ascii)));
-            headerReader.getHttpResponseWriter().sendWebsocketHandshake(reply, null);
+            response.sendWebsocketHandshake(reply, null);
             WebSocketConnectionImpl connection = new WebSocketConnectionImpl(writer, new byte[0], headerReader.getReadFiber());
             WebSocketReader<S, T> reader = new WebSocketReader<S, T>(connection, headers, local, dispatcher.createOnNewSession(handler, headers, sessionState), () -> {
             }, sessionState);

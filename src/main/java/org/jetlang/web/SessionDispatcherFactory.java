@@ -26,8 +26,8 @@ public interface SessionDispatcherFactory<S> {
         }
 
         @Override
-        public NioReader.State dispatch(HttpHandler<S> handler, HttpRequest headers, HeaderReader<S> headerReader, NioWriter writer, S sessionState) {
-            handler.handle(headerReader.getReadFiber(), headers, headerReader.getHttpResponseWriter(), sessionState);
+        public NioReader.State dispatch(HttpHandler<S> handler, HttpRequest headers, HttpResponse response, HeaderReader<S> headerReader, NioWriter writer, S sessionState) {
+            handler.handle(headerReader.getReadFiber(), headers, response, sessionState);
             return headerReader.start();
         }
 
@@ -39,7 +39,7 @@ public interface SessionDispatcherFactory<S> {
     interface SessionDispatcher<S> {
         <T> WebSocketHandler<S, T> createOnNewSession(WebSocketHandler<S, T> handler, HttpRequest headers, S sessionState);
 
-        NioReader.State dispatch(HttpHandler<S> handler, HttpRequest headers, HeaderReader<S> headerReader, NioWriter writer, S sessionState);
+        NioReader.State dispatch(HttpHandler<S> handler, HttpRequest headers, HttpResponse response, HeaderReader<S> headerReader, NioWriter writer, S sessionState);
 
         void onClose(S session);
     }
@@ -156,14 +156,14 @@ public interface SessionDispatcherFactory<S> {
         }
 
         @Override
-        public NioReader.State dispatch(HttpHandler<S> handler, HttpRequest headers, HeaderReader<S> headerReader, NioWriter writer, S sessionState) {
+        public NioReader.State dispatch(HttpHandler<S> handler, HttpRequest headers, HttpResponse response, HeaderReader<S> headerReader, NioWriter writer, S sessionState) {
             if (useForHttp) {
                 fiber.execute(() -> {
-                    handler.handle(headerReader.getReadFiber(), headers, headerReader.getHttpResponseWriter(), sessionState);
+                    handler.handle(headerReader.getReadFiber(), headers, response, sessionState);
                 });
                 return headerReader.start();
             } else {
-                return onReadThread.dispatch(handler, headers, headerReader, writer, sessionState);
+                return onReadThread.dispatch(handler, headers, response, headerReader, writer, sessionState);
             }
         }
 

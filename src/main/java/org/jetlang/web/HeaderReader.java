@@ -49,10 +49,6 @@ public class HeaderReader<T> {
         }
     }
 
-    public HttpResponse getHttpResponseWriter() {
-        return httpWriter;
-    }
-
     public class FirstLine implements NioReader.State {
         private final HttpRequest headers = new HttpRequest();
 
@@ -88,7 +84,7 @@ public class HeaderReader<T> {
             session = sessionFactory.create(channel, fiber, controls, headers);
             sessionDispatcher = dispatcher.createOnNewSession(session, headers);
         }
-        return handler.dispatch(sessionDispatcher, headers, HeaderReader.this, writer, session);
+        return handler.dispatch(sessionDispatcher, headers, httpWriter, HeaderReader.this, writer, session);
     }
 
     public class HeaderLine implements NioReader.State {
