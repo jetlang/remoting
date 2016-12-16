@@ -55,7 +55,20 @@ public interface HttpResponse {
         public SendResult send(ByteBuffer fullResponse) {
             return writer.send(fullResponse);
         }
+    }
 
+    class Decorator implements HttpResponse {
+
+        private final HttpResponse target;
+
+        public Decorator(HttpResponse target) {
+            this.target = target;
+        }
+
+        @Override
+        public SendResult send(ByteBuffer fullResponse) {
+            return target.send(fullResponse);
+        }
     }
 
 }
