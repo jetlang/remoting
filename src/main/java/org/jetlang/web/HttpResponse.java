@@ -29,7 +29,7 @@ public interface HttpResponse {
 
     default SendResult sendResponse(int statusCode, String statusTxt, String contentType, HeaderList headers, byte[] content) {
         StringBuilder response = new StringBuilder();
-        response.append("HTTP/1.0 ").append(statusCode).append(' ').append(statusTxt).append("\r\n");
+        response.append("HTTP/1.1 ").append(statusCode).append(' ').append(statusTxt).append("\r\n");
         response.append("Content-Type: ").append(contentType).append("\r\n");
         if (headers != null) {
             headers.appendTo(response);
