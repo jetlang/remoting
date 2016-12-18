@@ -81,26 +81,30 @@ public interface HandlerLocator<T> {
 
         @Override
         public Handler<T> find(HttpRequest headers, T sessionState) {
-            String path = headers.getPath();
-            if (path.endsWith("/") || path.isEmpty()) {
-                path += "index.html";
+            final String reqPath = headers.getPath();
+            final String requestUri = reqPath.startsWith("/") ? reqPath.substring(1) : reqPath;
+
+            //must normalize and check if the resource is a subdirectory to prevent a path traversal attack
+            Path resource = this.path.resolve(requestUri).normalize();
+            if (Files.isDirectory(resource)) {
+                resource = resource.resolve("index.html");
             }
-            int i = path.lastIndexOf('.');
-            if (i == -1) {
-                return null;
-            }
-            String contentType = fileExtensionToContentType.get(path.substring(i + 1));
-            if (contentType == null) {
-                return null;
-            }
-            String requestUri = path.startsWith("/") ? path.substring(1) : path;
-            Path resource = this.path.resolve(requestUri);
-            if (Files.exists(resource)) {
+            if (resource.startsWith(this.path) && Files.exists(resource)) {
+                String resourceToString = resource.toString();
+                int i = resourceToString.lastIndexOf('.');
+                if (i == -1) {
+                    return null;
+                }
+                String contentType = fileExtensionToContentType.get(resourceToString.substring(i + 1));
+                if (contentType == null) {
+                    return null;
+                }
+                Path finalResource = resource;
                 return new AuthHttpHandler<T>(new HttpHandler<T>() {
                     @Override
                     public void handle(NioFiber readFiber, HttpRequest headers, HttpResponse writer, T sessionState) {
                         try {
-                            byte[] bytes = Files.readAllBytes(resource);
+                            byte[] bytes = Files.readAllBytes(finalResource);
                             writer.sendResponse(200, "OK", contentType, bytes);
                         } catch (IOException e) {
                             writer.sendResponse(404, "Not Found", "text/plain", e.getMessage(), HeaderReader.ascii);
