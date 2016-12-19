@@ -70,9 +70,18 @@ public interface HandlerLocator<T> {
         private final Path path;
 
         public ResourcesDirectory(Path dir, HttpSecurity<T> security, Map<String, String> fileExtensionToContentType) {
-            path = dir;
+            //remove relative paths and make absolute
+            path = getReal(dir);
             this.security = security;
             this.fileExtensionToContentType = fileExtensionToContentType;
+        }
+
+        private static Path getReal(Path dir) {
+            try {
+                return dir.toRealPath();
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
         }
 
         public ResourcesDirectory(Path dir) {
