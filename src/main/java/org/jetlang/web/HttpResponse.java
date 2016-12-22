@@ -27,7 +27,7 @@ public interface HttpResponse {
         return sendResponse(statusCode, statusTxt, contentType, null, content);
     }
 
-    default SendResult sendResponse(int statusCode, String statusTxt, String contentType, HeaderList headers, byte[] content) {
+    default SendResult sendResponse(int statusCode, String statusTxt, String contentType, KeyValueList headers, byte[] content) {
         StringBuilder response = new StringBuilder();
         response.append("HTTP/1.1 ").append(statusCode).append(' ').append(statusTxt).append("\r\n");
         response.append("Content-Type: ").append(contentType).append("\r\n");
@@ -45,7 +45,7 @@ public interface HttpResponse {
 
     SendResult send(ByteBuffer fullResponse);
 
-    default void sendWebsocketHandshake(String reply, HeaderList additionalHeaders) {
+    default void sendWebsocketHandshake(String reply, KeyValueList additionalHeaders) {
         StringBuilder handshake = new StringBuilder("HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: ");
         handshake.append(reply).append("\r\n");
         if (additionalHeaders != null) {

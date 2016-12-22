@@ -5,24 +5,17 @@ import java.net.URI;
 import java.net.URLDecoder;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.function.Function;
 
 public class HttpRequest {
 
     private static final byte[] empty = new byte[0];
-    private static final Function<? super String, ? extends List<String>> createList = (key) -> new ArrayList<>(1);
-    private final HeaderList headers = new HeaderList();
+    private final KeyValueList headers = new KeyValueList(false);
     String method;
     private URI requestUri;
     String protocolVersion;
     int contentLength;
     byte[] content = empty;
-    private Map<String, List<String>> queryParams = Collections.emptyMap();
+    private KeyValueList queryParams = KeyValueList.EMPTY;
 
     public HttpRequest(String method, String uri, String protocolVersion) {
         this.method = method;
@@ -34,7 +27,7 @@ public class HttpRequest {
 
     }
 
-    public Map<String, List<String>> getQueryParams() {
+    public KeyValueList getQueryParams() {
         return queryParams;
     }
 
@@ -43,18 +36,17 @@ public class HttpRequest {
         this.queryParams = splitQuery(requestUri);
     }
 
-    public static Map<String, List<String>> splitQuery(URI url) {
+    public static KeyValueList splitQuery(URI url) {
         if (url.getQuery() == null || url.getQuery().isEmpty()) {
-            return Collections.emptyMap();
+            return KeyValueList.EMPTY;
         }
         final String[] pairs = url.getQuery().split("&");
-        final Map<String, List<String>> query_pairs = new LinkedHashMap<>();
+        final KeyValueList query_pairs = new KeyValueList(pairs.length, false);
         for (String pair : pairs) {
             final int idx = pair.indexOf("=");
             final String key = idx > 0 ? decode(pair.substring(0, idx)) : pair;
             final String value = idx > 0 && pair.length() > idx + 1 ? decode(pair.substring(idx + 1)) : null;
-            List<String> strings = query_pairs.computeIfAbsent(key, createList);
-            strings.add(value);
+            query_pairs.add(key, value);
         }
         return query_pairs;
     }
@@ -76,7 +68,7 @@ public class HttpRequest {
         return content;
     }
 
-    public HeaderList getHeaders() {
+    public KeyValueList getHeaders() {
         return headers;
     }
 
