@@ -5,6 +5,7 @@ import org.jetlang.fibers.NioFiber;
 import org.jetlang.fibers.NioFiberImpl;
 
 import java.io.IOException;
+import java.net.SocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.SelectableChannel;
 import java.nio.channels.SelectionKey;
@@ -18,11 +19,23 @@ public class NioWriter {
     private final Object writeLock;
     private NioFiberImpl.BufferedWrite<SocketChannel> bufferedWrite;
     private boolean closed = false;
+    private final SocketAddress remoteAddress;
 
     public NioWriter(Object lock, SocketChannel channel, NioFiber fiber) {
         this.channel = channel;
         this.fiber = fiber;
         this.writeLock = lock;
+        //this could return null if the address is no longer connected
+        //keep a reference so it can be logged even after disconnect.
+        this.remoteAddress = getRemote(channel);
+    }
+
+    private static SocketAddress getRemote(SocketChannel channel) {
+        try {
+            return channel.getRemoteAddress();
+        } catch (IOException e) {
+            return null;
+        }
     }
 
     public SendResult send(ByteBuffer bb) {
@@ -105,5 +118,9 @@ public class NioWriter {
 
     public SocketChannel getChannel() {
         return channel;
+    }
+
+    public SocketAddress getRemoteAddress() {
+        return remoteAddress;
     }
 }

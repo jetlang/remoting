@@ -3,7 +3,6 @@ package org.jetlang.web;
 import org.jetlang.core.Disposable;
 import org.jetlang.fibers.NioFiber;
 
-import java.io.IOException;
 import java.net.SocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
@@ -43,11 +42,7 @@ public class WebSocketConnectionImpl implements WebSocketConnection {
 
     @Override
     public SocketAddress getRemoteAddress() {
-        try {
-            return writer.getChannel().getRemoteAddress();
-        } catch (IOException e) {
-            return null;
-        }
+        return writer.getRemoteAddress();
     }
 
     @Override
