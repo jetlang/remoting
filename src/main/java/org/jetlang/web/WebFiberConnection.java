@@ -17,6 +17,11 @@ public class WebFiberConnection implements WebSocketConnection {
     }
 
     @Override
+    public HttpRequest getRequest() {
+        return connection.getRequest();
+    }
+
+    @Override
     public SocketAddress getRemoteAddress() {
         return connection.getRemoteAddress();
     }

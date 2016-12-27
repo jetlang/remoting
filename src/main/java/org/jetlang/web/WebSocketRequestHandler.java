@@ -24,7 +24,7 @@ public class WebSocketRequestHandler<S, T> implements Handler<S> {
             final String key = headers.get("Sec-WebSocket-Key") + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
             final String reply = DatatypeConverter.printBase64Binary(msgDigest.digest(key.getBytes(headerReader.ascii)));
             response.sendWebsocketHandshake(reply, null);
-            WebSocketConnectionImpl connection = new WebSocketConnectionImpl(writer, new byte[0], headerReader.getReadFiber());
+            WebSocketConnectionImpl connection = new WebSocketConnectionImpl(writer, new byte[0], headerReader.getReadFiber(), headers);
             WebSocketReader<S, T> reader = new WebSocketReader<S, T>(connection, headers, local, dispatcher.createOnNewSession(handler, headers, sessionState), () -> {
             }, sessionState);
             return reader.start();

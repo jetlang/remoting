@@ -8,6 +8,8 @@ import java.net.SocketAddress;
 public interface WebSocketConnection extends Scheduler, DisposingExecutor {
 
 
+    HttpRequest getRequest();
+
     /**
      * @return the remote address or null if it can't be resolved.
      */

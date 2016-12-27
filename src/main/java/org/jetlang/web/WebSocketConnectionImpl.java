@@ -24,14 +24,21 @@ public class WebSocketConnectionImpl implements WebSocketConnection {
     private final NioWriter writer;
     private final byte[] maskingBytes;
     private NioFiber readFiber;
+    private HttpRequest request;
     private static final SizeType[] sizes = SizeType.values();
     private boolean closed;
     private final List<Disposable> disposables = new ArrayList<>();
 
-    public WebSocketConnectionImpl(NioWriter writer, byte[] maskingBytes, NioFiber readFiber) {
+    public WebSocketConnectionImpl(NioWriter writer, byte[] maskingBytes, NioFiber readFiber, HttpRequest request) {
         this.writer = writer;
         this.maskingBytes = maskingBytes;
         this.readFiber = readFiber;
+        this.request = request;
+    }
+
+    @Override
+    public HttpRequest getRequest() {
+        return request;
     }
 
     @Override
