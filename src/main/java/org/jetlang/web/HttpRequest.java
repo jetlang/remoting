@@ -116,7 +116,7 @@ public class HttpRequest {
     /**
      * @return charset found in request or default body charset if one isn't present
      */
-    public Charset getBodyCharset(boolean failOnUnsupported) {
+    public Charset getContentCharset(boolean failOnUnsupported) {
         String s = headers.get("Content-Type");
         if (s != null) {
             String[] content = s.split(";");
@@ -138,5 +138,9 @@ public class HttpRequest {
             }
         }
         return defaultBodyCharset;
+    }
+
+    public String getContentAsString(boolean failOnUnsupportedEncoding) {
+        return new String(content, getContentCharset(failOnUnsupportedEncoding));
     }
 }

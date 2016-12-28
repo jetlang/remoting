@@ -46,7 +46,9 @@ public class HttpRequestTest {
         HttpRequest req = new HttpRequest("POST", "/path", "HTTP/1.1");
         req.add("Content-Type", "application/x-www-form-urlencoded ; charset=UTF-8");
         Charset charset = Charset.forName("UTF-8");
-        assertEquals(charset, req.getBodyCharset(true));
+        req.content = "Hello".getBytes(charset);
+        assertEquals(charset, req.getContentCharset(true));
+        assertEquals("Hello", req.getContentAsString(true));
     }
 
 
@@ -55,7 +57,7 @@ public class HttpRequestTest {
         HttpRequest req = new HttpRequest("POST", "/path", "HTTP/1.1");
         req.add("Content-Type", "application/x-www-form-urlencoded ; charset=UTF-99");
         try {
-            req.getBodyCharset(true);
+            req.getContentCharset(true);
             fail("Should fail");
         } catch (UnsupportedCharsetException expected) {
 
@@ -67,14 +69,18 @@ public class HttpRequestTest {
     public void testGettingDefault() {
         HttpRequest req = new HttpRequest("POST", "/path", "HTTP/1.1");
         req.add("Content-Type", "application/x-www-form-urlencoded");
-        assertEquals(HttpRequest.defaultBodyCharset, req.getBodyCharset(true));
+        assertEquals(HttpRequest.defaultBodyCharset, req.getContentCharset(true));
     }
 
     @Test
     public void testGettingDefaultOnError() {
         HttpRequest req = new HttpRequest("POST", "/path", "HTTP/1.1");
         req.add("Content-Type", "application/x-www-form-urlencoded ; charset=UTF-99");
-        assertEquals(HttpRequest.defaultBodyCharset, req.getBodyCharset(false));
+        Charset charset = Charset.forName("UTF-8");
+        req.content = "Hello".getBytes(charset);
+        assertEquals(HttpRequest.defaultBodyCharset, req.getContentCharset(false));
+        assertEquals("Hello", req.getContentAsString(false));
+
     }
 
 
