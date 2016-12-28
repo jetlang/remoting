@@ -24,7 +24,7 @@ public class WebAcceptor {
         this.onEnd = onEnd;
     }
 
-    public void start() {
+    public ServerSocketChannel start() {
         try {
             final ServerSocketChannel socketChannel = config.configure(port);
             socketChannel.configureBlocking(false);
@@ -44,6 +44,7 @@ public class WebAcceptor {
                 }
             };
             acceptorFiber.addHandler(acceptorHandler);
+            return socketChannel;
         } catch (IOException failed) {
             throw new RuntimeException(failed);
         }
