@@ -48,7 +48,7 @@ public class HttpRequest {
         final KeyValueList query_pairs = new KeyValueList(pairs.countTokens(), false);
         while (pairs.hasMoreTokens()) {
             final String pair = pairs.nextToken();
-            final int idx = pair.indexOf("=");
+            final int idx = pair.indexOf('=');
             final String key = idx > 0 ? decode(pair.substring(0, idx)) : pair;
             final String value = idx > 0 && pair.length() > idx + 1 ? decode(pair.substring(idx + 1)) : null;
             query_pairs.add(key, value);
@@ -123,11 +123,12 @@ public class HttpRequest {
         if (s != null) {
             StringTokenizer content = new StringTokenizer(s, ";");
             while (content.hasMoreElements()) {
-                StringTokenizer split = new StringTokenizer(content.nextToken(), "=");
-                if (split.countTokens() == 2) {
-                    String name = split.nextToken().trim();
-                    String value = split.nextToken().trim();
+                String candidate = content.nextToken().trim();
+                int idx = candidate.indexOf('=');
+                if (idx == 7 && candidate.length() > 8) {
+                    String name = candidate.substring(0, 7);
                     if (name.equalsIgnoreCase("charset")) {
+                        String value = candidate.substring(8).trim();
                         try {
                             return Charset.forName(value);
                         } catch (UnsupportedCharsetException unsupported) {
