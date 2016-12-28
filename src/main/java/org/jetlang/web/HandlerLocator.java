@@ -1,6 +1,6 @@
 package org.jetlang.web;
 
-import org.jetlang.fibers.NioFiber;
+import org.jetlang.fibers.Fiber;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -111,7 +111,7 @@ public interface HandlerLocator<T> {
                 Path finalResource = resource;
                 return new AuthHttpHandler<T>(new HttpHandler<T>() {
                     @Override
-                    public void handle(NioFiber readFiber, HttpRequest headers, HttpResponse writer, T sessionState) {
+                    public void handle(Fiber dispatchFiber, HttpRequest headers, HttpResponse writer, T sessionState) {
                         try {
                             byte[] bytes = Files.readAllBytes(finalResource);
                             writer.sendResponse(200, "OK", contentType, bytes);

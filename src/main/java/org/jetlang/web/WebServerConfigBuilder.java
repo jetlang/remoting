@@ -1,5 +1,6 @@
 package org.jetlang.web;
 
+import org.jetlang.fibers.Fiber;
 import org.jetlang.fibers.NioFiber;
 
 import java.nio.charset.Charset;
@@ -22,7 +23,7 @@ public class WebServerConfigBuilder<S> {
     };
     private Handler<S> defaultHandler = new HttpHandler<S>() {
         @Override
-        public void handle(NioFiber readFiber, HttpRequest headers, HttpResponse writer, S sessionState) {
+        public void handle(Fiber dispatchFiber, HttpRequest headers, HttpResponse writer, S sessionState) {
             writer.sendResponse(404, "Not Found", "text/plain", headers.getPath() + " Not Found", HeaderReader.ascii);
         }
     };

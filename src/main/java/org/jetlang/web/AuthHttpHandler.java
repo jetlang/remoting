@@ -1,6 +1,6 @@
 package org.jetlang.web;
 
-import org.jetlang.fibers.NioFiber;
+import org.jetlang.fibers.Fiber;
 
 public class AuthHttpHandler<T> implements HttpHandler<T> {
 
@@ -13,9 +13,9 @@ public class AuthHttpHandler<T> implements HttpHandler<T> {
     }
 
     @Override
-    public void handle(NioFiber readFiber, HttpRequest headers, HttpResponse writer, T sessionState) {
-        if (security.passes(readFiber, headers, writer, sessionState)) {
-            target.handle(readFiber, headers, writer, sessionState);
+    public void handle(Fiber dispatchFiber, HttpRequest headers, HttpResponse writer, T sessionState) {
+        if (security.passes(dispatchFiber, headers, writer, sessionState)) {
+            target.handle(dispatchFiber, headers, writer, sessionState);
         }
     }
 

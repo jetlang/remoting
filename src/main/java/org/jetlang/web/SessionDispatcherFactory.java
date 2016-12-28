@@ -159,7 +159,7 @@ public interface SessionDispatcherFactory<S> {
         public NioReader.State dispatch(HttpHandler<S> handler, HttpRequest headers, HttpResponse response, HeaderReader<S> headerReader, NioWriter writer, S sessionState) {
             if (useForHttp) {
                 fiber.execute(() -> {
-                    handler.handle(headerReader.getReadFiber(), headers, response, sessionState);
+                    handler.handle(fiber, headers, response, sessionState);
                 });
                 return headerReader.start();
             } else {

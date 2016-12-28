@@ -1,6 +1,6 @@
 package org.jetlang.web;
 
-import org.jetlang.fibers.NioFiber;
+import org.jetlang.fibers.Fiber;
 
 public interface HttpHandler<T> extends Handler<T> {
 
@@ -9,5 +9,5 @@ public interface HttpHandler<T> extends Handler<T> {
         return dispatcher.dispatch(this, headers, response, headerReader, writer, sessionState);
     }
 
-    void handle(NioFiber readFiber, HttpRequest headers, HttpResponse writer, T sessionState);
+    void handle(Fiber dispatchFiber, HttpRequest headers, HttpResponse writer, T sessionState);
 }
