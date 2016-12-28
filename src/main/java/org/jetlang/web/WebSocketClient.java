@@ -324,7 +324,7 @@ public class WebSocketClient<S, T> {
         start(true, latch);
     }
 
-    private ByteBuffer createHandshake() {
+    protected ByteBuffer createHandshake() {
         HttpRequest request = new HttpRequest("GET", path, "HTTP/1.1");
         request.add("Host", host + ':' + port);
         request.add("Connection", "Upgrade");
@@ -343,7 +343,12 @@ public class WebSocketClient<S, T> {
             request.add("Cookie", builder.toString());
         }
         request.add("Sec-WebSocket-Key", secKey());
+        addHeadersToHandshake(request);
         return request.toByteBuffer(ascii);
+    }
+
+    protected void addHeadersToHandshake(HttpRequest request) {
+
     }
 
     private static byte randomByte() {
