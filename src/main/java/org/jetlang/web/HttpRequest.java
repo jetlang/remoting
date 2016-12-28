@@ -1,8 +1,6 @@
 package org.jetlang.web;
 
-import java.io.UnsupportedEncodingException;
 import java.net.URI;
-import java.net.URLDecoder;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
 import java.nio.charset.UnsupportedCharsetException;
@@ -41,29 +39,9 @@ public class HttpRequest {
     }
 
     public static KeyValueList splitQuery(URI url) {
-        if (url.getQuery() == null || url.getQuery().isEmpty()) {
-            return KeyValueList.EMPTY;
-        }
-        final StringTokenizer pairs = new StringTokenizer(url.getQuery(), "&");
-        final KeyValueList query_pairs = new KeyValueList(pairs.countTokens(), false);
-        while (pairs.hasMoreTokens()) {
-            final String pair = pairs.nextToken();
-            final int idx = pair.indexOf('=');
-            final String key = idx > 0 ? decode(pair.substring(0, idx)) : pair;
-            final String value = idx > 0 && pair.length() > idx + 1 ? decode(pair.substring(idx + 1)) : null;
-            query_pairs.add(key, value);
-        }
-        return query_pairs;
+        String query = url.getQuery();
+        return KeyValueList.parseFromQueryParams(query, false);
     }
-
-    private static String decode(String substring) {
-        try {
-            return URLDecoder.decode(substring, "UTF-8");
-        } catch (UnsupportedEncodingException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
 
     public String get(String key) {
         return headers.get(key);

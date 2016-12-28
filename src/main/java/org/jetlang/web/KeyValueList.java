@@ -1,10 +1,13 @@
 package org.jetlang.web;
 
+import java.io.UnsupportedEncodingException;
+import java.net.URLDecoder;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Spliterator;
+import java.util.StringTokenizer;
 import java.util.function.Consumer;
 
 public class KeyValueList implements Iterable<KeyValueList.Entry> {
@@ -91,6 +94,32 @@ public class KeyValueList implements Iterable<KeyValueList.Entry> {
     public int size() {
         return headers.size();
     }
+
+    public static KeyValueList parseFromQueryParams(String query, boolean caseSensitive) {
+        if (query == null || query.isEmpty()) {
+            return EMPTY;
+        }
+        final StringTokenizer pairs = new StringTokenizer(query, "&");
+        final KeyValueList query_pairs = new KeyValueList(pairs.countTokens(), caseSensitive);
+        while (pairs.hasMoreTokens()) {
+            final String pair = pairs.nextToken();
+            final int idx = pair.indexOf('=');
+            final String key = idx > 0 ? decode(pair.substring(0, idx)) : pair;
+            final String value = idx > 0 && pair.length() > idx + 1 ? decode(pair.substring(idx + 1)) : null;
+            query_pairs.add(key, value);
+        }
+        return query_pairs;
+
+    }
+
+    private static String decode(String substring) {
+        try {
+            return URLDecoder.decode(substring, "UTF-8");
+        } catch (UnsupportedEncodingException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
 
     public static class Entry {
 
