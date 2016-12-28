@@ -95,7 +95,7 @@ public class KeyValueList implements Iterable<KeyValueList.Entry> {
         return headers.size();
     }
 
-    public static KeyValueList parseFromQueryParams(String query, boolean caseSensitive) {
+    public static KeyValueList parseUrlEncoded(String query, boolean caseSensitive) {
         if (query == null || query.isEmpty()) {
             return EMPTY;
         }
