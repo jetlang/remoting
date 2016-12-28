@@ -373,7 +373,7 @@ public class WebSocketClient<S, T> {
     public static class Config {
 
         public void configure(SocketChannel channel) throws IOException {
-
+            channel.socket().setTcpNoDelay(true);
         }
 
         public int getReadBufferSizeInBytes() {
