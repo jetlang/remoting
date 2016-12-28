@@ -5,8 +5,11 @@ import java.net.URI;
 import java.net.URLDecoder;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
+import java.nio.charset.UnsupportedCharsetException;
 
 public class HttpRequest {
+
+    public static final Charset defaultBodyCharset = Charset.forName("ISO-8859-1");
 
     private static final byte[] empty = new byte[0];
     private final KeyValueList headers = new KeyValueList(false);
@@ -108,5 +111,32 @@ public class HttpRequest {
         headers.appendTo(builder);
         String result = builder.append("\r\n").toString();
         return ByteBuffer.wrap(result.getBytes(charset));
+    }
+
+    /**
+     * @return charset found in request or default body charset if one isn't present
+     */
+    public Charset getBodyCharset(boolean failOnUnsupported) {
+        String s = headers.get("Content-Type");
+        if (s != null) {
+            String[] content = s.split(";");
+            for (String val : content) {
+                String[] split = val.split("=");
+                if (split.length == 2) {
+                    String name = split[0].trim();
+                    String value = split[1].trim();
+                    if (name.equalsIgnoreCase("charset")) {
+                        try {
+                            return Charset.forName(value);
+                        } catch (UnsupportedCharsetException unsupported) {
+                            if (failOnUnsupported) {
+                                throw unsupported;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return defaultBodyCharset;
     }
 }

@@ -3,9 +3,12 @@ package org.jetlang.web;
 import org.junit.Test;
 
 import java.net.URI;
+import java.nio.charset.Charset;
+import java.nio.charset.UnsupportedCharsetException;
 import java.util.List;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
 
 public class HttpRequestTest {
 
@@ -37,5 +40,44 @@ public class HttpRequestTest {
         KeyValueList stringListMap = HttpRequest.splitQuery(URI.create(uri));
         assertEquals(stringListMap.toString(), 0, stringListMap.size());
     }
+
+    @Test
+    public void testGettingBodyWithEncoding() {
+        HttpRequest req = new HttpRequest("POST", "/path", "HTTP/1.1");
+        req.add("Content-Type", "application/x-www-form-urlencoded ; charset=UTF-8");
+        Charset charset = Charset.forName("UTF-8");
+        assertEquals(charset, req.getBodyCharset(true));
+    }
+
+
+    @Test
+    public void testGettingBodyWithBadEncoding() {
+        HttpRequest req = new HttpRequest("POST", "/path", "HTTP/1.1");
+        req.add("Content-Type", "application/x-www-form-urlencoded ; charset=UTF-99");
+        try {
+            req.getBodyCharset(true);
+            fail("Should fail");
+        } catch (UnsupportedCharsetException expected) {
+
+        }
+    }
+
+
+    @Test
+    public void testGettingDefault() {
+        HttpRequest req = new HttpRequest("POST", "/path", "HTTP/1.1");
+        req.add("Content-Type", "application/x-www-form-urlencoded");
+        assertEquals(HttpRequest.defaultBodyCharset, req.getBodyCharset(true));
+    }
+
+    @Test
+    public void testGettingDefaultOnError() {
+        HttpRequest req = new HttpRequest("POST", "/path", "HTTP/1.1");
+        req.add("Content-Type", "application/x-www-form-urlencoded ; charset=UTF-99");
+        assertEquals(HttpRequest.defaultBodyCharset, req.getBodyCharset(false));
+    }
+
+
+
 
 }
