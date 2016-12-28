@@ -6,6 +6,7 @@ import java.net.URLDecoder;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
 import java.nio.charset.UnsupportedCharsetException;
+import java.util.StringTokenizer;
 
 public class HttpRequest {
 
@@ -43,9 +44,10 @@ public class HttpRequest {
         if (url.getQuery() == null || url.getQuery().isEmpty()) {
             return KeyValueList.EMPTY;
         }
-        final String[] pairs = url.getQuery().split("&");
-        final KeyValueList query_pairs = new KeyValueList(pairs.length, false);
-        for (String pair : pairs) {
+        final StringTokenizer pairs = new StringTokenizer(url.getQuery(), "&");
+        final KeyValueList query_pairs = new KeyValueList(pairs.countTokens(), false);
+        while (pairs.hasMoreTokens()) {
+            final String pair = pairs.nextToken();
             final int idx = pair.indexOf("=");
             final String key = idx > 0 ? decode(pair.substring(0, idx)) : pair;
             final String value = idx > 0 && pair.length() > idx + 1 ? decode(pair.substring(idx + 1)) : null;
@@ -119,12 +121,12 @@ public class HttpRequest {
     public Charset getContentCharset(boolean failOnUnsupported) {
         String s = headers.get("Content-Type");
         if (s != null) {
-            String[] content = s.split(";");
-            for (String val : content) {
-                String[] split = val.split("=");
-                if (split.length == 2) {
-                    String name = split[0].trim();
-                    String value = split[1].trim();
+            StringTokenizer content = new StringTokenizer(s, ";");
+            while (content.hasMoreElements()) {
+                StringTokenizer split = new StringTokenizer(content.nextToken(), "=");
+                if (split.countTokens() == 2) {
+                    String name = split.nextToken().trim();
+                    String value = split.nextToken().trim();
                     if (name.equalsIgnoreCase("charset")) {
                         try {
                             return Charset.forName(value);
