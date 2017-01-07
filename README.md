@@ -5,6 +5,10 @@ The latest version is available in the maven repository.
 
 https://repo1.maven.org/maven2/org/jetlang/jetlang.remoting/
 
+#Dependencies
+  * JDK 8
+  * Jetlang Core - https://github.com/jetlang/core
+
 #Jetlang Remoting Api Features
 
   * Language agnostic messaging protocol - https://github.com/jetlang/remoting/wiki
