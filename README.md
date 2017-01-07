@@ -9,6 +9,21 @@ https://repo1.maven.org/maven2/org/jetlang/jetlang.remoting/
   * JDK 8
   * Jetlang Core - https://github.com/jetlang/core
 
+#WebSocket Features
+  * Client and Server implementations
+  * The jetlang core library is the only dependency
+  * Websocket connections can subscribe and schedule jetlang events
+  * Low latency
+  * Minimal allocations
+  * Non-blocking sends
+  * Http Server
+  * Ideal for microservices - embeddable, lightweight
+  * Configurable threading - Single threaded for easy state management or use jetlang pool fibers for massive scalability
+
+#Getting Started
+
+https://github.com/jetlang/remoting/tree/master/src/test/java/org/jetlang/remote/example/ws
+
 #Jetlang Remoting Api Features
 
   * Language agnostic messaging protocol - https://github.com/jetlang/remoting/wiki
@@ -28,15 +43,5 @@ https://repo1.maven.org/maven2/org/jetlang/jetlang.remoting/
 
 https://github.com/jetlang/remoting/tree/master/src/test/java/org/jetlang/remote/example/chat
 
-#WebSocket Features
-  * Client and Server implementations
-  * The jetlang core library is the only dependency
-  * Websocket connections can subscribe and schedule jetlang events
-  * Low latency
-  * Minimal allocations
-  * Non-blocking sends
 
-#Getting Started
-
-https://github.com/jetlang/remoting/tree/master/src/test/java/org/jetlang/remote/example/ws
   
