@@ -18,7 +18,7 @@ import java.util.concurrent.Executors;
 
 import static org.jetlang.web.PathMatcher.pathEq;
 
-public class WebSocketServerEchoMain {
+public class WebServerEchoMain {
 
     static class MyConnectionState {
         final SocketChannel channel;
