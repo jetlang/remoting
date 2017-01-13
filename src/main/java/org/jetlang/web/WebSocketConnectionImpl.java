@@ -94,7 +94,7 @@ public class WebSocketConnectionImpl implements WebSocketConnection {
         };
 
         public int max;
-        private final int bytes;
+        final int bytes;
 
         SizeType(int max, int bytes) {
             this.max = max;
@@ -117,29 +117,11 @@ public class WebSocketConnectionImpl implements WebSocketConnection {
     }
 
     private SendResult send(byte opCode, byte[] bytes, int offset, int length) {
-        byte header = 0;
-        header |= 1 << 7;
-        header |= opCode % 128;
         byte[] maskBytes = maskingBytes;
-        SizeType sz = findSize(length);
-        ByteBuffer bb = NioReader.bufferAllocate(1 + length + sz.bytes + maskBytes.length);
-        bb.put(header);
-        sz.write(bb, length, maskBytes.length > 0);
-        if (maskBytes.length > 0) {
-            bb.put(maskBytes);
-        }
-        if (bytes.length > 0 && maskBytes.length == 0) {
-            bb.put(bytes, offset, length);
-        } else {
-            for (int i = 0; i < length; ++i) {
-                bb.put((byte) (bytes[i + offset] ^ maskBytes[i % 4]));
-            }
-        }
-        bb.flip();
-        return writer.send(bb);
+        return writer.sendWsMsg(opCode, bytes, offset, length, maskBytes);
     }
 
-    private static SizeType findSize(int length) {
+    public static SizeType findSize(int length) {
         for (SizeType size : sizes) {
             if (length <= size.max) {
                 return size;
