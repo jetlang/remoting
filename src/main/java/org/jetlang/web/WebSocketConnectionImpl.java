@@ -117,8 +117,7 @@ public class WebSocketConnectionImpl implements WebSocketConnection {
     }
 
     private SendResult send(byte opCode, byte[] bytes, int offset, int length) {
-        byte[] maskBytes = maskingBytes;
-        return writer.sendWsMsg(opCode, bytes, offset, length, maskBytes);
+        return writer.sendWsMsg(opCode, bytes, offset, length, maskingBytes);
     }
 
     public static SizeType findSize(int length) {
