@@ -130,13 +130,14 @@ public class NioWriter {
         return remoteAddress;
     }
 
+    private ByteBuffer reusedWsWriteBuffer = null;
     public SendResult sendWsMsg(byte opCode, byte[] bytes, int offset, int length, byte[] maskBytes) {
         byte header = 0;
         header |= 1 << 7;
         header |= opCode % 128;
         WebSocketConnectionImpl.SizeType sz = findSize(length);
         synchronized (writeLock) {
-            ByteBuffer bb = NioReader.bufferAllocate(1 + length + sz.bytes + maskBytes.length);
+            ByteBuffer bb = wsbufferAllocate(1 + length + sz.bytes + maskBytes.length);
             bb.put(header);
             sz.write(bb, length, maskBytes.length > 0);
             if (maskBytes.length > 0) {
@@ -152,5 +153,14 @@ public class NioWriter {
             bb.flip();
             return doSend(bb);
         }
+    }
+
+    private ByteBuffer wsbufferAllocate(int requiredSize) {
+        if (reusedWsWriteBuffer == null || reusedWsWriteBuffer.capacity() < requiredSize) {
+            reusedWsWriteBuffer = NioReader.bufferAllocateDirect(requiredSize);
+        } else {
+            reusedWsWriteBuffer.clear();
+        }
+        return reusedWsWriteBuffer;
     }
 }

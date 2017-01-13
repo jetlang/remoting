@@ -59,6 +59,11 @@ public class NioReader<T> implements NioChannelHandler {
         return ByteBuffer.allocate(size).order(ByteOrder.BIG_ENDIAN);
     }
 
+    public static ByteBuffer bufferAllocateDirect(int size) {
+        return ByteBuffer.allocateDirect(size).order(ByteOrder.BIG_ENDIAN);
+    }
+
+
     public void onClosed() {
         this.headerReader.onClose();
         current.onClosed();
