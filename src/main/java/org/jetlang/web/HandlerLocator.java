@@ -88,7 +88,7 @@ public interface HandlerLocator<T> {
                     public void handle(Fiber dispatchFiber, HttpRequest headers, HttpResponse writer, T sessionState) {
                         try {
                             byte[] bytes = Files.readAllBytes(finalResource);
-                            writer.sendResponse(200, "OK", contentType.getContentType(), bytes, contentType.getCharset());
+                            writer.sendResponse(200, "OK", contentType.getContentType(), bytes, contentType.getCharset(finalResource, bytes));
                         } catch (IOException e) {
                             writer.sendResponse(404, "Not Found", "text/plain", e.getMessage(), HeaderReader.ascii);
                         }

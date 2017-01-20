@@ -1,6 +1,7 @@
 package org.jetlang.web;
 
 import java.nio.charset.Charset;
+import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -8,7 +9,7 @@ public interface MimeType {
 
     String getContentType();
 
-    Charset getCharset();
+    Charset getCharset(Path finalResource, byte[] bytes);
 
     class Text implements MimeType {
 
@@ -26,7 +27,7 @@ public interface MimeType {
         }
 
         @Override
-        public Charset getCharset() {
+        public Charset getCharset(Path finalResource, byte[] bytes) {
             return charset;
         }
     }
@@ -44,7 +45,7 @@ public interface MimeType {
         }
 
         @Override
-        public Charset getCharset() {
+        public Charset getCharset(Path finalResource, byte[] bytes) {
             return null;
         }
     }
