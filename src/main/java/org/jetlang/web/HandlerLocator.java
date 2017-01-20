@@ -38,7 +38,7 @@ public interface HandlerLocator<T> {
 
     class ResourcesDirectory<T> implements HandlerLocator<T> {
 
-        public static final Map<String, MimeType> defaultMimeTypes = Collections.unmodifiableMap(MimeType.createDefaultMimeTypeMap());
+        public static final Map<String, MimeType> defaultMimeTypes = Collections.unmodifiableMap(MimeType.createDefaultMimeTypeMap(MimeType.Utf8Text.utf8));
         private final HttpSecurity<T> security;
         private final Map<String, MimeType> fileExtensionToContentType;
         private final Path path;

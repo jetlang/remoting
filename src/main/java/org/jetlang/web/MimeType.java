@@ -59,17 +59,17 @@ public interface MimeType {
 
     }
 
-    static Map<String, MimeType> createDefaultMimeTypeMap() {
+    static Map<String, MimeType> createDefaultMimeTypeMap(Charset charsetForText) {
         Map<String, MimeType> map = new HashMap<>();
-        map.put("html", new Utf8Text("text/html"));
-        map.put("htm", new Utf8Text("text/html"));
-        map.put("txt", new Utf8Text("text/plain"));
-        map.put("css", new Utf8Text("text/css"));
-        map.put("csv", new Utf8Text("text/csv"));
-        map.put("xml", new Utf8Text("text/xml"));
-        map.put("js", new Utf8Text("text/javascript"));
-        map.put("xhtml", new Utf8Text("application/xhtml+xml"));
-        map.put("json", new Utf8Text("application/json"));
+        map.put("html", new Text("text/html", charsetForText));
+        map.put("htm", new Text("text/html", charsetForText));
+        map.put("txt", new Text("text/plain", charsetForText));
+        map.put("css", new Text("text/css", charsetForText));
+        map.put("csv", new Text("text/csv", charsetForText));
+        map.put("xml", new Text("text/xml", charsetForText));
+        map.put("js", new Text("text/javascript", charsetForText));
+        map.put("xhtml", new Text("application/xhtml+xml", charsetForText));
+        map.put("json", new Text("application/json", charsetForText));
         map.put("pdf", new Binary("application/pdf"));
         map.put("zip", new Binary("application/zip"));
         map.put("tar", new Binary("application/x-tar"));
