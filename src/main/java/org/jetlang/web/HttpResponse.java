@@ -9,10 +9,10 @@ import java.nio.file.Path;
 public interface HttpResponse {
 
 
-    default SendResult sendResponse(int statusCode, String statusTxt, String contentType, Path resource) {
+    default SendResult sendResponse(int statusCode, String statusTxt, String contentType, Path resource, Charset charset) {
         try {
             final byte[] b = Files.readAllBytes(resource);
-            return sendResponse(statusCode, statusTxt, contentType, b);
+            return sendResponse(statusCode, statusTxt, contentType, b, charset);
         } catch (IOException failed) {
             throw new RuntimeException(failed);
         }
@@ -20,17 +20,22 @@ public interface HttpResponse {
 
     default SendResult sendResponse(int statusCode, String statusTxt, String contentType, String content, Charset ascii) {
         byte[] b = content.getBytes(ascii);
-        return sendResponse(statusCode, statusTxt, contentType, b);
+        return sendResponse(statusCode, statusTxt, contentType, b, ascii);
     }
 
-    default SendResult sendResponse(int statusCode, String statusTxt, String contentType, byte[] content) {
-        return sendResponse(statusCode, statusTxt, contentType, null, content);
+    default SendResult sendResponse(int statusCode, String statusTxt, String contentType, byte[] content, Charset charset) {
+        return sendResponse(statusCode, statusTxt, contentType, null, content, charset);
     }
 
-    default SendResult sendResponse(int statusCode, String statusTxt, String contentType, KeyValueList headers, byte[] content) {
+    default SendResult sendResponse(int statusCode, String statusTxt, String contentType, KeyValueList headers, byte[] content, Charset charset) {
         StringBuilder response = new StringBuilder();
         response.append("HTTP/1.1 ").append(statusCode).append(' ').append(statusTxt).append("\r\n");
-        response.append("Content-Type: ").append(contentType).append("\r\n");
+        response.append("Content-Type: ").append(contentType);
+        if (charset != null) {
+            response.append("; charset=").append(charset.name());
+        }
+        response.append("\r\n");
+
         if (headers != null) {
             headers.appendTo(response);
         }

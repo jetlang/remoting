@@ -3,6 +3,7 @@ package org.jetlang.web;
 import org.jetlang.fibers.Fiber;
 
 import java.io.IOException;
+import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -37,39 +38,94 @@ public interface HandlerLocator<T> {
         }
     }
 
-    static Map<String, String> createDefaultMimeTypeMap() {
-        Map<String, String> map = new HashMap<>();
-        map.put("html", "text/html");
-        map.put("htm", "text/html");
-        map.put("txt", "text/plain");
-        map.put("css", "text/css");
-        map.put("csv", "text/csv");
-        map.put("xml", "text/xml");
-        map.put("js", "text/javascript");
-        map.put("xhtml", "application/xhtml+xml");
-        map.put("json", "application/json");
-        map.put("pdf", "application/pdf");
-        map.put("zip", "application/zip");
-        map.put("tar", "application/x-tar");
-        map.put("gif", "image/gif");
-        map.put("jpeg", "image/jpeg");
-        map.put("jpg", "image/jpeg");
-        map.put("tiff", "image/tiff");
-        map.put("tif", "image/tiff");
-        map.put("png", "image/png");
-        map.put("svg", "image/svg+xml");
-        map.put("ico", "image/vnd.microsoft.icon");
+    interface MimeType {
+
+        String getContentType();
+
+        Charset getCharset();
+    }
+
+    class Text implements MimeType {
+
+        private final String type;
+        private final Charset charset;
+
+        public Text(String type, Charset charset) {
+            this.type = type;
+            this.charset = charset;
+        }
+
+        @Override
+        public String getContentType() {
+            return type;
+        }
+
+        @Override
+        public Charset getCharset() {
+            return charset;
+        }
+    }
+
+    class Binary implements MimeType {
+        private final String type;
+
+        public Binary(String type) {
+            this.type = type;
+        }
+
+        @Override
+        public String getContentType() {
+            return type;
+        }
+
+        @Override
+        public Charset getCharset() {
+            return null;
+        }
+    }
+
+    class Utf8Text extends Text {
+        public static final Charset utf8 = Charset.forName("UTF-8");
+
+        public Utf8Text(String type) {
+            super(type, utf8);
+        }
+
+    }
+
+    static Map<String, MimeType> createDefaultMimeTypeMap() {
+        Map<String, MimeType> map = new HashMap<>();
+        map.put("html", new Utf8Text("text/html"));
+        map.put("htm", new Utf8Text("text/html"));
+        map.put("txt", new Utf8Text("text/plain"));
+        map.put("css", new Utf8Text("text/css"));
+        map.put("csv", new Utf8Text("text/csv"));
+        map.put("xml", new Utf8Text("text/xml"));
+        map.put("js", new Utf8Text("text/javascript"));
+        map.put("xhtml", new Utf8Text("application/xhtml+xml"));
+        map.put("json", new Utf8Text("application/json"));
+        map.put("pdf", new Binary("application/pdf"));
+        map.put("zip", new Binary("application/zip"));
+        map.put("tar", new Binary("application/x-tar"));
+        map.put("gif", new Binary("image/gif"));
+        map.put("jpeg", new Binary("image/jpeg"));
+        map.put("jpg", new Binary("image/jpeg"));
+        map.put("tiff", new Binary("image/tiff"));
+        map.put("tif", new Binary("image/tiff"));
+        map.put("png", new Binary("image/png"));
+        map.put("svg", new Binary("image/svg+xml"));
+        map.put("ico", new Binary("image/vnd.microsoft.icon"));
         return map;
     }
 
     class ResourcesDirectory<T> implements HandlerLocator<T> {
 
-        public static final Map<String, String> defaultMimeTypes = Collections.unmodifiableMap(createDefaultMimeTypeMap());
+        public static final Map<String, MimeType> defaultMimeTypes = Collections.unmodifiableMap(createDefaultMimeTypeMap());
         private final HttpSecurity<T> security;
-        private final Map<String, String> fileExtensionToContentType;
+        private final Map<String, MimeType> fileExtensionToContentType;
         private final Path path;
 
-        public ResourcesDirectory(Path dir, HttpSecurity<T> security, Map<String, String> fileExtensionToContentType) {
+        public ResourcesDirectory(Path dir, HttpSecurity<T> security, Map<String, MimeType> fileExtensionToContentType) {
             //remove relative paths and make absolute
             path = getReal(dir);
             this.security = security;
@@ -104,7 +160,7 @@ public interface HandlerLocator<T> {
                 if (i == -1) {
                     return null;
                 }
-                String contentType = fileExtensionToContentType.get(resourceToString.substring(i + 1));
+                MimeType contentType = fileExtensionToContentType.get(resourceToString.substring(i + 1));
                 if (contentType == null) {
                     return null;
                 }
@@ -114,7 +170,7 @@ public interface HandlerLocator<T> {
                     public void handle(Fiber dispatchFiber, HttpRequest headers, HttpResponse writer, T sessionState) {
                         try {
                             byte[] bytes = Files.readAllBytes(finalResource);
-                            writer.sendResponse(200, "OK", contentType, bytes);
+                            writer.sendResponse(200, "OK", contentType.getContentType(), bytes, contentType.getCharset());
                         } catch (IOException e) {
                             writer.sendResponse(404, "Not Found", "text/plain", e.getMessage(), HeaderReader.ascii);
                         }
