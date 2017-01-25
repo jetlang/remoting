@@ -1,6 +1,7 @@
 package org.jetlang.web;
 
 import java.io.IOException;
+import java.net.SocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
@@ -48,6 +49,8 @@ public interface HttpResponse {
         return send(bb);
     }
 
+    SocketAddress getRemoteAddress();
+
     SendResult send(ByteBuffer fullResponse);
 
     default void sendWebsocketHandshake(String reply, KeyValueList additionalHeaders) {
@@ -70,6 +73,11 @@ public interface HttpResponse {
         public SendResult send(ByteBuffer fullResponse) {
             return writer.send(fullResponse);
         }
+
+        @Override
+        public SocketAddress getRemoteAddress() {
+            return writer.getRemoteAddress();
+        }
     }
 
     class Decorator implements HttpResponse {
@@ -78,6 +86,11 @@ public interface HttpResponse {
 
         public Decorator(HttpResponse target) {
             this.target = target;
+        }
+
+        @Override
+        public SocketAddress getRemoteAddress() {
+            return target.getRemoteAddress();
         }
 
         @Override
