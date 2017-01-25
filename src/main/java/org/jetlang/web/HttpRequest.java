@@ -1,5 +1,6 @@
 package org.jetlang.web;
 
+import java.net.SocketAddress;
 import java.net.URI;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
@@ -12,6 +13,7 @@ public class HttpRequest {
 
     private static final byte[] empty = new byte[0];
     private final KeyValueList headers = new KeyValueList(false);
+    private final SocketAddress socketAddress;
     String method;
     private URI requestUri;
     String protocolVersion;
@@ -19,14 +21,19 @@ public class HttpRequest {
     byte[] content = empty;
     private KeyValueList queryParams = KeyValueList.EMPTY;
 
-    public HttpRequest(String method, String uri, String protocolVersion) {
+    public HttpRequest(String method, String uri, String protocolVersion, SocketAddress remoteAddress) {
         this.method = method;
         this.setRequestUri(URI.create(uri));
         this.protocolVersion = protocolVersion;
+        this.socketAddress = remoteAddress;
     }
 
-    public HttpRequest() {
+    public HttpRequest(SocketAddress socketAddress) {
+        this.socketAddress = socketAddress;
+    }
 
+    public SocketAddress getRemoteAddress() {
+        return socketAddress;
     }
 
     public KeyValueList getQueryParams() {

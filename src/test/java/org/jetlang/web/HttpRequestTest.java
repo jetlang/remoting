@@ -43,7 +43,7 @@ public class HttpRequestTest {
 
     @Test
     public void testGettingBodyWithEncoding() {
-        HttpRequest req = new HttpRequest("POST", "/path", "HTTP/1.1");
+        HttpRequest req = new HttpRequest("POST", "/path", "HTTP/1.1", null);
         req.add("Content-Type", "application/x-www-form-urlencoded ; charset=UTF-8");
         Charset charset = Charset.forName("UTF-8");
         req.content = "Hello".getBytes(charset);
@@ -54,7 +54,7 @@ public class HttpRequestTest {
 
     @Test
     public void testGettingBodyWithBadEncoding() {
-        HttpRequest req = new HttpRequest("POST", "/path", "HTTP/1.1");
+        HttpRequest req = new HttpRequest("POST", "/path", "HTTP/1.1", null);
         req.add("Content-Type", "application/x-www-form-urlencoded ; charset=UTF-99");
         try {
             req.getContentCharset(true);
@@ -67,14 +67,14 @@ public class HttpRequestTest {
 
     @Test
     public void testGettingDefault() {
-        HttpRequest req = new HttpRequest("POST", "/path", "HTTP/1.1");
+        HttpRequest req = new HttpRequest("POST", "/path", "HTTP/1.1", null);
         req.add("Content-Type", "application/x-www-form-urlencoded");
         assertEquals(HttpRequest.defaultBodyCharset, req.getContentCharset(true));
     }
 
     @Test
     public void testGettingDefaultOnError() {
-        HttpRequest req = new HttpRequest("POST", "/path", "HTTP/1.1");
+        HttpRequest req = new HttpRequest("POST", "/path", "HTTP/1.1", null);
         req.add("Content-Type", "application/x-www-form-urlencoded ; charset=UTF-99");
         Charset charset = Charset.forName("UTF-8");
         req.content = "Hello".getBytes(charset);

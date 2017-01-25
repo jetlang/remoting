@@ -7,6 +7,7 @@ import org.jetlang.fibers.NioFiber;
 import java.io.IOException;
 import java.net.HttpCookie;
 import java.net.InetSocketAddress;
+import java.net.SocketAddress;
 import java.net.URI;
 import java.nio.ByteBuffer;
 import java.nio.channels.SelectableChannel;
@@ -204,7 +205,7 @@ public class WebSocketClient<S, T> {
         }
 
         public void handleConnection(NioControls nioControls) {
-            writer.send(createHandshake());
+            writer.send(createHandshake(writer.getRemoteAddress()));
             WebSocketClientReader<S, T> webSocketClientReader = new WebSocketClientReader<>(newChannel, writer, nioControls, latch, handler);
             state = webSocketClientReader;
             SessionDispatcherFactory.OnReadThreadDispatcher<S> sOnReadThreadDispatcher = new SessionDispatcherFactory.OnReadThreadDispatcher<>();
@@ -324,8 +325,8 @@ public class WebSocketClient<S, T> {
         start(true, latch);
     }
 
-    protected ByteBuffer createHandshake() {
-        HttpRequest request = new HttpRequest("GET", path, "HTTP/1.1");
+    protected ByteBuffer createHandshake(SocketAddress remoteAddress) {
+        HttpRequest request = new HttpRequest("GET", path, "HTTP/1.1", remoteAddress);
         request.add("Host", host + ':' + port);
         request.add("Connection", "Upgrade");
         request.add("Upgrade", "websocket");

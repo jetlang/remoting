@@ -50,7 +50,7 @@ public class HeaderReader<T> {
     }
 
     public class FirstLine implements NioReader.State {
-        private final HttpRequest headers = new HttpRequest();
+        private final HttpRequest headers = new HttpRequest(writer.getRemoteAddress());
 
         @Override
         public NioReader.State processBytes(ByteBuffer buffer) {
