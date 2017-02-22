@@ -46,6 +46,15 @@ public class NioWriter {
         }
     }
 
+    public int getTotalBytesBuffered() {
+        synchronized (writeLock) {
+            if (bufferedWrite != null) {
+                return bufferedWrite.getBuffer().remaining();
+            }
+        }
+        return 0;
+    }
+
     private SendResult doSend(ByteBuffer bb) {
         if (closed) {
             bb.position(bb.position() + bb.remaining());
