@@ -16,6 +16,8 @@ public class JetlangNioSession extends JetlangBaseSession implements JetlangMess
         void onUnhandledReplyMsg(int reqId, String dataTopicVal, Object readObject);
 
         void onUnknownMessage(int read);
+
+        void onDataHandlingFailure(String dataTopicVal, Object readObject, Exception failed);
     }
 
     public JetlangNioSession(NioFiber fiber, SocketChannel channel, NioJetlangSendFiber sendFiber, NioJetlangRemotingClientFactory.Id id, ErrorHandler errorHandler) {
@@ -24,6 +26,11 @@ public class JetlangNioSession extends JetlangBaseSession implements JetlangMess
         this.channel = new NioJetlangSendFiber.ChannelState(channel, id, fiber);
         this.sendFiber = sendFiber;
         this.sendFiber.onNewSession(this.channel);
+    }
+
+    @Override
+    public void onDataHandlingFailure(String dataTopicVal, Object readObject, Exception failed) {
+        errorHandler.onDataHandlingFailure(dataTopicVal, readObject, failed);
     }
 
     public void sendHb() {

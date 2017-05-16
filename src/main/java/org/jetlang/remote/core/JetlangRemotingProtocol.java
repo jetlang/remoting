@@ -15,7 +15,11 @@ public class JetlangRemotingProtocol {
     private final DataReader d = new DataReader() {
         @Override
         protected State onObject(String dataTopicVal, Object readObject) {
-            session.onMessage(dataTopicVal, readObject);
+            try {
+                session.onMessage(dataTopicVal, readObject);
+            } catch (Exception failed) {
+                session.onDataHandlingFailure(dataTopicVal, readObject, failed);
+            }
             return root;
         }
     };
@@ -90,6 +94,8 @@ public class JetlangRemotingProtocol {
         void onUnknownMessage(int read);
 
         void onRequestReply(int reqId, String dataTopicVal, Object readObject);
+
+        void onDataHandlingFailure(String dataTopicVal, Object readObject, Exception failed);
     }
 
     public JetlangRemotingProtocol(Handler session, ObjectByteReader reader, Charset charset) {
@@ -188,7 +194,11 @@ public class JetlangRemotingProtocol {
         DataReader data = new DataReader() {
             @Override
             protected State onObject(String dataTopicVal, Object readObject) {
-                handleRequest(reqId, dataTopicVal, readObject);
+                try {
+                    handleRequest(reqId, dataTopicVal, readObject);
+                } catch (Exception failed) {
+                    session.onDataHandlingFailure(dataTopicVal, readObject, failed);
+                }
                 return root;
             }
         };

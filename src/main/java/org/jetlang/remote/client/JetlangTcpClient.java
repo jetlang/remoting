@@ -287,6 +287,11 @@ public class JetlangTcpClient implements JetlangClient {
             errorHandler.onException(new IOException("UnsubscribeNotSupported: " + val));
         }
 
+        @Override
+        public void onDataHandlingFailure(String dataTopicVal, Object readObject, Exception failed) {
+            errorHandler.onDataHandlingFailure(dataTopicVal, readObject, failed);
+        }
+
         public void onHb() {
             Heartbeat.publish(new HeartbeatEvent());
         }

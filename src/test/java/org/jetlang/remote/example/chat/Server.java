@@ -67,6 +67,11 @@ public class Server {
             public void onUnknownMessage(SelectionKey key, SocketChannel channel, int read) {
                 System.err.println("onUnknownMessage " + read + " on " + key);
             }
+
+            @Override
+            public void onDataHandlingFailure(String dataTopicVal, Object readObject, Exception failed) {
+                System.err.println(dataTopicVal + " " + readObject + " " + failed);
+            }
         };
 
         final ServerSocketChannel socketChannel = ServerSocketChannel.open();

@@ -106,6 +106,11 @@ public class JetlangStreamSession extends JetlangBaseSession implements JetlangR
         errorHandler.onException(new RuntimeException("Unknown message type " + read + " from " + getSessionId()));
     }
 
+    @Override
+    public void onDataHandlingFailure(String dataTopicVal, Object readObject, Exception failed) {
+        errorHandler.onDataHandlingFailure(dataTopicVal, readObject, failed);
+    }
+
     public <T> void publish(final String topic, final T msg) {
         Runnable r = new Runnable() {
             public void run() {
