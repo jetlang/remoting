@@ -18,7 +18,7 @@ public class JetlangRemotingProtocol {
             try {
                 session.onMessage(dataTopicVal, readObject);
             } catch (Exception failed) {
-                session.onDataHandlingFailure(dataTopicVal, readObject, failed);
+                session.onHandlerException(failed);
             }
             return root;
         }
@@ -32,14 +32,14 @@ public class JetlangRemotingProtocol {
             int read = buffer.get();
             switch (read) {
                 case MsgTypes.Heartbeat:
-                    session.onHb();
+                    execEvent(session::onHb);
                     return this;
                 case MsgTypes.Subscription:
                     return subRequest.first;
                 case MsgTypes.Unsubscribe:
                     return unsubRequest.first;
                 case MsgTypes.Disconnect:
-                    session.onLogout();
+                    execEvent(session::onLogout);
                     return this;
                 case MsgTypes.Data:
                     return d.first.first;
@@ -53,17 +53,34 @@ public class JetlangRemotingProtocol {
             }
         }
     };
+
+    private void execEvent(Runnable event) {
+        try {
+            event.run();
+        } catch (Exception failed) {
+            session.onHandlerException(failed);
+        }
+    }
+
     private final StringState subRequest = new StringState() {
         @Override
         protected State onString(String val) {
-            session.onSubscriptionRequest(val);
+            try {
+                session.onSubscriptionRequest(val);
+            } catch (Exception failed) {
+                session.onHandlerException(failed);
+            }
             return root;
         }
     };
     private final StringState unsubRequest = new StringState() {
         @Override
         protected State onString(String val) {
-            session.onUnsubscribeRequest(val);
+            try {
+                session.onUnsubscribeRequest(val);
+            } catch (Exception failed) {
+                session.onHandlerException(failed);
+            }
             return root;
         }
     };
@@ -95,7 +112,7 @@ public class JetlangRemotingProtocol {
 
         void onRequestReply(int reqId, String dataTopicVal, Object readObject);
 
-        void onDataHandlingFailure(String dataTopicVal, Object readObject, Exception failed);
+        void onHandlerException(Exception failed);
     }
 
     public JetlangRemotingProtocol(Handler session, ObjectByteReader reader, Charset charset) {
@@ -197,7 +214,7 @@ public class JetlangRemotingProtocol {
                 try {
                     handleRequest(reqId, dataTopicVal, readObject);
                 } catch (Exception failed) {
-                    session.onDataHandlingFailure(dataTopicVal, readObject, failed);
+                    session.onHandlerException(failed);
                 }
                 return root;
             }

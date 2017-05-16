@@ -33,7 +33,7 @@ public class NioJetlangRemotingClientFactory implements NioAcceptorHandler.Clien
             channel.socket().setTcpNoDelay(true);
         }
 
-        void onDataHandlingFailure(String dataTopicVal, Object readObject, Exception failed);
+        void onHandlerException(Exception failed);
     }
 
     public NioJetlangRemotingClientFactory(Serializer serializer, JetlangSessionConfig config, Handler handler, NioJetlangSendFiber sendFiber, Charset charset) {
@@ -64,8 +64,8 @@ public class NioJetlangRemotingClientFactory implements NioAcceptorHandler.Clien
             }
 
             @Override
-            public void onDataHandlingFailure(String dataTopicVal, Object readObject, Exception failed) {
-                handler.onDataHandlingFailure(dataTopicVal, readObject, failed);
+            public void onHandlerException(Exception failed) {
+                handler.onHandlerException(failed);
             }
         });
         Runnable onClose = () -> {

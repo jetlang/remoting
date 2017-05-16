@@ -107,8 +107,8 @@ public class JetlangStreamSession extends JetlangBaseSession implements JetlangR
     }
 
     @Override
-    public void onDataHandlingFailure(String dataTopicVal, Object readObject, Exception failed) {
-        errorHandler.onDataHandlingFailure(dataTopicVal, readObject, failed);
+    public void onHandlerException(Exception failed) {
+        errorHandler.onException(failed);
     }
 
     public <T> void publish(final String topic, final T msg) {

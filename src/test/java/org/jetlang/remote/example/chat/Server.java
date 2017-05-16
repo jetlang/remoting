@@ -69,8 +69,8 @@ public class Server {
             }
 
             @Override
-            public void onDataHandlingFailure(String dataTopicVal, Object readObject, Exception failed) {
-                System.err.println(dataTopicVal + " " + readObject + " " + failed);
+            public void onHandlerException(Exception failed) {
+                failed.printStackTrace();
             }
         };
 
