@@ -71,7 +71,7 @@ public class WebSocketReader<S, T> {
     }
 
     private NioReader.State createClose() {
-        connection.close();
+        connection.closeChannelOnReadThread();
         return new NioReader.Close() {
             @Override
             public void onClosed() {

@@ -133,9 +133,16 @@ public class WebSocketConnectionImpl implements WebSocketConnection {
         send(OPCODE_CLOSE, empty, 0, 0);
     }
 
+    public void closeChannelOnReadThread() {
+        writer.close();
+    }
+
     @Override
     public void close() {
         writer.close();
+        readFiber.execute(nioControls -> {
+            nioControls.close(writer.getChannel());
+        });
     }
 
     @Override
