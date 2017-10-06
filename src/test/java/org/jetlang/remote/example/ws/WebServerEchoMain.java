@@ -4,15 +4,33 @@ import org.jetlang.fibers.NioControls;
 import org.jetlang.fibers.NioFiber;
 import org.jetlang.fibers.NioFiberImpl;
 import org.jetlang.fibers.PoolFiberFactory;
-import org.jetlang.web.*;
+import org.jetlang.web.AuthFailuresHandler;
+import org.jetlang.web.AuthenticatedUser;
+import org.jetlang.web.BasicAuthSecurity;
+import org.jetlang.web.HandlerLocator;
+import org.jetlang.web.HttpRequest;
+import org.jetlang.web.Permissions;
+import org.jetlang.web.RoundRobinClientFactory;
+import org.jetlang.web.SendResult;
+import org.jetlang.web.SessionDispatcherFactory;
+import org.jetlang.web.SessionFactory;
+import org.jetlang.web.WebAcceptor;
+import org.jetlang.web.WebServerConfigBuilder;
+import org.jetlang.web.WebSocketConnection;
+import org.jetlang.web.WebSocketHandler;
 
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.channels.SocketChannel;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -20,7 +38,7 @@ import static org.jetlang.web.PathMatcher.pathEq;
 
 public class WebServerEchoMain {
 
-    static class MyConnectionState {
+    static class MyConnectionState extends AuthenticatedUser.BasicUser {
         final SocketChannel channel;
         final Date created = new Date();
 
@@ -119,7 +137,24 @@ public class WebServerEchoMain {
 
         config.add(pathEq("/websockets/echo"), handler);
         final URL resource = Thread.currentThread().getContextClassLoader().getResource("web");
-        config.add(new HandlerLocator.ResourcesDirectory<>(Paths.get(resource.toURI())));
+        Set<String> authorized = new HashSet<>();
+        authorized.add("admin");
+        Map<String, String> users = new HashMap<>();
+        users.put("admin", "adminpw");
+        users.put("user", "userpw");
+        Path dir = Paths.get(resource.toURI());
+        BasicAuthSecurity<MyConnectionState> basic = new BasicAuthSecurity<>("BasicAuth", new Permissions<MyConnectionState>() {
+            @Override
+            public boolean isAuthorized(HttpRequest headers, MyConnectionState sessionState) {
+                return authorized.contains(sessionState.getAuthenticatedUser());
+            }
+
+            @Override
+            public boolean authenticate(HttpRequest headers, String username, String password, MyConnectionState sessionState) {
+                return password.equals(users.get(username));
+            }
+        }, new AuthFailuresHandler<>());
+        config.add(new HandlerLocator.ResourcesDirectory<>(dir, basic, HandlerLocator.ResourcesDirectory.defaultMimeTypes));
 
         RoundRobinClientFactory readers = new RoundRobinClientFactory();
         List<NioFiber> allReadFibers = new ArrayList<>();
