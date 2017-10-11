@@ -40,6 +40,11 @@ public class HttpRequest {
         return queryParams;
     }
 
+    public KeyValueList parsePostParams(boolean failOnUnsupportedEncoding, boolean caseSensitiveKeys) {
+        String body = getContentAsString(failOnUnsupportedEncoding);
+        return KeyValueList.parseUrlEncoded(body, caseSensitiveKeys);
+    }
+
     public void setRequestUri(URI requestUri) {
         this.requestUri = requestUri;
         this.queryParams = splitQuery(requestUri);
