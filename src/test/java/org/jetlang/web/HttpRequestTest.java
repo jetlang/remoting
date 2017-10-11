@@ -8,6 +8,8 @@ import java.nio.charset.UnsupportedCharsetException;
 import java.util.List;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 public class HttpRequestTest {
@@ -32,6 +34,19 @@ public class HttpRequestTest {
         String uri = "/path";
         KeyValueList stringListMap = HttpRequest.splitQuery(URI.create(uri));
         assertEquals(stringListMap.toString(), 0, stringListMap.size());
+    }
+
+    @Test
+    public void parseEncoded() {
+        String uri = "/keyvaluepair?type=thrift&Key=ENABLD+ZC%2bStuff+BF&Value=";
+        URI url = URI.create(uri);
+        assertEquals("type=thrift&Key=ENABLD+ZC%2bStuff+BF&Value=", url.getRawQuery());
+        KeyValueList stringListMap = HttpRequest.splitQuery(url);
+        assertEquals(stringListMap.toString(), 3, stringListMap.size());
+        assertEquals("thrift", stringListMap.get("type"));
+        assertEquals("ENABLD ZC+Stuff BF", stringListMap.get("Key"));
+        assertTrue(stringListMap.contains("Value"));
+        assertNull(stringListMap.get("Value"));
     }
 
     @Test

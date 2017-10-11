@@ -46,7 +46,7 @@ public class HttpRequest {
     }
 
     public static KeyValueList splitQuery(URI url) {
-        String query = url.getQuery();
+        String query = url.getRawQuery();
         return KeyValueList.parseUrlEncoded(query, false);
     }
 

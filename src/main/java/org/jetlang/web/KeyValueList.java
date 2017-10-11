@@ -120,6 +120,15 @@ public class KeyValueList implements Iterable<KeyValueList.Entry> {
         }
     }
 
+    public boolean contains(String key) {
+        for (Entry header : headers) {
+            if (header.name.equals(key)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
 
     public static class Entry {
 
