@@ -53,20 +53,7 @@ public class NioJetlangSendFiber {
 
         @Override
         public void run() {
-            for (int i = 0; i < sessions.size(); i++) {
-                final ChannelState channelState = sessions.get(i);
-                if (channelState.subscriptions.contains(topic)) {
-                    set(channelState);
-                    try {
-                        if (position == -1) {
-                            position = stream.writeWithoutFlush(topic, object);
-                        }
-                        stream.setPositionAndFlush(position);
-                    } catch (IOException failed) {
-                        handleDisconnect(failed, channelState);
-                    }
-                }
-            }
+            position = writeToAllSubscribedClients(topic, object);
         }
 
         @Override
@@ -77,6 +64,30 @@ public class NioJetlangSendFiber {
                     ", size=" + position +
                     '}';
         }
+    }
+
+    /**
+     * Assumes the caller is already on the send thread. No check is made to ensure this, so use carefully.
+     *
+     * @return the number of bytes written or -1 if no sessions subscribed.
+     */
+    public int writeToAllSubscribedClients(String topic, Object object) {
+        int position = -1;
+        for (int i = 0; i < sessions.size(); i++) {
+            final ChannelState channelState = sessions.get(i);
+            if (channelState.subscriptions.contains(topic)) {
+                set(channelState);
+                try {
+                    if (position == -1) {
+                        position = stream.writeWithoutFlush(topic, object);
+                    }
+                    stream.setPositionAndFlush(position);
+                } catch (IOException failed) {
+                    handleDisconnect(failed, channelState);
+                }
+            }
+        }
+        return position;
     }
 
     public void publishToAllSubscribedClients(String topic, Object obj) {
