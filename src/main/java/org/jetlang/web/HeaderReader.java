@@ -165,10 +165,8 @@ public class HeaderReader<T> {
             String name = new String(array, startPosition, nameLength, ascii);
             String value = new String(array, startPosition + nameLength + 2, length - nameLength - 2, ascii);
             headers.add(name, value);
-            switch (name) {
-                case "Content-Length":
-                    headers.contentLength = Integer.parseInt(value);
-                    break;
+            if (name.equalsIgnoreCase("Content-Length")) {
+                headers.contentLength = Integer.parseInt(value);
             }
         }
     }
