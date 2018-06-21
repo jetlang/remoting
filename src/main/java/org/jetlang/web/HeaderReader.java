@@ -5,6 +5,7 @@ import org.jetlang.fibers.NioFiber;
 
 import java.net.URI;
 import java.nio.ByteBuffer;
+import java.nio.channels.SelectionKey;
 import java.nio.channels.SocketChannel;
 import java.nio.charset.Charset;
 
@@ -47,6 +48,10 @@ public class HeaderReader<T> {
             sessionFactory.onClose(session);
             sessionDispatcher.onClose(session);
         }
+    }
+
+    public void onException(Exception processingException, NioControls nioControls, SelectionKey selectionKey, SocketChannel channel) {
+        handler.onException(processingException, channel);
     }
 
     public class FirstLine implements NioReader.State {

@@ -119,7 +119,11 @@ public class NioReader<T> implements NioChannelHandler {
             return onRead();
         } catch (IOException failed) {
             return false;
+        } catch (Exception processingException) {
+            headerReader.onException(processingException, nioControls, selectionKey, channel);
+            return false;
         }
+
     }
 
     @Override
