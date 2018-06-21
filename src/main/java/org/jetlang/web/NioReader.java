@@ -112,15 +112,14 @@ public class NioReader<T> implements NioChannelHandler {
 
     public static final State CLOSE = new Close();
 
-
     @Override
     public boolean onSelect(NioFiber nioFiber, NioControls nioControls, SelectionKey selectionKey) {
         try {
             return onRead();
         } catch (IOException failed) {
             return false;
-        } catch (Exception processingException) {
-            headerReader.onException(processingException, nioControls, selectionKey, channel);
+        } catch (Throwable processingException) {
+            headerReader.onException(processingException, channel);
             return false;
         }
 

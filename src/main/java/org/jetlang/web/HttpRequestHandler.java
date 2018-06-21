@@ -5,7 +5,7 @@ import java.nio.channels.SocketChannel;
 public interface HttpRequestHandler<T> {
     NioReader.State dispatch(SessionDispatcherFactory.SessionDispatcher<T> dispatcher, HttpRequest headers, HttpResponse response, HeaderReader<T> reader, NioWriter writer, T sessionState);
 
-    default void onException(Exception processingException, SocketChannel channel) {
+    default void onException(Throwable processingException, SocketChannel channel) {
         processingException.printStackTrace();
     }
 
