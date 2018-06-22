@@ -9,6 +9,7 @@ import org.jetlang.web.WebSocketHandler;
 
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.nio.channels.SocketChannel;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -51,6 +52,11 @@ public class WebSocketClientEchoMain {
             @Override
             public void onBinaryMessage(WebSocketConnection connection, Void state, byte[] result, int size) {
 
+            }
+
+            @Override
+            public void onUnknownException(Throwable processingException, SocketChannel channel) {
+                throw new RuntimeException("Failed", processingException);
             }
         };
         WebSocketClient<Map<String, Object>, Void> client = new WebSocketClient<Map<String, Object>, Void>(clientFiber, new URI("ws://localhost:8025/websockets/echo"),

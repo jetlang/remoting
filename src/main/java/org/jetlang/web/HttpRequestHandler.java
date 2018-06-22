@@ -5,17 +5,22 @@ import java.nio.channels.SocketChannel;
 public interface HttpRequestHandler<T> {
     NioReader.State dispatch(SessionDispatcherFactory.SessionDispatcher<T> dispatcher, HttpRequest headers, HttpResponse response, HeaderReader<T> reader, NioWriter writer, T sessionState);
 
-    default void onException(Throwable processingException, SocketChannel channel) {
-        processingException.printStackTrace();
+    void onException(Throwable processingException, SocketChannel channel);
+
+    interface ExceptionHandler {
+
+        void onException(Throwable processingException, SocketChannel channel);
     }
 
     class Default<T> implements HttpRequestHandler<T> {
         private HandlerLocator.List<T> handlerMap;
         private final Handler<T> defaultHandler;
+        private final ExceptionHandler handler;
 
-        public Default(HandlerLocator.List<T> handlerMap, Handler<T> defaultHandler) {
+        public Default(HandlerLocator.List<T> handlerMap, Handler<T> defaultHandler, ExceptionHandler handler) {
             this.handlerMap = handlerMap;
             this.defaultHandler = defaultHandler;
+            this.handler = handler;
         }
 
         @Override
@@ -26,6 +31,11 @@ public interface HttpRequestHandler<T> {
             } else {
                 return defaultHandler.start(dispatcher, headers, response, reader, writer, sessionState);
             }
+        }
+
+        @Override
+        public void onException(Throwable processingException, SocketChannel channel) {
+            this.handler.onException(processingException, channel);
         }
     }
 }

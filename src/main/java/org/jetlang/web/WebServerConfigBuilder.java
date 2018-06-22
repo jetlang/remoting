@@ -3,6 +3,7 @@ package org.jetlang.web;
 import org.jetlang.fibers.Fiber;
 import org.jetlang.fibers.NioFiber;
 
+import java.nio.channels.SocketChannel;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.List;
@@ -29,6 +30,12 @@ public class WebServerConfigBuilder<S> {
     };
 
     private SessionDispatcherFactory<S> dispatcher = new SessionDispatcherFactory.OnReadThreadDispatcher<S>();
+    private HttpRequestHandler.ExceptionHandler exceptionHandler = new HttpRequestHandler.ExceptionHandler() {
+        @Override
+        public void onException(Throwable processingException, SocketChannel channel) {
+            processingException.printStackTrace();
+        }
+    };
 
     public WebServerConfigBuilder(SessionFactory<S> factory) {
         this.factory = factory;
@@ -83,6 +90,14 @@ public class WebServerConfigBuilder<S> {
         return this;
     }
 
+    public void setExceptionHandler(HttpRequestHandler.ExceptionHandler exceptionHandler) {
+        this.exceptionHandler = exceptionHandler;
+    }
+
+    public HttpRequestHandler.ExceptionHandler getExceptionHandler() {
+        return exceptionHandler;
+    }
+
     public <T> WebServerConfigBuilder<S> add(PathMatcher<S> path, WebSocketHandler<S, T> handler) {
         return add(path, handler, WebSocketSecurity.none());
     }
@@ -129,6 +144,6 @@ public class WebServerConfigBuilder<S> {
     }
 
     protected HttpRequestHandler<S> createHandler(final HandlerLocator.List<S> handlerMap) {
-        return new HttpRequestHandler.Default<>(handlerMap, defaultHandler);
+        return new HttpRequestHandler.Default<>(handlerMap, defaultHandler, exceptionHandler);
     }
 }

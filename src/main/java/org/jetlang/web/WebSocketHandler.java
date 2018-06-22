@@ -1,5 +1,7 @@
 package org.jetlang.web;
 
+import java.nio.channels.SocketChannel;
+
 public interface WebSocketHandler<S, T> {
 
     T onOpen(WebSocketConnection connection, HttpRequest headers, S sessionState);
@@ -21,4 +23,6 @@ public interface WebSocketHandler<S, T> {
     default void onPong(WebSocketConnection connection, T state, byte[] result, int size) {
 
     }
+
+    void onUnknownException(Throwable processingException, SocketChannel channel);
 }

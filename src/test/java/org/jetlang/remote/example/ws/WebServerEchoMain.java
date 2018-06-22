@@ -97,6 +97,11 @@ public class WebServerEchoMain {
             }
 
             @Override
+            public void onUnknownException(Throwable processingException, SocketChannel channel) {
+                processingException.printStackTrace(System.err);
+            }
+
+            @Override
             public void onClose(WebSocketConnection connection, MyWebsocketState nothing) {
                 System.out.println("WS Close: " + nothing);
             }

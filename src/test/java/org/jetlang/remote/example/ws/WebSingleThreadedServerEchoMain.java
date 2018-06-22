@@ -3,7 +3,15 @@ package org.jetlang.remote.example.ws;
 import org.jetlang.fibers.NioControls;
 import org.jetlang.fibers.NioFiber;
 import org.jetlang.fibers.NioFiberImpl;
-import org.jetlang.web.*;
+import org.jetlang.web.HandlerLocator;
+import org.jetlang.web.HttpRequest;
+import org.jetlang.web.SendResult;
+import org.jetlang.web.SessionFactory;
+import org.jetlang.web.WebAcceptor;
+import org.jetlang.web.WebDispatcher;
+import org.jetlang.web.WebServerConfigBuilder;
+import org.jetlang.web.WebSocketConnection;
+import org.jetlang.web.WebSocketHandler;
 
 import java.net.URISyntaxException;
 import java.net.URL;
@@ -81,6 +89,11 @@ public class WebSingleThreadedServerEchoMain {
             @Override
             public void onBinaryMessage(WebSocketConnection connection, MyWebsocketState state, byte[] result, int size) {
                 connection.sendBinary(result, 0, size);
+            }
+
+            @Override
+            public void onUnknownException(Throwable processingException, SocketChannel channel) {
+                processingException.printStackTrace(System.err);
             }
 
             @Override

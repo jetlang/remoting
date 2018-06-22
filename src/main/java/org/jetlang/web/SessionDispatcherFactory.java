@@ -3,6 +3,7 @@ package org.jetlang.web;
 import org.jetlang.fibers.Fiber;
 import org.jetlang.fibers.PoolFiberFactory;
 
+import java.nio.channels.SocketChannel;
 import java.util.Arrays;
 import java.util.function.Supplier;
 
@@ -150,6 +151,13 @@ public interface SessionDispatcherFactory<S> {
                     final byte[] copy = Arrays.copyOf(result, size);
                     fiber.execute(() -> {
                         handler.onBinaryMessage(fiberConn, threadState, copy, size);
+                    });
+                }
+
+                @Override
+                public void onUnknownException(Throwable processingException, SocketChannel channel) {
+                    fiber.execute(() -> {
+                        handler.onUnknownException(processingException, channel);
                     });
                 }
             };

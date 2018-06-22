@@ -154,6 +154,11 @@ public class WebSocketClient<S, T> {
         public SendResult send(String msg) {
             return SendResult.Closed;
         }
+
+        @Override
+        public void onException(Throwable processingException, SocketChannel channel) {
+            handler.onUnknownException(processingException, channel);
+        }
     }
 
     private void reconnectOnClose(CountDownLatch latch) {
