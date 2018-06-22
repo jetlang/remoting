@@ -137,15 +137,16 @@ public class NioReader<T> implements NioChannelHandler {
 
     @Override
     public void onEnd() {
+        try {
+            channel.close();
+        } catch (IOException e) {
+        }
         onClosed();
     }
 
     @Override
     public void onSelectorEnd() {
-        try {
-            channel.close();
-        } catch (IOException e) {
-        }
         onEnd();
     }
+
 }
