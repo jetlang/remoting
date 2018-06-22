@@ -75,19 +75,19 @@ public class NioJetlangAcceptor {
         }
 
         @Override
-        public boolean onSelect(NioFiber nioFiber, NioControls controls, SelectionKey key) {
+        public Result onSelect(NioFiber nioFiber, NioControls controls, SelectionKey key) {
             try {
                 int read = accept.read(allocate);
                 if (read == -1) {
-                    return false;
+                    return Result.CloseSocket;
                 }
                 System.out.println("read = " + read);
                 allocate.flip();
                 controls.write(accept, allocate);
                 allocate.clear();
-                return true;
+                return Result.Continue;
             } catch (IOException e) {
-                return false;
+                return Result.CloseSocket;
             }
         }
 

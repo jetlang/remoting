@@ -31,7 +31,7 @@ public class NioJetlangChannelHandler implements NioChannelHandler {
         this.nextCommand = protocol.root;
     }
 
-    public boolean onSelect(NioFiber nioFiber, NioControls controls, SelectionKey key) {
+    public Result onSelect(NioFiber nioFiber, NioControls controls, SelectionKey key) {
         try {
             while (true) {
                 //must get latest buffer b/c it may have been resized
@@ -39,9 +39,9 @@ public class NioJetlangChannelHandler implements NioChannelHandler {
                 final int e = this.accept.read(buffer);
                 switch (e) {
                     case -1:
-                        return false;
+                        return Result.CloseSocket;
                     case 0:
-                        return true;
+                        return Result.Continue;
                     default:
                         buffer.flip();
                         while (buffer.remaining() >= nextCommand.getRequiredBytes()) {
@@ -55,7 +55,7 @@ public class NioJetlangChannelHandler implements NioChannelHandler {
                 }
             }
         } catch (IOException var6) {
-            return false;
+            return Result.CloseSocket;
         }
     }
 

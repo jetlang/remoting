@@ -259,9 +259,9 @@ public class NioJetlangSendFiber {
         }
 
         @Override
-        public boolean onSelect(NioFiber nioFiber, NioControls controls, SelectionKey key) {
+        public Result onSelect(NioFiber nioFiber, NioControls controls, SelectionKey key) {
             sendFiber.execute(this::flush);
-            return false;
+            return Result.RemoveHandler;
         }
 
         private void flush() {

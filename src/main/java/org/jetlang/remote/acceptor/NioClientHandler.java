@@ -16,7 +16,7 @@ public class NioClientHandler implements NioChannelHandler {
     private final Reader r;
 
     public interface Reader {
-        boolean onRead(NioFiber nioFiber, NioControls controls, SelectionKey key, SocketChannel channel);
+        Result onRead(NioFiber nioFiber, NioControls controls, SelectionKey key, SocketChannel channel);
     }
 
     public NioClientHandler(SocketChannel socket, Reader r) {
@@ -39,7 +39,7 @@ public class NioClientHandler implements NioChannelHandler {
     }
 
     @Override
-    public boolean onSelect(NioFiber nioFiber, NioControls controls, SelectionKey key) {
+    public Result onSelect(NioFiber nioFiber, NioControls controls, SelectionKey key) {
         return r.onRead(nioFiber, controls, key, socket);
     }
 

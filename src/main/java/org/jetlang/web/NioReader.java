@@ -113,14 +113,18 @@ public class NioReader<T> implements NioChannelHandler {
     public static final State CLOSE = new Close();
 
     @Override
-    public boolean onSelect(NioFiber nioFiber, NioControls nioControls, SelectionKey selectionKey) {
+    public Result onSelect(NioFiber nioFiber, NioControls nioControls, SelectionKey selectionKey) {
         try {
-            return onRead();
+            if (onRead()) {
+                return Result.Continue;
+            } else {
+                return Result.CloseSocket;
+            }
         } catch (IOException failed) {
-            return false;
+            return Result.CloseSocket;
         } catch (Throwable processingException) {
             headerReader.onException(processingException, channel);
-            return false;
+            return Result.CloseSocket;
         }
 
     }

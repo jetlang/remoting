@@ -198,15 +198,15 @@ public class WebSocketClient<S, T> {
         }
 
         @Override
-        public boolean onSelect(NioFiber nioFiber, NioControls nioControls, SelectionKey selectionKey) {
+        public Result onSelect(NioFiber nioFiber, NioControls nioControls, SelectionKey selectionKey) {
             try {
                 newChannel.finishConnect();
             } catch (IOException e) {
-                return false;
+                return Result.CloseSocket;
             }
             handleConnection(nioControls);
             connected = true;
-            return false;
+            return Result.RemoveHandler;
         }
 
         public void handleConnection(NioControls nioControls) {

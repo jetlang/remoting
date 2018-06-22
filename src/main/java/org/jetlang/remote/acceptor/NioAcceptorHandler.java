@@ -29,15 +29,15 @@ public class NioAcceptorHandler implements NioChannelHandler {
     }
 
     @Override
-    public boolean onSelect(NioFiber nioFiber, NioControls controls, SelectionKey key) {
+    public Result onSelect(NioFiber nioFiber, NioControls controls, SelectionKey key) {
         try {
             final SocketChannel accept = channel.accept();
             if (afterAccept(accept)) {
                 clientHandler.onAccept(nioFiber, controls, key, accept);
             }
-            return true;
+            return Result.Continue;
         } catch (IOException e) {
-            return false;
+            return Result.CloseSocket;
         }
     }
 

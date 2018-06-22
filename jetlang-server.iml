@@ -12,7 +12,7 @@
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="library" scope="TEST" name="Maven: junit:junit:4.4" level="project" />
-    <orderEntry type="library" name="Maven: org.jetlang:jetlang:0.2.19" level="project" />
+    <orderEntry type="library" name="Maven: org.jetlang:jetlang:0.2.21" level="project" />
     <orderEntry type="library" scope="TEST" name="Maven: org.glassfish.tyrus:tyrus-server:1.13" level="project" />
     <orderEntry type="library" scope="TEST" name="Maven: javax.websocket:javax.websocket-api:1.1" level="project" />
     <orderEntry type="library" scope="TEST" name="Maven: org.glassfish.tyrus:tyrus-client:1.13" level="project" />

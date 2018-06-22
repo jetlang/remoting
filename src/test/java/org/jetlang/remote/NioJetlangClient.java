@@ -1,6 +1,7 @@
 package org.jetlang.remote;
 
 import org.jetlang.fibers.NioBatchExecutorImpl;
+import org.jetlang.fibers.NioChannelHandler;
 import org.jetlang.fibers.NioControls;
 import org.jetlang.fibers.NioFiber;
 import org.jetlang.fibers.NioFiberImpl;
@@ -29,12 +30,12 @@ public class NioJetlangClient {
             int totalRead;
 
             @Override
-            public boolean onRead(NioFiber nioFiber, NioControls controls, SelectionKey key, SocketChannel channel) {
+            public NioChannelHandler.Result onRead(NioFiber nioFiber, NioControls controls, SelectionKey key, SocketChannel channel) {
                 try {
                     int read = channel.read(buffer);
                     if (read == -1) {
                         System.out.println("endread = " + read);
-                        return false;
+                        return NioChannelHandler.Result.CloseSocket;
                     }
                     totalRead += read;
                     buffer.flip();
@@ -49,7 +50,7 @@ public class NioJetlangClient {
                 } catch (IOException e) {
                     throw new RuntimeException(e);
                 }
-                return true;
+                return NioChannelHandler.Result.Continue;
             }
         });
         fiber.addHandler(handler);

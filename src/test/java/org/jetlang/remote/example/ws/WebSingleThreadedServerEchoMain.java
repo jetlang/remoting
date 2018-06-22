@@ -1,5 +1,6 @@
 package org.jetlang.remote.example.ws;
 
+import org.jetlang.fibers.NioBatchExecutorImpl;
 import org.jetlang.fibers.NioControls;
 import org.jetlang.fibers.NioFiber;
 import org.jetlang.fibers.NioFiberImpl;
@@ -17,6 +18,7 @@ import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.channels.SocketChannel;
 import java.nio.file.Paths;
+import java.util.Collections;
 import java.util.Date;
 
 import static org.jetlang.web.PathMatcher.pathEq;
@@ -130,7 +132,7 @@ public class WebSingleThreadedServerEchoMain {
         final URL resource = Thread.currentThread().getContextClassLoader().getResource("web");
         config.add(new HandlerLocator.ResourcesDirectory<>(Paths.get(resource.toURI())));
 
-        NioFiber readFiber = new NioFiberImpl();
+        NioFiber readFiber = new NioFiberImpl(new NioBatchExecutorImpl(), Collections.emptyList(), "acceptor", false, new NioFiberImpl.NoOpWriteFailure(), new NioFiberImpl.NoOpBuffer());
         readFiber.start();
         WebDispatcher<MyConnectionState> dispatcher = config.create(readFiber);
 
@@ -148,6 +150,5 @@ public class WebSingleThreadedServerEchoMain {
                 readFiber.dispose();
             }
         });
-        Thread.sleep(Long.MAX_VALUE);
     }
 }

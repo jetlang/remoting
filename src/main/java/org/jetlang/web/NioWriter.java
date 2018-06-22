@@ -96,7 +96,7 @@ public class NioWriter {
             }
         }) {
             @Override
-            public boolean onSelect(NioFiber nioFiber, NioControls controls, SelectionKey key) {
+            public Result onSelect(NioFiber nioFiber, NioControls controls, SelectionKey key) {
                 synchronized (writeLock) {
                     return super.onSelect(nioFiber, controls, key);
                 }
