@@ -32,6 +32,11 @@ public class WebFiberConnection implements WebSocketConnection {
     }
 
     @Override
+    public SendResult sendText(byte[] bytes, int offset, int length) {
+        return connection.sendText(bytes, offset, length);
+    }
+
+    @Override
     public SendResult sendPong(byte[] bytes, int offset, int length) {
         return connection.sendPong(bytes, offset, length);
     }

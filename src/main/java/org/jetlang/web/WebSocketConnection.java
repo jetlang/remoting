@@ -21,6 +21,11 @@ public interface WebSocketConnection extends Scheduler, DisposingExecutor {
     SendResult send(String msg);
 
     /**
+     * Non-Blocking send of a text message.
+     */
+    SendResult sendText(byte[] bytes, int offset, int length);
+
+    /**
      * Non-Blocking send
      */
     SendResult sendPong(byte[] bytes, int offset, int length);
