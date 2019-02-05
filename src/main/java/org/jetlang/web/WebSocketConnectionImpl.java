@@ -53,7 +53,7 @@ public class WebSocketConnectionImpl implements WebSocketConnection {
 
     @Override
     public SendResult sendText(byte[] bytes, int offset, int length) {
-        return send(OPCODE_TEXT, bytes, 0, bytes.length);
+        return send(OPCODE_TEXT, bytes, offset, length);
     }
 
     @Override
