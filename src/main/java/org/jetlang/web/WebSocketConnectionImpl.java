@@ -48,6 +48,11 @@ public class WebSocketConnectionImpl implements WebSocketConnection {
     @Override
     public SendResult send(String msg) {
         final byte[] bytes = msg.getBytes(charset);
+        return sendText(bytes, 0, bytes.length);
+    }
+
+    @Override
+    public SendResult sendText(byte[] bytes, int offset, int length) {
         return send(OPCODE_TEXT, bytes, 0, bytes.length);
     }
 
