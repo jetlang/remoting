@@ -49,6 +49,7 @@ public class WebSocketClient<S, T> {
         }
     };
     private final SessionFactory<S> sessionFactory;
+    private final IoBufferPool.Factory ioBufferFactory = new IoBufferPool.PerSocket();
 
 
     public WebSocketClient(NioFiber readFiber, URI uri, Config config, WebSocketHandler<S, T> handler, SessionFactory<S> sessionFactory) {
@@ -179,12 +180,14 @@ public class WebSocketClient<S, T> {
         private final NioWriter writer;
         private final CountDownLatch latch;
         private boolean connected;
+        private final IoBufferPool pool;
 
-        public AwaitingConnection(SocketChannel newChannel, NioWriter writer, CountDownLatch latch, boolean connected) {
+        public AwaitingConnection(SocketChannel newChannel, NioWriter writer, CountDownLatch latch, boolean connected, IoBufferPool pool) {
             this.newChannel = newChannel;
             this.writer = writer;
             this.latch = latch;
             this.connected = connected;
+            this.pool = pool;
         }
 
         @Override
@@ -216,7 +219,7 @@ public class WebSocketClient<S, T> {
             SessionDispatcherFactory.OnReadThreadDispatcher<S> sOnReadThreadDispatcher = new SessionDispatcherFactory.OnReadThreadDispatcher<>();
             nioControls.addHandler(new NioReader<>(newChannel, readFiber, nioControls, webSocketClientReader,
                     config.getReadBufferSizeInBytes(),
-                    config.getMaxReadLoops(), sessionFactory, sOnReadThreadDispatcher));
+                    config.getMaxReadLoops(), sessionFactory, sOnReadThreadDispatcher, pool));
         }
 
         @Override
@@ -251,8 +254,9 @@ public class WebSocketClient<S, T> {
             channel.configureBlocking(false);
             config.configure(channel);
             boolean connected = channel.connect(new InetSocketAddress(host, port));
-            NioWriter writer = new NioWriter(writeLock, channel, readFiber);
-            AwaitingConnection awaitingConnection = new AwaitingConnection(channel, writer, latch, connected);
+            IoBufferPool pool = ioBufferFactory.createFor(channel, readFiber);
+            NioWriter writer = new NioWriter(writeLock, channel, readFiber, pool);
+            AwaitingConnection awaitingConnection = new AwaitingConnection(channel, writer, latch, connected, pool);
             if (!connected) {
                 readFiber.addHandler(awaitingConnection);
             }

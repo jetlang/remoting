@@ -17,14 +17,16 @@ public class NioReader<T> implements NioChannelHandler {
     private ByteBuffer bb;
     private final SocketChannel channel;
     private final int maxReadLoops;
+    private final IoBufferPool bufferFactory;
     private State current;
 
-    public NioReader(SocketChannel channel, NioFiber fiber, NioControls controls, HttpRequestHandler<T> handler, int readBufferSizeInBytes, int maxReadLoops, SessionFactory<T> fact, SessionDispatcherFactory<T> dispatcherFact) {
+    public NioReader(SocketChannel channel, NioFiber fiber, NioControls controls, HttpRequestHandler<T> handler, int readBufferSizeInBytes, int maxReadLoops, SessionFactory<T> fact, SessionDispatcherFactory<T> dispatcherFact, IoBufferPool bufferFactory) {
         this.channel = channel;
         this.maxReadLoops = maxReadLoops;
-        this.headerReader = new HeaderReader<>(channel, fiber, controls, handler, fact, dispatcherFact);
+        this.bufferFactory = bufferFactory;
+        this.headerReader = new HeaderReader<>(channel, fiber, controls, handler, fact, dispatcherFact, bufferFactory);
         this.current = headerReader.start();
-        this.bb = bufferAllocate(readBufferSizeInBytes);
+        this.bb = bufferFactory.getReadBuffer(readBufferSizeInBytes);
     }
 
     public boolean onRead() throws IOException {
@@ -67,6 +69,8 @@ public class NioReader<T> implements NioChannelHandler {
     public void onClosed() {
         this.headerReader.onClose();
         current.onClosed();
+        bufferFactory.returnReadBufferOnClose(bb);
+
     }
 
     public interface State {

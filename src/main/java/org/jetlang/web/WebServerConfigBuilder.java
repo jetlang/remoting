@@ -36,6 +36,15 @@ public class WebServerConfigBuilder<S> {
             processingException.printStackTrace();
         }
     };
+    private IoBufferPool.Factory bufferPool = new IoBufferPool.PerSocket();
+
+    public IoBufferPool.Factory getBufferPool() {
+        return bufferPool;
+    }
+
+    public void setBufferPool(IoBufferPool.Factory bufferPool) {
+        this.bufferPool = bufferPool;
+    }
 
     public WebServerConfigBuilder(SessionFactory<S> factory) {
         this.factory = factory;
@@ -140,7 +149,7 @@ public class WebServerConfigBuilder<S> {
             event.accept(all);
         }
         HttpRequestHandler<S> handler = decorator.decorate(createHandler(all));
-        return new WebDispatcher<>(readFiber, handler, readBufferSizeInBytes, maxReadLoops, factory, dispatcher);
+        return new WebDispatcher<>(readFiber, handler, readBufferSizeInBytes, maxReadLoops, factory, dispatcher, bufferPool);
     }
 
     protected HttpRequestHandler<S> createHandler(final HandlerLocator.List<S> handlerMap) {

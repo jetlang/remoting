@@ -23,14 +23,14 @@ public class HeaderReader<T> {
     private final NioWriter writer;
     private final HttpResponse httpWriter;
 
-    public HeaderReader(SocketChannel channel, NioFiber fiber, NioControls controls, HttpRequestHandler<T> handler, SessionFactory<T> sessionFactory, SessionDispatcherFactory<T> dispatcher) {
+    public HeaderReader(SocketChannel channel, NioFiber fiber, NioControls controls, HttpRequestHandler<T> handler, SessionFactory<T> sessionFactory, SessionDispatcherFactory<T> dispatcher, IoBufferPool bufferFactory) {
         this.channel = channel;
         this.fiber = fiber;
         this.controls = controls;
         this.handler = handler;
         this.sessionFactory = sessionFactory;
         this.dispatcher = dispatcher;
-        this.writer = new NioWriter(new Object(), channel, fiber);
+        this.writer = new NioWriter(new Object(), channel, fiber, bufferFactory);
         this.httpWriter = new HttpResponse.Default(writer);
     }
 
