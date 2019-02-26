@@ -36,7 +36,7 @@ public class WebServerConfigBuilder<S> {
             processingException.printStackTrace();
         }
     };
-    private IoBufferPool.Factory bufferPool = new IoBufferPool.PerSocket();
+    private IoBufferPool.Factory bufferPool = new IoBufferPool.Default();
 
     public IoBufferPool.Factory getBufferPool() {
         return bufferPool;

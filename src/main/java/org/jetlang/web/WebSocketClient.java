@@ -49,7 +49,7 @@ public class WebSocketClient<S, T> {
         }
     };
     private final SessionFactory<S> sessionFactory;
-    private final IoBufferPool.Factory ioBufferFactory = new IoBufferPool.PerSocket();
+    private final IoBufferPool.Factory ioBufferFactory = new IoBufferPool.Default();
 
 
     public WebSocketClient(NioFiber readFiber, URI uri, Config config, WebSocketHandler<S, T> handler, SessionFactory<S> sessionFactory) {

@@ -17,17 +17,19 @@ public interface IoBufferPool {
         IoBufferPool createFor(SocketChannel channel, NioFiber fiber);
     }
 
-    class PerSocket implements Factory {
+    class Default implements Factory {
 
-        ByteBuffer reusedWsWriteBuffer;
+        private final ThreadLocal<ByteBuffer> threadLocalWriteBuffer = new ThreadLocal<>();
 
         @Override
         public IoBufferPool createFor(SocketChannel channel, NioFiber fiber) {
             return new IoBufferPool() {
                 @Override
                 public ByteBuffer getWebsocketWriteBuffer(int minSize) {
+                    ByteBuffer reusedWsWriteBuffer = threadLocalWriteBuffer.get();
                     if (reusedWsWriteBuffer == null || reusedWsWriteBuffer.capacity() < minSize) {
                         reusedWsWriteBuffer = NioReader.bufferAllocateDirect(minSize);
+                        threadLocalWriteBuffer.set(reusedWsWriteBuffer);
                     } else {
                         reusedWsWriteBuffer.clear();
                     }
