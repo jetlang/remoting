@@ -147,7 +147,7 @@ public class NioWriter {
         header |= opCode % 128;
         WebSocketConnectionImpl.SizeType sz = findSize(length);
         synchronized (writeLock) {
-            ByteBuffer bb = ioBufferPool.getWebsocketWriteBuffer(1 + length + sz.bytes + maskBytes.length);
+            ByteBuffer bb = ioBufferPool.beginWebSocketWrite(1 + length + sz.bytes + maskBytes.length);
             bb.put(header);
             sz.write(bb, length, maskBytes.length > 0);
             if (maskBytes.length > 0) {
@@ -161,7 +161,9 @@ public class NioWriter {
                 }
             }
             bb.flip();
-            return doSend(bb);
+            SendResult sendResult = doSend(bb);
+            ioBufferPool.endWebSocketWrite(bb);
+            return sendResult;
         }
     }
 }

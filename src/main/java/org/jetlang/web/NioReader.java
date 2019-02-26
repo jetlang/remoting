@@ -16,20 +16,22 @@ public class NioReader<T> implements NioChannelHandler {
     private final HeaderReader<T> headerReader;
     private ByteBuffer bb;
     private final SocketChannel channel;
+    private final int readBufferSizeInBytes;
     private final int maxReadLoops;
     private final IoBufferPool bufferFactory;
     private State current;
 
     public NioReader(SocketChannel channel, NioFiber fiber, NioControls controls, HttpRequestHandler<T> handler, int readBufferSizeInBytes, int maxReadLoops, SessionFactory<T> fact, SessionDispatcherFactory<T> dispatcherFact, IoBufferPool bufferFactory) {
         this.channel = channel;
+        this.readBufferSizeInBytes = readBufferSizeInBytes;
         this.maxReadLoops = maxReadLoops;
         this.bufferFactory = bufferFactory;
         this.headerReader = new HeaderReader<>(channel, fiber, controls, handler, fact, dispatcherFact, bufferFactory);
         this.current = headerReader.start();
-        this.bb = bufferFactory.getReadBuffer(readBufferSizeInBytes);
     }
 
     public boolean onRead() throws IOException {
+        bb = bb == null ? bufferFactory.beginRead(readBufferSizeInBytes) : bb;
         for (int i = 0; i < maxReadLoops; i++) {
             int read = channel.read(bb);
             if (read < 0) {
@@ -54,6 +56,9 @@ public class NioReader<T> implements NioChannelHandler {
                 break;
             }
         }
+        if (bb.position() == 0) {
+            bb = bufferFactory.returnBufferAfterRead(bb);
+        }
         return current.continueReading();
     }
 
@@ -69,7 +74,10 @@ public class NioReader<T> implements NioChannelHandler {
     public void onClosed() {
         this.headerReader.onClose();
         current.onClosed();
-        bufferFactory.returnReadBufferOnClose(bb);
+        if (bb != null) {
+            bb.clear();
+            bufferFactory.returnReadBufferOnClose(bb);
+        }
 
     }
 
