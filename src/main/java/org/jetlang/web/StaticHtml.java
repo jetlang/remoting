@@ -16,6 +16,10 @@ public class StaticHtml<T> implements HttpHandler<T> {
 
     @Override
     public void handle(Fiber dispatchFiber, HttpRequest headers, HttpResponse writer, T sessionState) {
-        writer.sendResponse(200, "OK", "text/html", resource, charset);
+        SendResult ok = writer.sendResponse(200, "OK", "text/html", resource, charset);
+        if (ok instanceof SendResult.FailedWithError) {
+            SendResult.FailedWithError failed = (SendResult.FailedWithError) ok;
+            throw new RuntimeException(failed.getFailed());
+        }
     }
 }

@@ -15,7 +15,7 @@ public interface HttpResponse {
             final byte[] b = Files.readAllBytes(resource);
             return sendResponse(statusCode, statusTxt, contentType, b, charset);
         } catch (IOException failed) {
-            throw new RuntimeException(failed);
+            return new SendResult.FailedWithError(failed);
         }
     }
 
