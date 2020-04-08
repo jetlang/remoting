@@ -5,6 +5,8 @@ import org.jetlang.fibers.Fiber;
 import org.jetlang.remote.core.ErrorHandler;
 import org.jetlang.remote.core.JetlangRemotingProtocol;
 import org.jetlang.remote.core.MsgTypes;
+import org.jetlang.remote.core.RawMsg;
+import org.jetlang.remote.core.RawMsgHandler;
 
 import java.io.IOException;
 import java.util.Collections;
@@ -18,6 +20,7 @@ public class JetlangStreamSession extends JetlangBaseSession implements JetlangR
     private final MessageStreamWriter socket;
     private final Fiber sendFiber;
     private final ErrorHandler errorHandler;
+    private final RawMsgHandler rawMsgHandler;
     private final Set<String> subscriptions = Collections.synchronizedSet(new HashSet<String>());
     private volatile boolean loggedOut;
 
@@ -26,11 +29,18 @@ public class JetlangStreamSession extends JetlangBaseSession implements JetlangR
         }
     };
 
-    public JetlangStreamSession(Object id, MessageStreamWriter socket, Fiber sendFiber, ErrorHandler errorHandler) {
+    public JetlangStreamSession(Object id, MessageStreamWriter socket, Fiber sendFiber,
+                                ErrorHandler errorHandler, RawMsgHandler rawMsgHandler) {
         super(id);
         this.socket = socket;
         this.sendFiber = sendFiber;
         this.errorHandler = errorHandler;
+        this.rawMsgHandler = rawMsgHandler;
+    }
+
+    @Override
+    public void onRawMsg(RawMsg rawMsg) {
+        rawMsgHandler.onRawMsg(rawMsg);
     }
 
     public void startHeartbeat(int interval, TimeUnit unit) {

@@ -4,17 +4,43 @@ import org.jetlang.core.Callback;
 import org.jetlang.core.Disposable;
 import org.jetlang.core.SynchronousDisposingExecutor;
 import org.jetlang.fibers.ThreadFiber;
-import org.jetlang.remote.acceptor.*;
-import org.jetlang.remote.client.*;
+import org.jetlang.remote.acceptor.Acceptor;
+import org.jetlang.remote.acceptor.ClientPublisher;
+import org.jetlang.remote.acceptor.JetlangClientHandler;
+import org.jetlang.remote.acceptor.JetlangFiberSession;
+import org.jetlang.remote.acceptor.JetlangSession;
+import org.jetlang.remote.acceptor.JetlangSessionConfig;
+import org.jetlang.remote.acceptor.LogoutEvent;
+import org.jetlang.remote.acceptor.NewFiberSessionHandler;
+import org.jetlang.remote.acceptor.NewSessionHandler;
+import org.jetlang.remote.acceptor.SerializerAdapter;
+import org.jetlang.remote.acceptor.SessionCloseEvent;
+import org.jetlang.remote.acceptor.SessionMessage;
+import org.jetlang.remote.acceptor.SessionRequest;
+import org.jetlang.remote.acceptor.SessionTopic;
+import org.jetlang.remote.client.CloseEvent;
+import org.jetlang.remote.client.ConnectEvent;
+import org.jetlang.remote.client.JetlangClient;
+import org.jetlang.remote.client.JetlangClientConfig;
+import org.jetlang.remote.client.JetlangTcpClient;
+import org.jetlang.remote.client.LogoutResult;
+import org.jetlang.remote.client.SocketConnector;
+import org.jetlang.remote.client.TimeoutControls;
 import org.jetlang.remote.core.ErrorHandler;
 import org.jetlang.remote.core.HeartbeatEvent;
 import org.jetlang.remote.core.JavaSerializer;
+import org.jetlang.remote.core.RawMsg;
+import org.jetlang.remote.core.RawMsgHandler;
 import org.jetlang.remote.core.ReadTimeoutEvent;
+import org.jetlang.web.NioReader;
 import org.junit.After;
 import org.junit.Test;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.ObjectInputStream;
 import java.net.ServerSocket;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
@@ -22,7 +48,9 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 public abstract class IntegrationBase {
 
@@ -369,7 +397,6 @@ public abstract class IntegrationBase {
 
     @Test
     public void requestReply() throws IOException {
-
         NewSessionHandler sessionCallback = new NewSessionHandler() {
             public void onNewSession(ClientPublisher pub, JetlangSession jetlangSession) {
                 Callback<SessionRequest> onRequest = new Callback<SessionRequest>() {
@@ -411,7 +438,7 @@ public abstract class IntegrationBase {
 
 
     @Test
-    public void regression() throws IOException, InterruptedException {
+    public void regression() throws Exception {
         final EventAssert<SessionTopic> subscriptionReceived = new EventAssert<SessionTopic>(1);
         Callback<SessionTopic> onTopic = new Callback<SessionTopic>() {
             public void onMessage(SessionTopic message) {
@@ -478,6 +505,102 @@ public abstract class IntegrationBase {
         return new JetlangTcpClient(conn, new ThreadFiber(), clientConfig, new JavaSerializer(), new ErrorHandler.SysOut());
     }
 
+    @Test
+    public void rawMsgRegression() throws Exception {
+        final EventAssert<SessionTopic> subscriptionReceived = new EventAssert<SessionTopic>(1);
+        Callback<SessionTopic> onTopic = new Callback<SessionTopic>() {
+            public void onMessage(SessionTopic message) {
+                message.publish("mymsg");
+            }
+        };
+        subscriptionReceived.onMessage(onTopic);
+        final EventAssert<LogoutEvent> logoutEvent = new EventAssert<LogoutEvent>(1);
+        final EventAssert<SessionMessage<?>> serverMessageReceive = new EventAssert<SessionMessage<?>>(1);
+        final EventAssert<String> unsubscribeReceive = new EventAssert<String>(1);
+        final EventAssert<SessionCloseEvent> serverSessionClose = new EventAssert<SessionCloseEvent>(1);
+
+        NewFiberSessionHandler handlerFactory = new NewFiberSessionHandler() {
+            public void onNewSession(ClientPublisher pub, JetlangFiberSession session) {
+                subscriptionReceived.subscribe(session.getSubscriptionRequestChannel(), session.getFiber());
+                logoutEvent.subscribe(session.getLogoutChannel(), session.getFiber());
+                serverMessageReceive.subscribe(session.getSessionMessageChannel(), session.getFiber());
+                unsubscribeReceive.subscribe(session.getUnsubscribeChannel(), session.getFiber());
+                serverSessionClose.subscribe(session.getSessionCloseChannel(), session.getFiber());
+                assertEquals(session.getSessionId(), session.getSessionId());
+            }
+        };
+
+        Acceptor acceptor = createAcceptor(wrap(handlerFactory));
+        Thread runner = new Thread(acceptor);
+        runner.start();
+
+        EventAssert<String> clientMsgReceive = new EventAssert<String>(1);
+        JetlangClient client = createRawMsgClient(clientMsgReceive);
+        EventAssert<ConnectEvent> clientConnect = EventAssert.expect(1, client.getConnectChannel());
+        EventAssert<CloseEvent> clientClose = EventAssert.expect(1, client.getCloseChannel());
+
+        Disposable unsubscribe = client.subscribe("newtopic", clientMsgReceive.asSubscribable());
+        client.start();
+
+        subscriptionReceived.assertEvent();
+        assertEquals("newtopic", subscriptionReceived.takeFromReceived().getTopic());
+        clientConnect.assertEvent();
+        clientMsgReceive.assertEvent();
+        client.publish("toServer", "myclientmessage");
+        serverMessageReceive.assertEvent();
+        SessionMessage<?> sessionMessage = serverMessageReceive.takeFromReceived();
+        assertEquals("toServer", sessionMessage.getTopic());
+        assertEquals("myclientmessage", sessionMessage.getMessage());
+        unsubscribe.dispose();
+        unsubscribeReceive.assertEvent();
+        assertEquals("newtopic", unsubscribeReceive.takeFromReceived());
+
+        LogoutResult closeLatch = client.close(true);
+
+        assertTrue(closeLatch.await(10, TimeUnit.SECONDS));
+        logoutEvent.assertEvent();
+        serverSessionClose.assertEvent();
+        clientClose.assertEvent();
+        assertEquals(CloseEvent.GracefulDisconnect.class, clientClose.received.take().getClass());
+        assertEquals(0, handler.clientCount());
+        acceptor.stop();
+        service.shutdownNow();
+    }
+
+    private JetlangClient createRawMsgClient(EventAssert<String> clientMsgReceive) {
+        ByteBuffer byteBuffer = NioReader.bufferAllocate(4096);
+        return new JetlangTcpClient(conn, new ThreadFiber(), clientConfig, new JavaSerializer(), new ErrorHandler.SysOut(), new RawMsgHandler() {
+            @Override
+            public boolean enabled() {
+                return true;
+            }
+
+            @Override
+            public void onRawMsg(RawMsg rawMsg) {
+                rawMsg.read(byteBuffer);
+
+                byteBuffer.flip();
+                int topicSize = byteBuffer.get();
+
+                final char[] chars = new char[topicSize];
+                for (int i = 0; i < topicSize; i++) {
+                    chars[i] = (char) byteBuffer.get();
+                }
+                String topic = new String(chars);
+                int size = byteBuffer.getInt();
+
+                try {
+                    String msg = (String) new ObjectInputStream(new ByteBufferInputStream(byteBuffer)).readObject();
+                    clientMsgReceive.receiveMessage(msg);
+                } catch (Throwable t) {
+                    throw new RuntimeException(t);
+                }
+
+                byteBuffer.clear();
+            }
+        });
+    }
+
     private Acceptor createAcceptor(NewSessionHandler newSession) throws IOException {
         handler = new JetlangClientHandler(serializerFactory, newSession,
                 service, sessionConfig, new JetlangClientHandler.FiberFactory.ThreadFiberFactory(),
@@ -486,5 +609,25 @@ public abstract class IntegrationBase {
                 new ServerSocket(8081),
                 new Acceptor.ErrorHandler.SysOut(),
                 handler);
+    }
+
+    public class ByteBufferInputStream extends InputStream {
+        private final ByteBuffer buffer;
+
+        public ByteBufferInputStream(ByteBuffer buffer) {
+            this.buffer = buffer;
+        }
+
+        @Override
+        public int read() {
+            return buffer.get() & 0xFF;
+        }
+
+        @Override
+        public int read(byte[] b, int off, int len) {
+            final int pos = buffer.position();
+            buffer.get(b, off, len);
+            return buffer.position() - pos;
+        }
     }
 }
