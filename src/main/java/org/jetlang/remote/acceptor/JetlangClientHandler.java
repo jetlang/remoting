@@ -5,6 +5,8 @@ import org.jetlang.fibers.ThreadFiber;
 import org.jetlang.remote.core.ErrorHandler;
 import org.jetlang.remote.core.JetlangRemotingInputStream;
 import org.jetlang.remote.core.JetlangRemotingProtocol;
+import org.jetlang.remote.core.RawMsgHandler;
+import org.jetlang.remote.core.RawMsgHandlerFactory;
 import org.jetlang.remote.core.ReadTimeoutEvent;
 import org.jetlang.remote.core.Serializer;
 import org.jetlang.remote.core.SerializerFactory;
@@ -20,6 +22,8 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import static org.jetlang.remote.core.RawMsgHandlerFactory.NULL_RAW_MSG_HANDLER_FACTORY;
+
 public class JetlangClientHandler implements Acceptor.ClientHandler, ClientPublisher {
 
     private final SerializerAdapter ser;
@@ -33,6 +37,7 @@ public class JetlangClientHandler implements Acceptor.ClientHandler, ClientPubli
     private final BufferedSerializer globalBuffer;
 
     private final Fiber globalSendFiber;
+    private final RawMsgHandlerFactory rawMsgHandlerFactory;
 
     public interface FiberFactory {
 
@@ -66,6 +71,16 @@ public class JetlangClientHandler implements Acceptor.ClientHandler, ClientPubli
                                 JetlangSessionConfig config,
                                 FiberFactory fiberFactory,
                                 ErrorHandler errorHandler) {
+       this(ser, channels, exec, config, fiberFactory, errorHandler, NULL_RAW_MSG_HANDLER_FACTORY);
+    }
+
+    public JetlangClientHandler(SerializerAdapter ser,
+                                NewSessionHandler channels,
+                                Executor exec,
+                                JetlangSessionConfig config,
+                                FiberFactory fiberFactory,
+                                ErrorHandler errorHandler,
+                                RawMsgHandlerFactory rawMsgHandlerFactory) {
         this.ser = ser;
         this.channels = channels;
         this.exec = exec;
@@ -73,6 +88,7 @@ public class JetlangClientHandler implements Acceptor.ClientHandler, ClientPubli
         this.fiberFactory = fiberFactory;
         this.errorHandler = errorHandler;
         this.globalSendFiber = fiberFactory.createGlobalSendFiber();
+        this.rawMsgHandlerFactory = rawMsgHandlerFactory;
         this.globalSendFiber.start();
         this.globalBuffer = ser.createBuffered();
     }
@@ -168,7 +184,10 @@ public class JetlangClientHandler implements Acceptor.ClientHandler, ClientPubli
         final TcpSocket socket = clientTcpSocket.getSocket();
         final Fiber sendFiber = fiberFactory.createSendFiber(socket.getSocket());
         final Serializer serializer = ser.createForSocket(socket);
-        final JetlangStreamSession session = new JetlangStreamSession(socket.getRemoteSocketAddress(), new SocketMessageStreamWriter(socket, ser.getCharset(), serializer.getWriter()), sendFiber, errorHandler);
+        final SocketMessageStreamWriter streamWriter = new SocketMessageStreamWriter(socket, ser.getCharset(), serializer.getWriter());
+        final RawMsgHandler rawMsgHandler = rawMsgHandlerFactory.rawMsgHandler();
+        final JetlangStreamSession session = new JetlangStreamSession(socket.getRemoteSocketAddress(), streamWriter,
+                                                                      sendFiber, errorHandler, rawMsgHandler);
         return new Runnable() {
             public void run() {
                 try {
@@ -177,7 +196,8 @@ public class JetlangClientHandler implements Acceptor.ClientHandler, ClientPubli
                     channels.onNewSession(JetlangClientHandler.this, session);
                     session.startHeartbeat(config.getHeartbeatIntervalInMs(), TimeUnit.MILLISECONDS);
                     sendFiber.start();
-                    JetlangRemotingProtocol protocol = new JetlangRemotingProtocol(session, serializer.getReader(), ser.getCharset());
+
+                    JetlangRemotingProtocol protocol = new JetlangRemotingProtocol(session, serializer.getReader(), ser.getCharset(), rawMsgHandler.enabled());
                     JetlangRemotingInputStream state = new JetlangRemotingInputStream(socket.getInputStream(), protocol, onReadTimeout);
                     while (state.readFromStream()) {
 

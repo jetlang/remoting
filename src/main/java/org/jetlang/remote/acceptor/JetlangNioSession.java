@@ -2,6 +2,8 @@ package org.jetlang.remote.acceptor;
 
 import org.jetlang.fibers.NioFiber;
 import org.jetlang.remote.core.MsgTypes;
+import org.jetlang.remote.core.RawMsg;
+import org.jetlang.remote.core.RawMsgHandler;
 
 import java.nio.channels.SocketChannel;
 
@@ -10,6 +12,7 @@ public class JetlangNioSession extends JetlangBaseSession implements JetlangMess
     private final NioJetlangSendFiber.ChannelState channel;
     private final NioJetlangSendFiber sendFiber;
     private final ErrorHandler errorHandler;
+    private final RawMsgHandler rawMsgHandler;
 
     public interface ErrorHandler {
 
@@ -20,12 +23,20 @@ public class JetlangNioSession extends JetlangBaseSession implements JetlangMess
         void onHandlerException(Exception failed);
     }
 
-    public JetlangNioSession(NioFiber fiber, SocketChannel channel, NioJetlangSendFiber sendFiber, NioJetlangRemotingClientFactory.Id id, ErrorHandler errorHandler) {
+    public JetlangNioSession(NioFiber fiber, SocketChannel channel, NioJetlangSendFiber sendFiber,
+                             NioJetlangRemotingClientFactory.Id id, ErrorHandler errorHandler,
+                             RawMsgHandler rawMsgHandler) {
         super(id);
         this.errorHandler = errorHandler;
+        this.rawMsgHandler = rawMsgHandler;
         this.channel = new NioJetlangSendFiber.ChannelState(channel, id, fiber);
         this.sendFiber = sendFiber;
         this.sendFiber.onNewSession(this.channel);
+    }
+
+    @Override
+    public void onRawMsg(RawMsg rawMsg) {
+        rawMsgHandler.onRawMsg(rawMsg);
     }
 
     @Override

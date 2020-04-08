@@ -16,6 +16,8 @@ import org.jetlang.remote.core.HeartbeatEvent;
 import org.jetlang.remote.core.JetlangRemotingInputStream;
 import org.jetlang.remote.core.JetlangRemotingProtocol;
 import org.jetlang.remote.core.MsgTypes;
+import org.jetlang.remote.core.RawMsg;
+import org.jetlang.remote.core.RawMsgHandler;
 import org.jetlang.remote.core.ReadTimeoutEvent;
 import org.jetlang.remote.core.Serializer;
 import org.jetlang.remote.core.SocketMessageStreamWriter;
@@ -34,7 +36,10 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static org.jetlang.remote.core.RawMsgHandler.NULL_RAW_MSG_HANDLER;
+
 /**
+ *
  */
 public class JetlangTcpClient implements JetlangClient {
 
@@ -43,6 +48,7 @@ public class JetlangTcpClient implements JetlangClient {
     private final JetlangClientConfig config;
     private final Serializer ser;
     private final ErrorHandler errorHandler;
+    private final RawMsgHandler rawMsgHandler;
     private static final Charset charset = Charset.forName("US-ASCII");
     private final SocketConnector socketConnector;
     private Disposable pendingConnect;
@@ -66,7 +72,7 @@ public class JetlangTcpClient implements JetlangClient {
     private final Map<Integer, Req> pendingRequests = Collections.synchronizedMap(new HashMap<Integer, Req>());
 
     private final SocketWriter socketWriter = new SocketWriter() {
-        public <T> boolean send(final String topic, final T msg){
+        public <T> boolean send(final String topic, final T msg) {
             if (socket != null) {
                 try {
                     socket.write(topic, msg);
@@ -87,11 +93,21 @@ public class JetlangTcpClient implements JetlangClient {
                             JetlangClientConfig config,
                             Serializer ser,
                             ErrorHandler errorHandler) {
+        this(socketConnector, sendFiber, config, ser, errorHandler, NULL_RAW_MSG_HANDLER);
+    }
+
+    public JetlangTcpClient(SocketConnector socketConnector,
+                            Fiber sendFiber,
+                            JetlangClientConfig config,
+                            Serializer ser,
+                            ErrorHandler errorHandler,
+                            RawMsgHandler rawMsgHandler) {
         this.socketConnector = socketConnector;
         this.sendFiber = sendFiber;
         this.config = config;
         this.ser = ser;
         this.errorHandler = errorHandler;
+        this.rawMsgHandler = rawMsgHandler;
     }
 
     private class RemoteSubscription<T> {
@@ -252,7 +268,7 @@ public class JetlangTcpClient implements JetlangClient {
         final InputStream stream = newSocket.getInputStream();
         final Runnable reader = new Runnable() {
             public void run() {
-                final JetlangRemotingProtocol protocol = new JetlangRemotingProtocol(protocolHandler, ser.getReader(), charset);
+                final JetlangRemotingProtocol protocol = new JetlangRemotingProtocol(protocolHandler, ser.getReader(), charset, rawMsgHandler.enabled());
                 final JetlangRemotingInputStream inputStream = new JetlangRemotingInputStream(stream, protocol, onReadTimeout);
                 try {
                     Connected.publish(new ConnectEvent());
@@ -273,6 +289,11 @@ public class JetlangTcpClient implements JetlangClient {
     private final JetlangRemotingProtocol.Handler protocolHandler = new JetlangRemotingProtocol.Handler() {
         public void onMessage(String dataTopicVal, Object readObject) {
             publishData(dataTopicVal, readObject);
+        }
+
+        @Override
+        public void onRawMsg(RawMsg rawMsg) {
+            rawMsgHandler.onRawMsg(rawMsg);
         }
 
         public void onSubscriptionRequest(String val) {
@@ -308,7 +329,6 @@ public class JetlangTcpClient implements JetlangClient {
             publishReply(reqId, readObject);
         }
     };
-
 
     private void handleReadExceptionOnSendFiber(final IOException e) {
         Runnable exec = new Runnable() {
@@ -446,7 +466,6 @@ public class JetlangTcpClient implements JetlangClient {
         }
     }
 
-
     public Subscriber<CloseEvent> getCloseChannel() {
         return Closed;
     }
@@ -470,7 +489,7 @@ public class JetlangTcpClient implements JetlangClient {
     public <T> void publish(final String topic, final T msg, final Runnable onSend) {
         Runnable r = new Runnable() {
             public void run() {
-                if(socketWriter.send(topic, msg)){
+                if (socketWriter.send(topic, msg)) {
                     if (onSend != null)
                         onSend.run();
                 }
@@ -479,7 +498,7 @@ public class JetlangTcpClient implements JetlangClient {
         sendFiber.execute(r);
     }
 
-    public void execOnSendThread(final Callback<SocketWriter> cb){
+    public void execOnSendThread(final Callback<SocketWriter> cb) {
         Runnable r = new Runnable() {
             public void run() {
                 cb.onMessage(socketWriter);
