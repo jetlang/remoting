@@ -271,18 +271,22 @@ public class JetlangTcpClient implements JetlangClient {
     }
 
     private final JetlangRemotingProtocol.Handler protocolHandler = new JetlangRemotingProtocol.Handler() {
+        @Override
         public void onMessage(String dataTopicVal, Object readObject) {
             publishData(dataTopicVal, readObject);
         }
 
+        @Override
         public void onSubscriptionRequest(String val) {
             errorHandler.onException(new IOException("SubscriptionNotSupported: " + val));
         }
 
+        @Override
         public void onRequest(int reqId, String dataTopicVal, Object readObject) {
             errorHandler.onException(new IOException("RequestNotSupported: " + dataTopicVal + " val: " + readObject));
         }
 
+        @Override
         public void onUnsubscribeRequest(String val) {
             errorHandler.onException(new IOException("UnsubscribeNotSupported: " + val));
         }
@@ -292,18 +296,22 @@ public class JetlangTcpClient implements JetlangClient {
             errorHandler.onException(failed);
         }
 
+        @Override
         public void onHb() {
             Heartbeat.publish(new HeartbeatEvent());
         }
 
+        @Override
         public void onLogout() {
             logoutLatch.countDown();
         }
 
+        @Override
         public void onUnknownMessage(int read) {
             errorHandler.onException(new IOException(read + " not supported"));
         }
 
+        @Override
         public void onRequestReply(int reqId, String dataTopicVal, Object readObject) {
             publishReply(reqId, readObject);
         }

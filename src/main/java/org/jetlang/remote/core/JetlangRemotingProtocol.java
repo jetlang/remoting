@@ -24,10 +24,12 @@ public class JetlangRemotingProtocol {
         }
     };
     public final State root = new State() {
+        @Override
         public int getRequiredBytes() {
             return 1;
         }
 
+        @Override
         public State run() {
             int read = buffer.get();
             switch (read) {
@@ -131,10 +133,12 @@ public class JetlangRemotingProtocol {
     private abstract class StringState {
         private int stringSize;
         State getSubRequestString = new State() {
+            @Override
             public int getRequiredBytes() {
                 return stringSize;
             }
 
+            @Override
             public State run() throws IOException {
                 String val = new String(bufferArray, buffer.position(), stringSize, charset);
                 buffer.position(buffer.position() + stringSize);
@@ -142,10 +146,12 @@ public class JetlangRemotingProtocol {
             }
         };
         State first = new State() {
+            @Override
             public int getRequiredBytes() {
                 return 1;
             }
 
+            @Override
             public State run() {
                 stringSize = buffer.get();
                 return getSubRequestString;
@@ -159,10 +165,12 @@ public class JetlangRemotingProtocol {
         private int dataSizeVal;
         private String dataTopicVal;
         State dataSizeRead = new State() {
+            @Override
             public int getRequiredBytes() {
                 return dataSizeVal;
             }
 
+            @Override
             public State run() throws IOException {
                 final Object readObject = reader.readObject(dataTopicVal, bufferArray, buffer.position(), dataSizeVal);
                 buffer.position(buffer.position() + dataSizeVal);
@@ -170,10 +178,12 @@ public class JetlangRemotingProtocol {
             }
         };
         State dataSize = new State() {
+            @Override
             public int getRequiredBytes() {
                 return 4;
             }
 
+            @Override
             public State run() {
                 dataSizeVal = buffer.getInt();
                 return dataSizeRead;
@@ -223,10 +233,12 @@ public class JetlangRemotingProtocol {
         protected abstract void handleRequest(int reqId, String dataTopicVal, Object readObject);
 
         State reqIdSt = new State() {
+            @Override
             public int getRequiredBytes() {
                 return 4;
             }
 
+            @Override
             public State run() {
                 reqId = buffer.getInt();
                 return data.first.first;

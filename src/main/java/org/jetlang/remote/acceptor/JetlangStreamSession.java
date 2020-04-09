@@ -102,6 +102,7 @@ public class JetlangStreamSession extends JetlangBaseSession implements JetlangR
         hbStopper.run();
     }
 
+    @Override
     public void onUnknownMessage(int read) {
         errorHandler.onException(new RuntimeException("Unknown message type " + read + " from " + getSessionId()));
     }
@@ -162,6 +163,7 @@ public class JetlangStreamSession extends JetlangBaseSession implements JetlangR
         sendFiber.execute(replyRunner);
     }
 
+    @Override
     public void onRequestReply(int reqId, String dataTopicVal, Object readObject) {
         errorHandler.onException(new RuntimeException("Reply is not supported: " + dataTopicVal + " msg: " + readObject));
     }
