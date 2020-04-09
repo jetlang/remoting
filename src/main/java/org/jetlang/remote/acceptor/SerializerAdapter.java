@@ -11,24 +11,24 @@ import java.nio.charset.Charset;
  * Date: 11/29/11
  * Time: 9:25 AM
  */
-public class SerializerAdapter {
+public class SerializerAdapter<R, W> {
 
     private final Charset charset = Charset.forName("US-ASCII");
-    private final SerializerFactory ser;
+    private final SerializerFactory<R, W> ser;
 
-    public SerializerAdapter(SerializerFactory ser){
+    public SerializerAdapter(SerializerFactory<R, W> ser){
         this.ser = ser;
     }
 
-    public BufferedSerializer createBuffered(){
-        return new BufferedSerializer(charset, ser.createForGlobalWriter());
+    public BufferedSerializer<W> createBuffered(){
+        return new BufferedSerializer<W>(charset, ser.createForGlobalWriter());
     }
 
     public Charset getCharset(){
         return charset;
     }
 
-    public Serializer createForSocket(TcpSocket socket) {
+    public Serializer<R, W> createForSocket(TcpSocket socket) {
         return ser.createForSocket(socket.getSocket());
     }
 }

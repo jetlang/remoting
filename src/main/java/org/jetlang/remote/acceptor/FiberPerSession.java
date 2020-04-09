@@ -5,33 +5,33 @@ import org.jetlang.core.SynchronousDisposingExecutor;
 import org.jetlang.fibers.Fiber;
 import org.jetlang.fibers.ThreadFiber;
 
-public class FiberPerSession implements NewSessionHandler {
+public class FiberPerSession<R, W> implements NewSessionHandler<R, W> {
 
-    private final NewFiberSessionHandler fact;
+    private final NewFiberSessionHandler<R, W> fact;
     private final FiberPerSession.FiberFactory fiberFactory;
 
-    public interface FiberFactory {
+    public interface FiberFactory<R, W> {
 
-        Fiber createForSession(JetlangSession session);
+        Fiber createForSession(JetlangSession<R, W> session);
 
-        class ThreadFiberFactory implements FiberPerSession.FiberFactory {
+        class ThreadFiberFactory<R, W> implements FiberPerSession.FiberFactory<R, W> {
 
-            public Fiber createForSession(JetlangSession session) {
+            public Fiber createForSession(JetlangSession<R, W> session) {
                 return new ThreadFiber();
             }
         }
 
     }
 
-    public FiberPerSession(NewFiberSessionHandler fact, FiberPerSession.FiberFactory fiberFactory) {
+    public FiberPerSession(NewFiberSessionHandler<R, W> fact, FiberPerSession.FiberFactory<R, W> fiberFactory) {
         this.fact = fact;
         this.fiberFactory = fiberFactory;
     }
 
-    public void onNewSession(ClientPublisher publisher, JetlangSession jetlangSession) {
+    public void onNewSession(ClientPublisher<W> publisher, JetlangSession<R, W> jetlangSession) {
         final Fiber fiber = fiberFactory.createForSession(jetlangSession);
 
-        fact.onNewSession(publisher, new JetlangFiberSession(jetlangSession, fiber));
+        fact.onNewSession(publisher, new JetlangFiberSession<R, W>(jetlangSession, fiber));
 
         //start fiber after session is initialized.
         fiber.start();

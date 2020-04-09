@@ -7,15 +7,15 @@ import java.net.Socket;
  * Date: 4/6/11
  * Time: 10:49 AM
  */
-public interface SerializerFactory {
+public interface SerializerFactory<R, W> {
 
-    Serializer create();
+    Serializer<R, W> create();
 
-    default Serializer createForSocket(Socket socket) {
+    default Serializer<R, W> createForSocket(Socket socket) {
         return create();
     }
 
-    default ObjectByteWriter createForGlobalWriter() {
+    default ObjectByteWriter<W> createForGlobalWriter() {
         return create().getWriter();
     }
 

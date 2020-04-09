@@ -20,17 +20,17 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-public class JetlangClientHandler implements Acceptor.ClientHandler, ClientPublisher {
+public class JetlangClientHandler<R, W> implements Acceptor.ClientHandler, ClientPublisher<W> {
 
-    private final SerializerAdapter ser;
-    private final NewSessionHandler channels;
+    private final SerializerAdapter<R, W> ser;
+    private final NewSessionHandler<R, W> channels;
     private final Executor exec;
     private final JetlangSessionConfig config;
     private final FiberFactory fiberFactory;
     private final ErrorHandler errorHandler;
     private final AtomicBoolean running = new AtomicBoolean(true);
     private final Collection<ClientTcpSocket> clients = new HashSet<ClientTcpSocket>();
-    private final BufferedSerializer globalBuffer;
+    private final BufferedSerializer<W> globalBuffer;
 
     private final Fiber globalSendFiber;
 
@@ -42,26 +42,28 @@ public class JetlangClientHandler implements Acceptor.ClientHandler, ClientPubli
 
         class ThreadFiberFactory implements FiberFactory {
 
+            @Override
             public Fiber createGlobalSendFiber() {
                 return new ThreadFiber();
             }
 
+            @Override
             public Fiber createSendFiber(Socket socket) {
                 return new ThreadFiber();
             }
         }
     }
 
-    public JetlangClientHandler(SerializerFactory fact, NewSessionHandler channels,
+    public JetlangClientHandler(SerializerFactory<R, W> fact, NewSessionHandler<R, W> channels,
                                 Executor exec,
                                 JetlangSessionConfig config,
                                 FiberFactory fiberFactory,
                                 ErrorHandler errorHandler) {
-        this(new SerializerAdapter(fact), channels, exec, config, fiberFactory, errorHandler);
+        this(new SerializerAdapter<R, W>(fact), channels, exec, config, fiberFactory, errorHandler);
     }
 
-    public JetlangClientHandler(SerializerAdapter ser,
-                                NewSessionHandler channels,
+    public JetlangClientHandler(SerializerAdapter<R, W> ser,
+                                NewSessionHandler<R, W> channels,
                                 Executor exec,
                                 JetlangSessionConfig config,
                                 FiberFactory fiberFactory,
@@ -77,6 +79,7 @@ public class JetlangClientHandler implements Acceptor.ClientHandler, ClientPubli
         this.globalBuffer = ser.createBuffered();
     }
 
+    @Override
     public void startClient(Socket socket) {
         ClientTcpSocket client = new ClientTcpSocket(new TcpSocket(socket, errorHandler));
         synchronized (clients) {
@@ -97,6 +100,7 @@ public class JetlangClientHandler implements Acceptor.ClientHandler, ClientPubli
         }
     }
 
+    @Override
     public void close() {
         globalSendFiber.dispose();
         synchronized (clients) {
@@ -126,7 +130,8 @@ public class JetlangClientHandler implements Acceptor.ClientHandler, ClientPubli
      * Publishes asynchronously on a separate global fiber, so be careful of message ordering when using with other fibers/threads.
      * Serialization and enqueueing are done on a separate fiber.
      */
-    public void publishToAllSubscribedClients(final String topic, final Object msg) {
+    @Override
+    public void publishToAllSubscribedClients(final String topic, final W msg) {
         Runnable toSend = new Runnable() {
             public void run() {
                 byte[] copy = globalBuffer.createArray(topic, msg);
