@@ -9,7 +9,7 @@ import java.io.ObjectOutputStream;
  * Date: 4/6/11
  * Time: 9:04 AM
  */
-public class JavaSerializationWriter implements ObjectByteWriter {
+public class JavaSerializationWriter implements ObjectByteWriter<Object> {
 
     public static class ByteStream extends ByteArrayOutputStream {
         //provide raw access to buffer without copying.

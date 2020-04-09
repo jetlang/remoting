@@ -15,18 +15,19 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 public class JetlangStreamSession<R, W> extends JetlangBaseSession<R, W> implements JetlangRemotingProtocol.Handler<R> {
 
-    private final MessageStreamWriter socket;
+    private final MessageStreamWriter<W> socket;
     private final Fiber sendFiber;
     private final ErrorHandler errorHandler;
     private final Set<String> subscriptions = Collections.synchronizedSet(new HashSet<String>());
     private volatile boolean loggedOut;
 
     private volatile Runnable hbStopper = new Runnable() {
+        @Override
         public void run() {
         }
     };
 
-    public JetlangStreamSession(Object id, MessageStreamWriter socket, Fiber sendFiber, ErrorHandler errorHandler) {
+    public JetlangStreamSession(Object id, MessageStreamWriter<W> socket, Fiber sendFiber, ErrorHandler errorHandler) {
         super(id);
         this.socket = socket;
         this.sendFiber = sendFiber;
@@ -36,6 +37,7 @@ public class JetlangStreamSession<R, W> extends JetlangBaseSession<R, W> impleme
     public void startHeartbeat(int interval, TimeUnit unit) {
         if (interval > 0) {
             Runnable send = new Runnable() {
+                @Override
                 public void run() {
                     write(MsgTypes.Heartbeat);
                 }
@@ -49,6 +51,7 @@ public class JetlangStreamSession<R, W> extends JetlangBaseSession<R, W> impleme
             hbStopper = new Runnable() {
                 AtomicBoolean stopped = new AtomicBoolean(false);
 
+                @Override
                 public void run() {
                     if (stopped.compareAndSet(false, true)) {
                         disposeHb.dispose();
@@ -61,7 +64,7 @@ public class JetlangStreamSession<R, W> extends JetlangBaseSession<R, W> impleme
     @Override
     public void onSubscriptionRequest(String topic) {
         subscriptions.add(topic);
-        SubscriptionRequest.publish(new SessionTopic(topic, this));
+        SubscriptionRequest.publish(new SessionTopic<W>(topic, this));
     }
 
     @Override
@@ -72,6 +75,7 @@ public class JetlangStreamSession<R, W> extends JetlangBaseSession<R, W> impleme
 
     private void write(final int byteToWrite) {
         Runnable r = new Runnable() {
+            @Override
             public void run() {
                 try {
                     socket.writeByteAsInt(byteToWrite);
@@ -90,6 +94,7 @@ public class JetlangStreamSession<R, W> extends JetlangBaseSession<R, W> impleme
         }
     }
 
+    @Override
     public void disconnect() {
         socket.tryClose();
     }
@@ -112,8 +117,10 @@ public class JetlangStreamSession<R, W> extends JetlangBaseSession<R, W> impleme
         errorHandler.onException(failed);
     }
 
+    @Override
     public void publish(final String topic, final W msg) {
         Runnable r = new Runnable() {
+            @Override
             public void run() {
                 if (subscriptions.contains(topic)) {
                     try {
@@ -134,6 +141,7 @@ public class JetlangStreamSession<R, W> extends JetlangBaseSession<R, W> impleme
     @Override
     public void publish(final byte[] data) {
         Runnable r = new Runnable() {
+            @Override
             public void run() {
                 writeBytesOnSendFiberThread(data);
             }
@@ -150,8 +158,9 @@ public class JetlangStreamSession<R, W> extends JetlangBaseSession<R, W> impleme
     }
 
     @Override
-    public void reply(final int reqId, final String replyTopic, final Object replyMsg) {
+    public void reply(final int reqId, final String replyTopic, final W replyMsg) {
         Runnable replyRunner = new Runnable() {
+            @Override
             public void run() {
                 try {
                     socket.writeReply(reqId, replyTopic, replyMsg);
@@ -172,6 +181,7 @@ public class JetlangStreamSession<R, W> extends JetlangBaseSession<R, W> impleme
     public void publishIfSubscribed(String topic, final byte[] data) {
         if (subscriptions.contains(topic)) {
             Runnable r = new Runnable() {
+                @Override
                 public void run() {
                     writeBytesOnSendFiberThread(data);
                 }

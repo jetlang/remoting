@@ -133,6 +133,7 @@ public class JetlangClientHandler<R, W> implements Acceptor.ClientHandler, Clien
     @Override
     public void publishToAllSubscribedClients(final String topic, final W msg) {
         Runnable toSend = new Runnable() {
+            @Override
             public void run() {
                 byte[] copy = globalBuffer.createArray(topic, msg);
                 enqueueToAllSubscribedClients(topic, copy);
@@ -172,9 +173,10 @@ public class JetlangClientHandler<R, W> implements Acceptor.ClientHandler, Clien
     private Runnable createRunnable(final ClientTcpSocket clientTcpSocket) throws IOException {
         final TcpSocket socket = clientTcpSocket.getSocket();
         final Fiber sendFiber = fiberFactory.createSendFiber(socket.getSocket());
-        final Serializer serializer = ser.createForSocket(socket);
-        final JetlangStreamSession session = new JetlangStreamSession(socket.getRemoteSocketAddress(), new SocketMessageStreamWriter(socket, ser.getCharset(), serializer.getWriter()), sendFiber, errorHandler);
+        final Serializer<R, W> serializer = ser.createForSocket(socket);
+        final JetlangStreamSession<R, W> session = new JetlangStreamSession<R, W>(socket.getRemoteSocketAddress(), new SocketMessageStreamWriter<W>(socket, ser.getCharset(), serializer.getWriter()), sendFiber, errorHandler);
         return new Runnable() {
+            @Override
             public void run() {
                 try {
                     ReadTimeoutHandler onReadTimeout = new ReadTimeoutHandler(session);
@@ -182,7 +184,7 @@ public class JetlangClientHandler<R, W> implements Acceptor.ClientHandler, Clien
                     channels.onNewSession(JetlangClientHandler.this, session);
                     session.startHeartbeat(config.getHeartbeatIntervalInMs(), TimeUnit.MILLISECONDS);
                     sendFiber.start();
-                    JetlangRemotingProtocol protocol = new JetlangRemotingProtocol(session, serializer.getReader(), ser.getCharset());
+                    JetlangRemotingProtocol<R> protocol = new JetlangRemotingProtocol<R>(session, serializer.getReader(), ser.getCharset());
                     JetlangRemotingInputStream state = new JetlangRemotingInputStream(socket.getInputStream(), protocol, onReadTimeout);
                     while (state.readFromStream()) {
 
