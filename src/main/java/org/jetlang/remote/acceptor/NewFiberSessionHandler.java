@@ -1,5 +1,5 @@
 package org.jetlang.remote.acceptor;
 
-public interface NewFiberSessionHandler {
-    void onNewSession(ClientPublisher publisher, JetlangFiberSession jetlangSession);
+public interface NewFiberSessionHandler<R, W> {
+    void onNewSession(ClientPublisher<W> publisher, JetlangFiberSession<R, W> jetlangSession);
 }

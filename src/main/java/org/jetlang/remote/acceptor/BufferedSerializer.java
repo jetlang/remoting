@@ -11,20 +11,20 @@ import java.nio.charset.Charset;
  * Date: 11/28/11
  * Time: 4:36 PM
  */
-public class BufferedSerializer {
+public class BufferedSerializer<W> {
 
     private final CloseableByteArrayStream globalBuffer = new CloseableByteArrayStream();
-    private final SocketMessageStreamWriter stream;
+    private final SocketMessageStreamWriter<W> stream;
 
-    public BufferedSerializer(Charset charset, ObjectByteWriter writer){
+    public BufferedSerializer(Charset charset, ObjectByteWriter<W> writer){
         try {
-            this.stream = new SocketMessageStreamWriter(globalBuffer, charset, writer);
+            this.stream = new SocketMessageStreamWriter<W>(globalBuffer, charset, writer);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
     }
 
-    public byte[] createArray(String topic, Object msg) {
+    public byte[] createArray(String topic, W msg) {
         globalBuffer.reset();
         try {
             stream.write(topic, msg);

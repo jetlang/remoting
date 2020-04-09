@@ -14,20 +14,20 @@ import java.util.concurrent.CountDownLatch;
  * ordering, the same fiber should be used for all session callbacks and for sending
  * to sessions.
  */
-public class FiberForAllSessions implements NewSessionHandler, ClientPublisher {
+public class FiberForAllSessions<R, W> implements NewSessionHandler<R, W>, ClientPublisher<W> {
 
-    private final NewFiberSessionHandler fact;
+    private final NewFiberSessionHandler<R, W> fact;
     private final Fiber fiber;
-    private final BufferedSerializer serializer;
-    private final Map<JetlangSession, JetlangFiberSession> sessions = new IdentityHashMap<JetlangSession, JetlangFiberSession>();
+    private final BufferedSerializer<W> serializer;
+    private final Map<JetlangSession<R, W>, JetlangFiberSession<R, W>> sessions = new IdentityHashMap<JetlangSession<R, W>, JetlangFiberSession<R, W>>();
 
-    public FiberForAllSessions(NewFiberSessionHandler fact, Fiber fiber, BufferedSerializer serializer) {
+    public FiberForAllSessions(NewFiberSessionHandler<R, W> fact, Fiber fiber, BufferedSerializer<W> serializer) {
         this.fact = fact;
         this.fiber = fiber;
         this.serializer = serializer;
     }
 
-    public void onNewSession(ClientPublisher unused, final JetlangSession jetlangSession) {
+    public void onNewSession(ClientPublisher<W> unused, final JetlangSession<R, W> jetlangSession) {
 
         final CountDownLatch latch = new CountDownLatch(1);
         //create the new session on the fiber.
@@ -35,7 +35,7 @@ public class FiberForAllSessions implements NewSessionHandler, ClientPublisher {
         Runnable newSub = new Runnable() {
             public void run() {
                 try {
-                    JetlangFiberSession fiberSession = new JetlangFiberSession(jetlangSession, fiber);
+                    JetlangFiberSession<R, W> fiberSession = new JetlangFiberSession<R, W>(jetlangSession, fiber);
                     sessions.put(jetlangSession, fiberSession);
                     Callback<SessionCloseEvent> onClose = new Callback<SessionCloseEvent>() {
                         public void onMessage(SessionCloseEvent sessionCloseEvent) {
@@ -58,7 +58,7 @@ public class FiberForAllSessions implements NewSessionHandler, ClientPublisher {
         }
     }
 
-    public Collection<JetlangFiberSession> getAllSessions() {
+    public Collection<JetlangFiberSession<R, W>> getAllSessions() {
         return sessions.values();
     }
 
@@ -66,7 +66,7 @@ public class FiberForAllSessions implements NewSessionHandler, ClientPublisher {
      * Should be invoked from the single fiber that maintains the sessions. This method is only safe if invoked from that single fiber.
      * The message is serialized at most once.
      */
-    public void publishToAllSubscribedClients(String topic, Object msg) {
+    public void publishToAllSubscribedClients(String topic, W msg) {
         byte[] data = null;
         for (JetlangFiberSession state : sessions.values()) {
             if (state.isSubscribed(topic)) {
