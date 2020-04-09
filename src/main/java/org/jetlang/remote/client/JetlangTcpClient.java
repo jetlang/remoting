@@ -36,7 +36,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  */
-public class JetlangTcpClient implements JetlangClient {
+public class JetlangTcpClient<R, W> implements JetlangClient<R, W> {
 
     private MessageStreamWriter socket;
     private final Fiber sendFiber;
@@ -56,7 +56,7 @@ public class JetlangTcpClient implements JetlangClient {
     private final Channel<ConnectEvent> Connected = channel();
     private final Channel<CloseEvent> Closed = channel();
     private final Channel<ReadTimeoutEvent> ReadTimeout = channel();
-    private final Channel<DeadMessageEvent> DeadMessage = channel();
+    private final Channel<DeadMessageEvent<W>> DeadMessage = channel();
 
     private final AtomicBoolean closed = new AtomicBoolean(false);
     private final CountDownLatch logoutLatch = new CountDownLatch(1);
@@ -65,18 +65,18 @@ public class JetlangTcpClient implements JetlangClient {
     private AtomicInteger reqId = new AtomicInteger();
     private final Map<Integer, Req> pendingRequests = Collections.synchronizedMap(new HashMap<Integer, Req>());
 
-    private final SocketWriter socketWriter = new SocketWriter() {
-        public <T> boolean send(final String topic, final T msg){
+    private final SocketWriter<W> socketWriter = new SocketWriter<W>() {
+        public boolean send(final String topic, final W msg){
             if (socket != null) {
                 try {
                     socket.write(topic, msg);
                     return true;
                 } catch (IOException e) {
-                    DeadMessage.publish(new DeadMessageEvent(topic, msg));
+                    DeadMessage.publish(new DeadMessageEvent<W>(topic, msg));
                     handleDisconnect(new CloseEvent.WriteException(e));
                 }
             } else {
-                DeadMessage.publish(new DeadMessageEvent(topic, msg));
+                DeadMessage.publish(new DeadMessageEvent<W>(topic, msg));
             }
             return false;
         }
@@ -150,7 +150,7 @@ public class JetlangTcpClient implements JetlangClient {
         }
     }
 
-    public <T> Disposable subscribe(final String subject, Subscribable<T> callback) {
+    public <T extends R> Disposable subscribe(final String subject, Subscribable<T> callback) {
         synchronized (remoteSubscriptions) {
             final RemoteSubscription<T> remoteSubscription;
             if (remoteSubscriptions.containsKey(subject)) {
@@ -164,7 +164,7 @@ public class JetlangTcpClient implements JetlangClient {
         }
     }
 
-    private void publishData(String topic, Object object) {
+    private void publishData(String topic, R object) {
         RemoteSubscription channel;
         synchronized (remoteSubscriptions) {
             channel = remoteSubscriptions.get(topic);
@@ -175,7 +175,7 @@ public class JetlangTcpClient implements JetlangClient {
         }
     }
 
-    private void publishReply(int id, Object reply) {
+    private void publishReply(int id, R reply) {
         Req r = pendingRequests.remove(id);
         if (r != null) {
             //noinspection unchecked
@@ -270,9 +270,9 @@ public class JetlangTcpClient implements JetlangClient {
         }
     }
 
-    private final JetlangRemotingProtocol.Handler protocolHandler = new JetlangRemotingProtocol.Handler() {
+    private final JetlangRemotingProtocol.Handler<R> protocolHandler = new JetlangRemotingProtocol.Handler<R>() {
         @Override
-        public void onMessage(String dataTopicVal, Object readObject) {
+        public void onMessage(String dataTopicVal, R readObject) {
             publishData(dataTopicVal, readObject);
         }
 
@@ -312,7 +312,7 @@ public class JetlangTcpClient implements JetlangClient {
         }
 
         @Override
-        public void onRequestReply(int reqId, String dataTopicVal, Object readObject) {
+        public void onRequestReply(int reqId, String dataTopicVal, R readObject) {
             publishReply(reqId, readObject);
         }
     };
@@ -342,7 +342,7 @@ public class JetlangTcpClient implements JetlangClient {
         }
     }
 
-    public <T> Disposable subscribe(String topic, DisposingExecutor clientFiber, Callback<T> cb) {
+    public <T extends R> Disposable subscribe(String topic, DisposingExecutor clientFiber, Callback<T> cb) {
         return subscribe(topic, new ChannelSubscription<T>(clientFiber, cb));
     }
 
@@ -402,9 +402,9 @@ public class JetlangTcpClient implements JetlangClient {
         }
     }
 
-    public <T> Disposable request(final String reqTopic,
-                                  final Object req,
-                                  final DisposingExecutor executor, final Callback<T> callback,
+    public <T extends W, C extends R> Disposable request(final String reqTopic,
+                                  final T req,
+                                  final DisposingExecutor executor, final Callback<C> callback,
                                   final Callback<TimeoutControls> timeoutRunnable, int timeout, TimeUnit timeUnit) {
         final AtomicBoolean disposed = new AtomicBoolean(false);
         final int id = reqId.incrementAndGet();
@@ -412,7 +412,7 @@ public class JetlangTcpClient implements JetlangClient {
             public void run() {
                 if (!disposed.get()) {
                     if (socket != null) {
-                        pendingRequests.put(id, new Req<T>(executor, callback, disposed));
+                        pendingRequests.put(id, new Req<C>(executor, callback, disposed));
                         try {
                             socket.writeRequest(id, reqTopic, req);
                         } catch (IOException e) {
@@ -467,15 +467,15 @@ public class JetlangTcpClient implements JetlangClient {
         return Connected;
     }
 
-    public Subscriber<DeadMessageEvent> getDeadMessageChannel() {
+    public Subscriber<DeadMessageEvent<W>> getDeadMessageChannel() {
         return DeadMessage;
     }
 
-    public <T> void publish(String topic, T msg) {
+    public void publish(String topic, W msg) {
         publish(topic, msg, null);
     }
 
-    public <T> void publish(final String topic, final T msg, final Runnable onSend) {
+    public <T extends W> void publish(final String topic, final T msg, final Runnable onSend) {
         Runnable r = new Runnable() {
             public void run() {
                 if(socketWriter.send(topic, msg)){
@@ -487,7 +487,7 @@ public class JetlangTcpClient implements JetlangClient {
         sendFiber.execute(r);
     }
 
-    public void execOnSendThread(final Callback<SocketWriter> cb){
+    public void execOnSendThread(final Callback<SocketWriter<W>> cb){
         Runnable r = new Runnable() {
             public void run() {
                 cb.onMessage(socketWriter);

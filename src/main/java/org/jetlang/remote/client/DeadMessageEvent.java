@@ -1,15 +1,15 @@
 package org.jetlang.remote.client;
 
-public class DeadMessageEvent {
+public class DeadMessageEvent<T> {
     private final String topic;
-    private final Object message;
+    private final T message;
 
-    public DeadMessageEvent(String topic, Object message) {
+    public DeadMessageEvent(String topic, T message) {
         this.topic = topic;
         this.message = message;
     }
 
-    public Object getMessage() {
+    public T getMessage() {
         return message;
     }
 

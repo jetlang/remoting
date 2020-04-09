@@ -14,7 +14,7 @@ import java.util.concurrent.TimeUnit;
  * Date: 4/6/11
  * Time: 5:59 PM
  */
-public interface JetlangClient {
+public interface JetlangClient<R, W> {
 
     Subscriber<ConnectEvent> getConnectChannel();
 
@@ -22,25 +22,25 @@ public interface JetlangClient {
 
     Subscriber<ReadTimeoutEvent> getReadTimeoutChannel();
 
-    Subscriber<DeadMessageEvent> getDeadMessageChannel();
+    Subscriber<DeadMessageEvent<W>> getDeadMessageChannel();
 
-    <T> void publish(String topic, T msg);
+    void publish(String topic, W msg);
 
-    <T> Disposable subscribe(String subject, Subscribable<T> callback);
+    <T extends R> Disposable subscribe(String subject, Subscribable<T> callback);
 
-    <T> Disposable subscribe(String topic, DisposingExecutor clientFiber, Callback<T> cb);
+    <T extends R> Disposable subscribe(String topic, DisposingExecutor clientFiber, Callback<T> cb);
 
     void start();
 
     LogoutResult close(boolean sendLogoutIfStillConnected);
 
-    <T> Disposable request(String reqTopic,
-                           Object req,
+    <T extends W, C extends R> Disposable request(String reqTopic,
+                           T req,
                            DisposingExecutor executor,
-                           Callback<T> callback,
+                           Callback<C> callback,
                            Callback<TimeoutControls> timeoutRunnable,
                            int timeout,
                            TimeUnit timeUnit);
 
-    void execOnSendThread(Callback<SocketWriter> cb);
+    void execOnSendThread(Callback<SocketWriter<W>> cb);
 }
