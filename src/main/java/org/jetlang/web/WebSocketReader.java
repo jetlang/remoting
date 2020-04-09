@@ -1,5 +1,7 @@
 package org.jetlang.web;
 
+import org.jetlang.remote.core.StringDecoder;
+
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
 import java.util.Arrays;

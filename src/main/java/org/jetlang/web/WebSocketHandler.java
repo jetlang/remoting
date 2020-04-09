@@ -1,5 +1,7 @@
 package org.jetlang.web;
 
+import org.jetlang.remote.core.StringDecoder;
+
 import java.nio.channels.SocketChannel;
 
 public interface WebSocketHandler<S, T> {

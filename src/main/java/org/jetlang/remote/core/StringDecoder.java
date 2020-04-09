@@ -1,4 +1,4 @@
-package org.jetlang.web;
+package org.jetlang.remote.core;
 
 import sun.nio.cs.ArrayDecoder;
 
@@ -31,12 +31,7 @@ public interface StringDecoder {
                 }
             };
         } else {
-            return new StringDecoder() {
-                @Override
-                public String decode(byte[] bytes, int offset, int length) {
-                    return new String(bytes, offset, length);
-                }
-            };
+            return (bytes, offset, length) -> new String(bytes, offset, length, cs);
         }
     }
 }

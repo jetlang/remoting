@@ -2,6 +2,7 @@ package org.jetlang.web;
 
 import org.jetlang.fibers.Fiber;
 import org.jetlang.fibers.PoolFiberFactory;
+import org.jetlang.remote.core.StringDecoder;
 
 import java.nio.channels.SocketChannel;
 import java.util.Arrays;

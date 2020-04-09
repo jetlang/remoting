@@ -8,15 +8,15 @@ public interface TopicReader {
     String read(byte[] bufferArray, int offset, int length);
 
     class Default implements TopicReader {
-        private Charset charset;
+        private StringDecoder charset;
 
         public Default(Charset charset) {
-            this.charset = charset;
+            this.charset = StringDecoder.create(charset);
         }
 
         @Override
         public String read(byte[] bufferArray, int offset, int length) {
-            return new String(bufferArray, offset, length, charset);
+            return charset.decode(bufferArray, offset, length);
         }
     }
 
