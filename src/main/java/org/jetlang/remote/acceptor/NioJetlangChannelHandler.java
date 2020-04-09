@@ -14,19 +14,19 @@ import java.nio.channels.SelectionKey;
 import java.nio.channels.SocketChannel;
 import java.nio.charset.Charset;
 
-public class NioJetlangChannelHandler implements NioChannelHandler {
+public class NioJetlangChannelHandler<T> implements NioChannelHandler {
 
-    private final JetlangRemotingProtocol protocol;
+    private final JetlangRemotingProtocol<T> protocol;
     private final SocketChannel accept;
-    private final JetlangMessageHandler session;
+    private final JetlangMessageHandler<T> session;
     private final Runnable onEnd;
     private JetlangRemotingProtocol.State nextCommand;
     private long lastReadMs = System.currentTimeMillis();
 
-    public NioJetlangChannelHandler(SocketChannel accept, JetlangMessageHandler session, ObjectByteReader reader, Runnable onEnd, Charset charset) {
+    public NioJetlangChannelHandler(SocketChannel accept, JetlangMessageHandler<T> session, ObjectByteReader<T> reader, Runnable onEnd, Charset charset) {
         this.session = session;
         this.onEnd = onEnd;
-        this.protocol = new JetlangRemotingProtocol(session, reader, charset);
+        this.protocol = new JetlangRemotingProtocol<T>(session, reader, charset);
         this.accept = accept;
         this.nextCommand = protocol.root;
     }

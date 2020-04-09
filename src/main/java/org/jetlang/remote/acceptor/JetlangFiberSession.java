@@ -14,17 +14,17 @@ import java.util.Map;
  * Date: 11/29/11
  * Time: 11:14 AM
  */
-public class JetlangFiberSession implements JetlangSession {
+public class JetlangFiberSession<R, W> implements JetlangSession<R, W> {
 
-    private final JetlangSession session;
+    private final JetlangSession<R, W> session;
     private final Fiber targetFiber;
-    private final Map<String, SessionTopic> subscribed = new HashMap<String, SessionTopic>();
+    private final Map<String, SessionTopic<W>> subscribed = new HashMap<String, SessionTopic<W>>();
 
-    public JetlangFiberSession(JetlangSession session, Fiber targetFiber) {
+    public JetlangFiberSession(JetlangSession<R, W> session, Fiber targetFiber) {
         this.session = session;
         this.targetFiber = targetFiber;
-        session.getSubscriptionRequestChannel().subscribe(targetFiber, new Callback<SessionTopic>() {
-            public void onMessage(SessionTopic message) {
+        session.getSubscriptionRequestChannel().subscribe(targetFiber, new Callback<SessionTopic<W>>() {
+            public void onMessage(SessionTopic<W> message) {
                 subscribed.put(message.getTopic(), message);
             }
         });
@@ -35,7 +35,7 @@ public class JetlangFiberSession implements JetlangSession {
         });
     }
 
-    public Map<String, SessionTopic> getSubscriptions() {
+    public Map<String, SessionTopic<W>> getSubscriptions() {
         return subscribed;
     }
 
@@ -51,7 +51,7 @@ public class JetlangFiberSession implements JetlangSession {
         return session.getSessionId();
     }
 
-    public Subscriber<SessionTopic> getSubscriptionRequestChannel() {
+    public Subscriber<SessionTopic<W>> getSubscriptionRequestChannel() {
         return session.getSubscriptionRequestChannel();
     }
 
@@ -67,11 +67,11 @@ public class JetlangFiberSession implements JetlangSession {
         return session.getHeartbeatChannel();
     }
 
-    public Subscriber<SessionMessage<?>> getSessionMessageChannel() {
+    public Subscriber<SessionMessage<R>> getSessionMessageChannel() {
         return session.getSessionMessageChannel();
     }
 
-    public Subscriber<SessionRequest> getSessionRequestChannel() {
+    public Subscriber<SessionRequest<R,W>> getSessionRequestChannel() {
         return session.getSessionRequestChannel();
     }
 
@@ -91,7 +91,7 @@ public class JetlangFiberSession implements JetlangSession {
         session.publish(data);
     }
 
-    public <T> void publish(String topic, T msg) {
+    public void publish(String topic, W msg) {
         session.publish(topic, msg);
     }
 }

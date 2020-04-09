@@ -11,20 +11,20 @@ import java.nio.charset.Charset;
  * Date: 4/6/11
  * Time: 8:52 AM
  */
-public class SocketMessageStreamWriter implements MessageStreamWriter {
+public class SocketMessageStreamWriter<T> implements MessageStreamWriter<T> {
     private final Charset charset;
-    private final ObjectByteWriter writer;
+    private final ObjectByteWriter<T> writer;
     private final ByteArrayBuffer buffer;
     private final Out socketOutputStream;
 
-    public SocketMessageStreamWriter(Out socket, Charset charset, ObjectByteWriter writer) {
+    public SocketMessageStreamWriter(Out socket, Charset charset, ObjectByteWriter<T> writer) {
         this.charset = charset;
         this.writer = writer;
         this.socketOutputStream = socket;
         this.buffer = socketOutputStream.getBuffer();
     }
 
-    public SocketMessageStreamWriter(ClosableOutputStream socket, Charset charset, ObjectByteWriter writer) throws IOException {
+    public SocketMessageStreamWriter(ClosableOutputStream socket, Charset charset, ObjectByteWriter<T> writer) throws IOException {
         this(new BufferedStream(new ByteArrayBuffer(), socket), charset, writer);
     }
 
@@ -51,12 +51,12 @@ public class SocketMessageStreamWriter implements MessageStreamWriter {
         }
     };
 
-    public void write(String topic, Object msg) throws IOException {
+    public void write(String topic, T msg) throws IOException {
         buffer.appendIntAsByte(MsgTypes.Data);
         writeData(topic, msg);
     }
 
-    public int writeWithoutFlush(String topic, Object msg) throws IOException {
+    public int writeWithoutFlush(String topic, T msg) throws IOException {
         buffer.appendIntAsByte(MsgTypes.Data);
         writeIntoBuffer(topic, msg);
         return buffer.position;
@@ -67,24 +67,24 @@ public class SocketMessageStreamWriter implements MessageStreamWriter {
         socketOutputStream.flush();
     }
 
-    public void writeRequest(int id, String reqTopic, Object req) throws IOException {
+    public void writeRequest(int id, String reqTopic, T req) throws IOException {
         buffer.appendIntAsByte(MsgTypes.DataRequest);
         buffer.appendInt(id);
         writeData(reqTopic, req);
     }
 
-    public void writeReply(int reqId, String requestTopic, Object replyMsg) throws IOException {
+    public void writeReply(int reqId, String requestTopic, T replyMsg) throws IOException {
         buffer.appendIntAsByte(MsgTypes.DataReply);
         buffer.appendInt(reqId);
         writeData(requestTopic, replyMsg);
     }
 
-    private void writeData(String topic, Object req) throws IOException {
+    private void writeData(String topic, T req) throws IOException {
         writeIntoBuffer(topic, req);
         socketOutputStream.flush();
     }
 
-    public void writeIntoBuffer(String topic, Object req) throws IOException {
+    public void writeIntoBuffer(String topic, T req) throws IOException {
         byte[] topicBytes = topic.getBytes(charset);
         buffer.appendIntAsByte(topicBytes.length);
         buffer.append(topicBytes);

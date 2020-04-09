@@ -9,11 +9,11 @@ import org.jetlang.remote.core.ReadTimeoutEvent;
  * Date: 4/6/11
  * Time: 5:48 PM
  */
-public interface JetlangSession {
+public interface JetlangSession<R, W> {
 
     Object getSessionId();
 
-    Subscriber<SessionTopic> getSubscriptionRequestChannel();
+    Subscriber<SessionTopic<W>> getSubscriptionRequestChannel();
 
     Subscriber<String> getUnsubscribeChannel();
 
@@ -21,9 +21,9 @@ public interface JetlangSession {
 
     Subscriber<HeartbeatEvent> getHeartbeatChannel();
 
-    Subscriber<SessionMessage<?>> getSessionMessageChannel();
+    Subscriber<SessionMessage<R>> getSessionMessageChannel();
 
-    Subscriber<SessionRequest> getSessionRequestChannel();
+    Subscriber<SessionRequest<R, W>> getSessionRequestChannel();
 
     Subscriber<ReadTimeoutEvent> getReadTimeoutChannel();
 
@@ -40,5 +40,5 @@ public interface JetlangSession {
      */
     void publish(byte[] data);
 
-    <T> void publish(final String topic, final T msg);
+    void publish(final String topic, final W msg);
 }

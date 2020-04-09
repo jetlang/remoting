@@ -22,19 +22,19 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-public class NioJetlangSendFiber {
+public class NioJetlangSendFiber<T> {
 
     private final Fiber sendFiber;
     private final Writer writer;
-    private final SocketMessageStreamWriter stream;
+    private final SocketMessageStreamWriter<T> stream;
     private final Buffer buffer;
     private final List<ChannelState> sessions = new ArrayList<>();
 
-    public NioJetlangSendFiber(Fiber sendFiber, NioFiber receiveFiber, ObjectByteWriter objectByteWriter, Charset charset, NioFiberImpl.OnBuffer ob) {
+    public NioJetlangSendFiber(Fiber sendFiber, NioFiber receiveFiber, ObjectByteWriter<T> objectByteWriter, Charset charset, NioFiberImpl.OnBuffer ob) {
         this.sendFiber = sendFiber;
         this.buffer = new Buffer(receiveFiber, sendFiber, ob);
         this.writer = new Writer(buffer);
-        this.stream = new SocketMessageStreamWriter(this.writer, charset, objectByteWriter);
+        this.stream = new SocketMessageStreamWriter<T>(this.writer, charset, objectByteWriter);
     }
 
     public void onNewSession(ChannelState channel) {
@@ -43,10 +43,10 @@ public class NioJetlangSendFiber {
 
     private class BulkPublish implements Runnable {
         private final String topic;
-        private final Object object;
+        private final T object;
         private int position = -1;
 
-        public BulkPublish(String topic, Object object) {
+        public BulkPublish(String topic, T object) {
             this.topic = topic;
             this.object = object;
         }
@@ -71,7 +71,7 @@ public class NioJetlangSendFiber {
      *
      * @return the number of bytes written or -1 if no sessions subscribed.
      */
-    public int writeToAllSubscribedClients(String topic, Object object) {
+    public int writeToAllSubscribedClients(String topic, T object) {
         int position = -1;
         for (int i = 0; i < sessions.size(); i++) {
             final ChannelState channelState = sessions.get(i);
@@ -90,7 +90,7 @@ public class NioJetlangSendFiber {
         return position;
     }
 
-    public void publishToAllSubscribedClients(String topic, Object obj) {
+    public void publishToAllSubscribedClients(String topic, T obj) {
         sendFiber.execute(new BulkPublish(topic, obj));
     }
 
@@ -151,7 +151,7 @@ public class NioJetlangSendFiber {
         sendFiber.execute(() -> sc.subscriptions.remove(topic));
     }
 
-    public <T> void publish(ChannelState sc, String topic, T msg) {
+    public void publish(ChannelState sc, String topic, T msg) {
         sendFiber.execute(new Runnable() {
             @Override
             public void run() {
@@ -167,7 +167,7 @@ public class NioJetlangSendFiber {
         });
     }
 
-    private <T> void write(ChannelState channel, String topic, T msg) {
+    private void write(ChannelState channel, String topic, T msg) {
         set(channel);
         try {
             stream.write(topic, msg);
@@ -192,7 +192,7 @@ public class NioJetlangSendFiber {
         removeSubscriptions(sc);
     }
 
-    public void reply(ChannelState sc, int reqId, String replyTopic, Object replyMsg) {
+    public void reply(ChannelState sc, int reqId, String replyTopic, T replyMsg) {
         sendFiber.execute(() -> {
             set(sc);
             try {

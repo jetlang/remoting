@@ -4,17 +4,17 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
 
-public class JetlangRemotingProtocol {
+public class JetlangRemotingProtocol<T> {
 
     public ByteBuffer buffer;
     public byte[] bufferArray = new byte[1024 * 8];
-    private final Handler session;
+    private final Handler<T> session;
     private final Charset charset;
     private final DataRequest dataRequest = new DataRequest();
     private final DataRequestReply dataRequestReply = new DataRequestReply();
-    private final DataReader d = new DataReader() {
+    private final DataReader dataReader = new DataReader() {
         @Override
-        protected State onObject(String dataTopicVal, Object readObject) {
+        protected State onObject(String dataTopicVal, T readObject) {
             try {
                 session.onMessage(dataTopicVal, readObject);
             } catch (Exception failed) {
@@ -44,7 +44,7 @@ public class JetlangRemotingProtocol {
                     execEvent(session::onLogout);
                     return this;
                 case MsgTypes.Data:
-                    return d.first.first;
+                    return dataReader.first.first;
                 case MsgTypes.DataRequest:
                     return dataRequest.reqIdSt;
                 case MsgTypes.DataReply:
@@ -86,7 +86,7 @@ public class JetlangRemotingProtocol {
             return root;
         }
     };
-    private final ObjectByteReader reader;
+    private final ObjectByteReader<T> reader;
 
     public void resizeBuffer(int requiredBytes) {
         bufferArray = new byte[requiredBytes];
@@ -96,13 +96,13 @@ public class JetlangRemotingProtocol {
         buffer = b;
     }
 
-    public interface Handler {
+    public interface Handler<T> {
 
-        void onMessage(String dataTopicVal, Object readObject);
+        void onMessage(String dataTopicVal, T readObject);
 
         void onSubscriptionRequest(String val);
 
-        void onRequest(int reqId, String dataTopicVal, Object readObject);
+        void onRequest(int reqId, String dataTopicVal, T readObject);
 
         void onUnsubscribeRequest(String val);
 
@@ -112,12 +112,12 @@ public class JetlangRemotingProtocol {
 
         void onUnknownMessage(int read);
 
-        void onRequestReply(int reqId, String dataTopicVal, Object readObject);
+        void onRequestReply(int reqId, String dataTopicVal, T readObject);
 
         void onHandlerException(Exception failed);
     }
 
-    public JetlangRemotingProtocol(Handler session, ObjectByteReader reader, Charset charset) {
+    public JetlangRemotingProtocol(Handler<T> session, ObjectByteReader<T> reader, Charset charset) {
         this.session = session;
         this.charset = charset;
         this.buffer = ByteBuffer.wrap(this.bufferArray);
@@ -172,7 +172,7 @@ public class JetlangRemotingProtocol {
 
             @Override
             public State run() throws IOException {
-                final Object readObject = reader.readObject(dataTopicVal, bufferArray, buffer.position(), dataSizeVal);
+                final T readObject = reader.readObject(dataTopicVal, bufferArray, buffer.position(), dataSizeVal);
                 buffer.position(buffer.position() + dataSizeVal);
                 return onObject(dataTopicVal, readObject);
             }
@@ -197,12 +197,12 @@ public class JetlangRemotingProtocol {
             }
         };
 
-        protected abstract State onObject(String dataTopicVal, Object readObject) throws IOException;
+        protected abstract State onObject(String dataTopicVal, T readObject) throws IOException;
     }
 
     private class DataRequest extends DataRequestBase {
         @Override
-        protected void handleRequest(int reqId, String dataTopicVal, Object readObject) {
+        protected void handleRequest(int reqId, String dataTopicVal, T readObject) {
             session.onRequest(reqId, dataTopicVal, readObject);
         }
     }
@@ -210,7 +210,7 @@ public class JetlangRemotingProtocol {
     private class DataRequestReply extends DataRequestBase {
 
         @Override
-        protected void handleRequest(int reqId, String dataTopicVal, Object readObject) {
+        protected void handleRequest(int reqId, String dataTopicVal, T readObject) {
             session.onRequestReply(reqId, dataTopicVal, readObject);
         }
     }
@@ -220,7 +220,7 @@ public class JetlangRemotingProtocol {
 
         DataReader data = new DataReader() {
             @Override
-            protected State onObject(String dataTopicVal, Object readObject) {
+            protected State onObject(String dataTopicVal, T readObject) {
                 try {
                     handleRequest(reqId, dataTopicVal, readObject);
                 } catch (Exception failed) {
@@ -230,7 +230,7 @@ public class JetlangRemotingProtocol {
             }
         };
 
-        protected abstract void handleRequest(int reqId, String dataTopicVal, Object readObject);
+        protected abstract void handleRequest(int reqId, String dataTopicVal, T readObject);
 
         State reqIdSt = new State() {
             @Override

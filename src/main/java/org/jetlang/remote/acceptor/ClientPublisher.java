@@ -5,8 +5,8 @@ package org.jetlang.remote.acceptor;
  * Date: 4/13/11
  * Time: 2:11 PM
  */
-public interface ClientPublisher {
+public interface ClientPublisher<T> {
 
-    void publishToAllSubscribedClients(String topic, Object msg);
+    void publishToAllSubscribedClients(String topic, T msg);
 
 }

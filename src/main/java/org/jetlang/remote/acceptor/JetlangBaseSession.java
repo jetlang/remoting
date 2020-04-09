@@ -6,7 +6,7 @@ import org.jetlang.remote.core.CloseableChannel;
 import org.jetlang.remote.core.HeartbeatEvent;
 import org.jetlang.remote.core.ReadTimeoutEvent;
 
-public abstract class JetlangBaseSession implements JetlangSession, JetlangMessagePublisher {
+public abstract class JetlangBaseSession<R, W> implements JetlangSession<R, W>, JetlangMessagePublisher<W> {
 
     private final CloseableChannel.Group allChannels = new CloseableChannel.Group();
 
@@ -14,14 +14,14 @@ public abstract class JetlangBaseSession implements JetlangSession, JetlangMessa
         return allChannels.add(new MemoryChannel<T>());
     }
 
-    protected final CloseableChannel<SessionTopic> SubscriptionRequest = newChannel();
+    protected final CloseableChannel<SessionTopic<W>> SubscriptionRequest = newChannel();
     protected final CloseableChannel<String> UnsubscribeRequest = newChannel();
     protected final CloseableChannel<LogoutEvent> Logout = newChannel();
     protected final CloseableChannel<HeartbeatEvent> Heartbeat = newChannel();
-    protected final CloseableChannel<SessionMessage<?>> Messages = newChannel();
+    protected final CloseableChannel<SessionMessage<R>> Messages = newChannel();
     protected final CloseableChannel<ReadTimeoutEvent> ReadTimeout = newChannel();
     protected final CloseableChannel<SessionCloseEvent> SessionClose = newChannel();
-    protected final CloseableChannel<SessionRequest> SessionRequest = newChannel();
+    protected final CloseableChannel<SessionRequest<R, W>> SessionRequest = newChannel();
 
     protected final Object id;
 
@@ -45,11 +45,11 @@ public abstract class JetlangBaseSession implements JetlangSession, JetlangMessa
 
     public abstract void publish(final byte[] data);
 
-    public abstract void reply(final int reqId, final String replyTopic, final Object replyMsg);
+    public abstract void reply(final int reqId, final String replyTopic, final W replyMsg);
 
     public abstract void publishIfSubscribed(String topic, final byte[] data);
 
-    public Subscriber<SessionTopic> getSubscriptionRequestChannel() {
+    public Subscriber<SessionTopic<W>> getSubscriptionRequestChannel() {
         return SubscriptionRequest;
     }
 
@@ -61,7 +61,7 @@ public abstract class JetlangBaseSession implements JetlangSession, JetlangMessa
         return Heartbeat;
     }
 
-    public Subscriber<SessionMessage<?>> getSessionMessageChannel() {
+    public Subscriber<SessionMessage<R>> getSessionMessageChannel() {
         return Messages;
     }
 
@@ -73,20 +73,20 @@ public abstract class JetlangBaseSession implements JetlangSession, JetlangMessa
         return SessionClose;
     }
 
-    public void onMessage(String topic, Object msg) {
-        Messages.publish(new SessionMessage<Object>(topic, msg));
+    public void onMessage(String topic, R msg) {
+        Messages.publish(new SessionMessage<>(topic, msg));
     }
 
     public Subscriber<String> getUnsubscribeChannel() {
         return UnsubscribeRequest;
     }
 
-    public Subscriber<SessionRequest> getSessionRequestChannel() {
+    public Subscriber<SessionRequest<R, W>> getSessionRequestChannel() {
         return SessionRequest;
     }
 
-    public void onRequest(int reqId, String reqmsgTopic, Object reqmsg) {
-        SessionRequest.publish(new SessionRequest(reqId, reqmsgTopic, reqmsg, this));
+    public void onRequest(int reqId, String reqmsgTopic, R reqmsg) {
+        SessionRequest.publish(new SessionRequest<R,W>(reqId, reqmsgTopic, reqmsg, this));
     }
 
     public void onClose(SessionCloseEvent sessionCloseEvent) {

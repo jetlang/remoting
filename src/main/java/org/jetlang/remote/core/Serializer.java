@@ -1,7 +1,7 @@
 package org.jetlang.remote.core;
 
-public interface Serializer {
-    ObjectByteWriter getWriter();
+public interface Serializer<R, W> {
+    ObjectByteWriter<W> getWriter();
 
-    ObjectByteReader getReader();
+    ObjectByteReader<R> getReader();
 }

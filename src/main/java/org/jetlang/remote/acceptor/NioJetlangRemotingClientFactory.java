@@ -12,18 +12,18 @@ import java.nio.channels.SocketChannel;
 import java.nio.charset.Charset;
 import java.util.concurrent.TimeUnit;
 
-public class NioJetlangRemotingClientFactory implements NioAcceptorHandler.ClientFactory {
+public class NioJetlangRemotingClientFactory<R, W> implements NioAcceptorHandler.ClientFactory {
 
-    private final Serializer serializer;
+    private final Serializer<R, W> serializer;
     private final JetlangSessionConfig config;
-    private final Handler handler;
-    private final NioJetlangSendFiber sendFiber;
+    private final Handler<R, W> handler;
+    private final NioJetlangSendFiber<W> sendFiber;
     private final Charset charset;
 
-    public interface Handler {
-        void onNewSession(JetlangNioSession session);
+    public interface Handler<R, W> {
+        void onNewSession(JetlangNioSession<R, W> session);
 
-        void onUnhandledReplyMsg(SelectionKey key, SocketChannel channel, String dataTopicVal, Object readObject);
+        void onUnhandledReplyMsg(SelectionKey key, SocketChannel channel, String dataTopicVal, R readObject);
 
         void onUnknownMessage(SelectionKey key, SocketChannel channel, int read);
 
@@ -36,7 +36,7 @@ public class NioJetlangRemotingClientFactory implements NioAcceptorHandler.Clien
         void onHandlerException(Exception failed);
     }
 
-    public NioJetlangRemotingClientFactory(Serializer serializer, JetlangSessionConfig config, Handler handler, NioJetlangSendFiber sendFiber, Charset charset) {
+    public NioJetlangRemotingClientFactory(Serializer<R, W> serializer, JetlangSessionConfig config, Handler<R, W> handler, NioJetlangSendFiber<W> sendFiber, Charset charset) {
         this.serializer = serializer;
         this.config = config;
         this.handler = handler;
@@ -52,9 +52,9 @@ public class NioJetlangRemotingClientFactory implements NioAcceptorHandler.Clien
             throw new RuntimeException(e);
         }
         Hb hb = new Hb();
-        final JetlangNioSession session = new JetlangNioSession(fiber, channel, sendFiber, new Id(channel), new JetlangNioSession.ErrorHandler() {
+        final JetlangNioSession<R, W> session = new JetlangNioSession<R, W>(fiber, channel, sendFiber, new Id(channel), new JetlangNioSession.ErrorHandler<R>() {
             @Override
-            public void onUnhandledReplyMsg(int reqId, String dataTopicVal, Object readObject) {
+            public void onUnhandledReplyMsg(int reqId, String dataTopicVal, R readObject) {
                 handler.onUnhandledReplyMsg(key, channel, dataTopicVal, readObject);
             }
 
@@ -72,7 +72,7 @@ public class NioJetlangRemotingClientFactory implements NioAcceptorHandler.Clien
             hb.onClose();
             session.onClose(new SessionCloseEvent());
         };
-        final NioJetlangChannelHandler handler = new NioJetlangChannelHandler(channel, session, serializer.getReader(), onClose, charset);
+        final NioJetlangChannelHandler<R> handler = new NioJetlangChannelHandler<R>(channel, session, serializer.getReader(), onClose, charset);
         this.handler.onNewSession(session);
         hb.startHb(fiber, session, handler, config);
         controls.addHandler(handler);

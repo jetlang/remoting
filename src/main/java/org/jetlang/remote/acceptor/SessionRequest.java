@@ -1,12 +1,12 @@
 package org.jetlang.remote.acceptor;
 
-public class SessionRequest {
+public class SessionRequest<R, W> {
     private final int reqId;
     private final String reqmsgTopic;
-    private final Object reqmsg;
-    private final JetlangMessagePublisher session;
+    private final R reqmsg;
+    private final JetlangMessagePublisher<W> session;
 
-    public SessionRequest(int reqId, String reqmsgTopic, Object reqmsg, JetlangMessagePublisher session) {
+    public SessionRequest(int reqId, String reqmsgTopic, R reqmsg, JetlangMessagePublisher<W> session) {
         this.reqId = reqId;
         this.reqmsgTopic = reqmsgTopic;
         this.reqmsg = reqmsg;
@@ -17,15 +17,15 @@ public class SessionRequest {
         return reqmsgTopic;
     }
 
-    public Object getRequest() {
+    public R getRequest() {
         return reqmsg;
     }
 
-    public void reply(Object replyMsg) {
+    public void reply(W replyMsg) {
         session.reply(reqId, reqmsgTopic, replyMsg);
     }
 
-    public void reply(Object replyMsg, String replyTopic) {
+    public void reply(W replyMsg, String replyTopic) {
         session.reply(reqId, replyTopic, replyMsg);
     }
 

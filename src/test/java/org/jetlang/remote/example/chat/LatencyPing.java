@@ -77,23 +77,23 @@ public class LatencyPing {
         tcpClient.close(true).await(1, TimeUnit.SECONDS);
     }
 
-    public static class LongSerializer implements Serializer {
+    public static class LongSerializer implements Serializer<Long, Long> {
 
-        public ObjectByteWriter getWriter() {
-            return new ObjectByteWriter() {
+        public ObjectByteWriter<Long> getWriter() {
+            return new ObjectByteWriter<Long>() {
                 byte[] bytes = new byte[8];
                 ByteBuffer buffer = ByteBuffer.wrap(bytes);
-                public void write(String topic, Object msg, ByteMessageWriter writer) throws IOException {
+                public void write(String topic, Long msg, ByteMessageWriter writer) {
                     buffer.clear();
-                    buffer.putLong((Long)msg);
+                    buffer.putLong(msg);
                     writer.writeObjectAsBytes(bytes, 0, bytes.length);
                 }
             };
         }
 
-        public ObjectByteReader getReader() {
-            return new ObjectByteReader() {
-                public Object readObject(String fromTopic, byte[] buffer, int offset, int length) throws IOException {
+        public ObjectByteReader<Long> getReader() {
+            return new ObjectByteReader<Long>() {
+                public Long readObject(String fromTopic, byte[] buffer, int offset, int length) {
                     final ByteBuffer wrap = ByteBuffer.wrap(buffer);
                     if(offset > 0){
                         wrap.position(offset);

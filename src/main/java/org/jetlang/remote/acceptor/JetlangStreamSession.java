@@ -13,7 +13,7 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-public class JetlangStreamSession extends JetlangBaseSession implements JetlangRemotingProtocol.Handler {
+public class JetlangStreamSession<R, W> extends JetlangBaseSession<R, W> implements JetlangRemotingProtocol.Handler<R> {
 
     private final MessageStreamWriter socket;
     private final Fiber sendFiber;
@@ -112,7 +112,7 @@ public class JetlangStreamSession extends JetlangBaseSession implements JetlangR
         errorHandler.onException(failed);
     }
 
-    public <T> void publish(final String topic, final T msg) {
+    public void publish(final String topic, final W msg) {
         Runnable r = new Runnable() {
             public void run() {
                 if (subscriptions.contains(topic)) {

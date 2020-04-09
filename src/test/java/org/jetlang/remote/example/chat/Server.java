@@ -35,17 +35,17 @@ public class Server {
         //create send fiber as non-daemon thread to prevent main from exiting
         final Fiber sendFiber = new ThreadFiber(new RunnableExecutorImpl(), "sendFiber", false);
         ByteArraySerializer.Factory factory = new ByteArraySerializer.Factory();
-        final Serializer serializer = factory.create();
+        final Serializer<byte[], byte[]> serializer = factory.create();
         final Charset charset = Charset.forName("ASCII");
-        NioJetlangSendFiber sender = new NioJetlangSendFiber(sendFiber, nioFiber, serializer.getWriter(), charset, new NioFiberImpl.NoOpBuffer());
+        NioJetlangSendFiber<byte[]> sender = new NioJetlangSendFiber<>(sendFiber, nioFiber, serializer.getWriter(), charset, new NioFiberImpl.NoOpBuffer());
 
-        NioJetlangRemotingClientFactory.Handler sessions = new NioJetlangRemotingClientFactory.Handler() {
+        NioJetlangRemotingClientFactory.Handler<byte[], byte[]> sessions = new NioJetlangRemotingClientFactory.Handler<byte[], byte[]>() {
             @Override
-            public void onNewSession(JetlangNioSession session) {
+            public void onNewSession(JetlangNioSession<byte[], byte[]> session) {
                 System.out.println("Connect:" + session.getSessionId());
-                Callback<SessionMessage<?>> onMsg = new Callback<SessionMessage<?>>() {
+                Callback<SessionMessage<byte[]>> onMsg = new Callback<SessionMessage<byte[]>>() {
                     @Override
-                    public void onMessage(SessionMessage sessionMessage) {
+                    public void onMessage(SessionMessage<byte[]> sessionMessage) {
                         //forward the bytes to any and all clients that have subscribed to the topic
                         //message is serialized and written to clients on send fiber
                         sender.publishToAllSubscribedClients(sessionMessage.getTopic(), sessionMessage.getMessage());
@@ -59,7 +59,7 @@ public class Server {
             }
 
             @Override
-            public void onUnhandledReplyMsg(SelectionKey key, SocketChannel channel, String dataTopicVal, Object readObject) {
+            public void onUnhandledReplyMsg(SelectionKey key, SocketChannel channel, String dataTopicVal, byte[] readObject) {
                 System.err.println("onUnhandledReplyMsg " + dataTopicVal + " " + readObject);
             }
 
@@ -78,7 +78,7 @@ public class Server {
         final InetSocketAddress address = new InetSocketAddress(port);
         socketChannel.socket().bind(address);
         socketChannel.configureBlocking(false);
-        final NioJetlangRemotingClientFactory acceptor = new NioJetlangRemotingClientFactory(serializer, new JetlangSessionConfig(), sessions, sender, charset);
+        final NioJetlangRemotingClientFactory<byte[], byte[]> acceptor = new NioJetlangRemotingClientFactory<byte[], byte[]>(serializer, new JetlangSessionConfig(), sessions, sender, charset);
         nioFiber.addHandler(new NioAcceptorHandler(socketChannel, acceptor, () -> System.out.println("AcceptorEnd")));
         nioFiber.start();
         sendFiber.start();

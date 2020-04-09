@@ -5,22 +5,22 @@ import org.jetlang.remote.core.MsgTypes;
 
 import java.nio.channels.SocketChannel;
 
-public class JetlangNioSession extends JetlangBaseSession implements JetlangMessageHandler {
+public class JetlangNioSession<R, W> extends JetlangBaseSession<R, W> implements JetlangMessageHandler<R> {
 
     private final NioJetlangSendFiber.ChannelState channel;
-    private final NioJetlangSendFiber sendFiber;
-    private final ErrorHandler errorHandler;
+    private final NioJetlangSendFiber<W> sendFiber;
+    private final ErrorHandler<R> errorHandler;
 
-    public interface ErrorHandler {
+    public interface ErrorHandler<T> {
 
-        void onUnhandledReplyMsg(int reqId, String dataTopicVal, Object readObject);
+        void onUnhandledReplyMsg(int reqId, String dataTopicVal, T readObject);
 
         void onUnknownMessage(int read);
 
         void onHandlerException(Exception failed);
     }
 
-    public JetlangNioSession(NioFiber fiber, SocketChannel channel, NioJetlangSendFiber sendFiber, NioJetlangRemotingClientFactory.Id id, ErrorHandler errorHandler) {
+    public JetlangNioSession(NioFiber fiber, SocketChannel channel, NioJetlangSendFiber<W> sendFiber, NioJetlangRemotingClientFactory.Id id, ErrorHandler<R> errorHandler) {
         super(id);
         this.errorHandler = errorHandler;
         this.channel = new NioJetlangSendFiber.ChannelState(channel, id, fiber);
@@ -56,7 +56,7 @@ public class JetlangNioSession extends JetlangBaseSession implements JetlangMess
     }
 
     @Override
-    public <T> void publish(String topic, T msg) {
+    public void publish(String topic, W msg) {
         sendFiber.publish(channel, topic, msg);
     }
 
@@ -71,12 +71,12 @@ public class JetlangNioSession extends JetlangBaseSession implements JetlangMess
     }
 
     @Override
-    public void reply(int reqId, String replyTopic, Object replyMsg) {
+    public void reply(int reqId, String replyTopic, W replyMsg) {
         sendFiber.reply(channel, reqId, replyTopic, replyMsg);
     }
 
     @Override
-    public void onRequestReply(int reqId, String dataTopicVal, Object readObject) {
+    public void onRequestReply(int reqId, String dataTopicVal, R readObject) {
         errorHandler.onUnhandledReplyMsg(reqId, dataTopicVal, readObject);
     }
 
