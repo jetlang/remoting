@@ -1,6 +1,7 @@
 package org.jetlang.remote.core;
 
 import java.net.Socket;
+import java.nio.charset.Charset;
 
 /**
  * User: mrettig
@@ -19,4 +20,7 @@ public interface SerializerFactory<R, W> {
         return create().getWriter();
     }
 
+    default TopicReader createTopicReader(Charset charset){
+        return new TopicReader.Cached(charset);
+    }
 }

@@ -38,10 +38,10 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 public class JetlangTcpClient<R, W> implements JetlangClient<R, W> {
 
-    private MessageStreamWriter socket;
+    private MessageStreamWriter<W> socket;
     private final Fiber sendFiber;
     private final JetlangClientConfig config;
-    private final Serializer ser;
+    private final Serializer<R, W> ser;
     private final ErrorHandler errorHandler;
     private static final Charset charset = Charset.forName("US-ASCII");
     private final SocketConnector socketConnector;
@@ -66,6 +66,7 @@ public class JetlangTcpClient<R, W> implements JetlangClient<R, W> {
     private final Map<Integer, Req> pendingRequests = Collections.synchronizedMap(new HashMap<Integer, Req>());
 
     private final SocketWriter<W> socketWriter = new SocketWriter<W>() {
+        @Override
         public boolean send(final String topic, final W msg){
             if (socket != null) {
                 try {
@@ -85,7 +86,7 @@ public class JetlangTcpClient<R, W> implements JetlangClient<R, W> {
     public JetlangTcpClient(SocketConnector socketConnector,
                             Fiber sendFiber,
                             JetlangClientConfig config,
-                            Serializer ser,
+                            Serializer<R, W> ser,
                             ErrorHandler errorHandler) {
         this.socketConnector = socketConnector;
         this.sendFiber = sendFiber;
@@ -107,6 +108,7 @@ public class JetlangTcpClient<R, W> implements JetlangClient<R, W> {
             final Disposable channelDisposable = channel.subscribe(callback);
 
             sendFiber.execute(new Runnable() {
+                @Override
                 public void run() {
                     if (!subscriptionSent) {
                         subscriptionSent = sendSubscription(topic, MsgTypes.Subscription);
@@ -115,10 +117,12 @@ public class JetlangTcpClient<R, W> implements JetlangClient<R, W> {
             });
 
             return new Disposable() {
+                @Override
                 public void dispose() {
                     channelDisposable.dispose();
 
                     sendFiber.execute(new Runnable() {
+                        @Override
                         public void run() {
                             unsubscribeIfNecessary();
                         }
@@ -150,6 +154,7 @@ public class JetlangTcpClient<R, W> implements JetlangClient<R, W> {
         }
     }
 
+    @Override
     public <T extends R> Disposable subscribe(final String subject, Subscribable<T> callback) {
         synchronized (remoteSubscriptions) {
             final RemoteSubscription<T> remoteSubscription;
@@ -211,6 +216,7 @@ public class JetlangTcpClient<R, W> implements JetlangClient<R, W> {
     }
 
     private final Runnable connect = new Runnable() {
+        @Override
         public void run() {
             try {
                 Socket socket = socketConnector.connect();
@@ -223,6 +229,7 @@ public class JetlangTcpClient<R, W> implements JetlangClient<R, W> {
     };
 
     private final Runnable hb = new Runnable() {
+        @Override
         public void run() {
             try {
                 if (socket != null) {
@@ -235,6 +242,7 @@ public class JetlangTcpClient<R, W> implements JetlangClient<R, W> {
     };
 
     private final Runnable onReadTimeout = new Runnable() {
+        @Override
         public void run() {
             ReadTimeout.publish(new ReadTimeoutEvent());
         }
@@ -243,7 +251,7 @@ public class JetlangTcpClient<R, W> implements JetlangClient<R, W> {
     private void handleConnect(Socket newSocket) throws IOException {
         this.pendingConnect.dispose();
         this.pendingConnect = null;
-        this.socket = new SocketMessageStreamWriter(new TcpSocket(newSocket, errorHandler), charset, ser.getWriter());
+        this.socket = new SocketMessageStreamWriter<W>(new TcpSocket(newSocket, errorHandler), charset, ser.getWriter());
         synchronized (remoteSubscriptions) {
             for (RemoteSubscription subscription : remoteSubscriptions.values()) {
                 subscription.onConnect();
@@ -251,8 +259,9 @@ public class JetlangTcpClient<R, W> implements JetlangClient<R, W> {
         }
         final InputStream stream = newSocket.getInputStream();
         final Runnable reader = new Runnable() {
+            @Override
             public void run() {
-                final JetlangRemotingProtocol protocol = new JetlangRemotingProtocol(protocolHandler, ser.getReader(), charset);
+                final JetlangRemotingProtocol protocol = new JetlangRemotingProtocol<R>(protocolHandler, ser.getReader(), config.createTopicReader(charset));
                 final JetlangRemotingInputStream inputStream = new JetlangRemotingInputStream(stream, protocol, onReadTimeout);
                 try {
                     Connected.publish(new ConnectEvent());
@@ -320,6 +329,7 @@ public class JetlangTcpClient<R, W> implements JetlangClient<R, W> {
 
     private void handleReadExceptionOnSendFiber(final IOException e) {
         Runnable exec = new Runnable() {
+            @Override
             public void run() {
                 handleDisconnect(new CloseEvent.ReadException(e));
             }
@@ -327,6 +337,7 @@ public class JetlangTcpClient<R, W> implements JetlangClient<R, W> {
         sendFiber.execute(exec);
     }
 
+    @Override
     public void start() {
         pendingConnect = sendFiber.scheduleWithFixedDelay(connect, config.getInitialConnectDelayInMs(), config.getReconnectDelayInMs(), TimeUnit.MILLISECONDS);
         sendFiber.start();
@@ -342,15 +353,18 @@ public class JetlangTcpClient<R, W> implements JetlangClient<R, W> {
         }
     }
 
+    @Override
     public <T extends R> Disposable subscribe(String topic, DisposingExecutor clientFiber, Callback<T> cb) {
         return subscribe(topic, new ChannelSubscription<T>(clientFiber, cb));
     }
 
+    @Override
     public LogoutResult close(final boolean sendLogoutIfStillConnected) {
         final CountDownLatch closedLatch = new CountDownLatch(1);
         final AtomicBoolean logoutLatchComplete = new AtomicBoolean(false);
         if (closed.compareAndSet(false, true)) {
             Runnable disconnect = new Runnable() {
+                @Override
                 public void run() {
                     if (socket != null && sendLogoutIfStillConnected) {
                         try {

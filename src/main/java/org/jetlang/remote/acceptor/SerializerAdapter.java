@@ -3,6 +3,7 @@ package org.jetlang.remote.acceptor;
 import org.jetlang.remote.core.Serializer;
 import org.jetlang.remote.core.SerializerFactory;
 import org.jetlang.remote.core.TcpSocket;
+import org.jetlang.remote.core.TopicReader;
 
 import java.nio.charset.Charset;
 
@@ -30,5 +31,9 @@ public class SerializerAdapter<R, W> {
 
     public Serializer<R, W> createForSocket(TcpSocket socket) {
         return ser.createForSocket(socket.getSocket());
+    }
+
+    public TopicReader createTopicReader() {
+        return ser.createTopicReader(charset);
     }
 }

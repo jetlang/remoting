@@ -1,5 +1,8 @@
 package org.jetlang.remote.client;
 
+import org.jetlang.remote.core.TopicReader;
+
+import java.nio.charset.Charset;
 import java.util.concurrent.TimeUnit;
 
 public class JetlangClientConfig {
@@ -8,6 +11,7 @@ public class JetlangClientConfig {
     private long reconnectDelayInMs = 2000;
     private long logoutTimeout = 60;
     private TimeUnit logoutTimeoutUnit = TimeUnit.SECONDS;
+    private boolean cacheTopics = true;
 
     public void setHeartbeatIntervalInMs(int ms) {
         this.hbIntervalInMs = ms;
@@ -47,5 +51,17 @@ public class JetlangClientConfig {
 
     public void setLogoutTimeoutUnit(TimeUnit logoutTimeoutUnit) {
         this.logoutTimeoutUnit = logoutTimeoutUnit;
+    }
+
+    public boolean getCacheTopics() {
+        return cacheTopics;
+    }
+
+    public void setCacheTopics(boolean cacheTopics) {
+        this.cacheTopics = cacheTopics;
+    }
+
+    public TopicReader createTopicReader(Charset charset) {
+        return cacheTopics ? new TopicReader.Cached(charset) : new TopicReader.Default(charset);
     }
 }

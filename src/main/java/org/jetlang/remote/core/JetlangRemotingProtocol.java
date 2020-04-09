@@ -9,7 +9,7 @@ public class JetlangRemotingProtocol<T> {
     public ByteBuffer buffer;
     public byte[] bufferArray = new byte[1024 * 8];
     private final Handler<T> session;
-    private final Charset charset;
+    private final TopicReader topicReader;
     private final DataRequest dataRequest = new DataRequest();
     private final DataRequestReply dataRequestReply = new DataRequestReply();
     private final DataReader dataReader = new DataReader() {
@@ -117,9 +117,9 @@ public class JetlangRemotingProtocol<T> {
         void onHandlerException(Exception failed);
     }
 
-    public JetlangRemotingProtocol(Handler<T> session, ObjectByteReader<T> reader, Charset charset) {
+    public JetlangRemotingProtocol(Handler<T> session, ObjectByteReader<T> reader, TopicReader charset) {
         this.session = session;
-        this.charset = charset;
+        this.topicReader = charset;
         this.buffer = ByteBuffer.wrap(this.bufferArray);
         this.reader = reader;
     }
@@ -140,7 +140,7 @@ public class JetlangRemotingProtocol<T> {
 
             @Override
             public State run() throws IOException {
-                String val = new String(bufferArray, buffer.position(), stringSize, charset);
+                String val = topicReader.read(bufferArray, buffer.position(), stringSize);
                 buffer.position(buffer.position() + stringSize);
                 return onString(val);
             }

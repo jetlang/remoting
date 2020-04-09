@@ -15,6 +15,7 @@ import org.jetlang.remote.acceptor.NioJetlangSendFiber;
 import org.jetlang.remote.acceptor.SessionMessage;
 import org.jetlang.remote.core.ByteArraySerializer;
 import org.jetlang.remote.core.Serializer;
+import org.jetlang.remote.core.TopicReader;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -78,7 +79,7 @@ public class Server {
         final InetSocketAddress address = new InetSocketAddress(port);
         socketChannel.socket().bind(address);
         socketChannel.configureBlocking(false);
-        final NioJetlangRemotingClientFactory<byte[], byte[]> acceptor = new NioJetlangRemotingClientFactory<byte[], byte[]>(serializer, new JetlangSessionConfig(), sessions, sender, charset);
+        final NioJetlangRemotingClientFactory<byte[], byte[]> acceptor = new NioJetlangRemotingClientFactory<byte[], byte[]>(serializer, new JetlangSessionConfig(), sessions, sender, new TopicReader.Cached(charset));
         nioFiber.addHandler(new NioAcceptorHandler(socketChannel, acceptor, () -> System.out.println("AcceptorEnd")));
         nioFiber.start();
         sendFiber.start();

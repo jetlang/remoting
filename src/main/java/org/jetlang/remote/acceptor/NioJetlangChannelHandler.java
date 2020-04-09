@@ -6,6 +6,7 @@ import org.jetlang.fibers.NioFiber;
 import org.jetlang.remote.core.JetlangRemotingProtocol;
 import org.jetlang.remote.core.ObjectByteReader;
 import org.jetlang.remote.core.ReadTimeoutEvent;
+import org.jetlang.remote.core.TopicReader;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -23,7 +24,7 @@ public class NioJetlangChannelHandler<T> implements NioChannelHandler {
     private JetlangRemotingProtocol.State nextCommand;
     private long lastReadMs = System.currentTimeMillis();
 
-    public NioJetlangChannelHandler(SocketChannel accept, JetlangMessageHandler<T> session, ObjectByteReader<T> reader, Runnable onEnd, Charset charset) {
+    public NioJetlangChannelHandler(SocketChannel accept, JetlangMessageHandler<T> session, ObjectByteReader<T> reader, Runnable onEnd, TopicReader charset) {
         this.session = session;
         this.onEnd = onEnd;
         this.protocol = new JetlangRemotingProtocol<T>(session, reader, charset);

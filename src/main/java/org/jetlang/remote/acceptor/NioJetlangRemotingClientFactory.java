@@ -4,6 +4,7 @@ import org.jetlang.core.Disposable;
 import org.jetlang.fibers.NioControls;
 import org.jetlang.fibers.NioFiber;
 import org.jetlang.remote.core.Serializer;
+import org.jetlang.remote.core.TopicReader;
 
 import java.net.SocketAddress;
 import java.net.SocketException;
@@ -18,7 +19,7 @@ public class NioJetlangRemotingClientFactory<R, W> implements NioAcceptorHandler
     private final JetlangSessionConfig config;
     private final Handler<R, W> handler;
     private final NioJetlangSendFiber<W> sendFiber;
-    private final Charset charset;
+    private final TopicReader charset;
 
     public interface Handler<R, W> {
         void onNewSession(JetlangNioSession<R, W> session);
@@ -36,7 +37,7 @@ public class NioJetlangRemotingClientFactory<R, W> implements NioAcceptorHandler
         void onHandlerException(Exception failed);
     }
 
-    public NioJetlangRemotingClientFactory(Serializer<R, W> serializer, JetlangSessionConfig config, Handler<R, W> handler, NioJetlangSendFiber<W> sendFiber, Charset charset) {
+    public NioJetlangRemotingClientFactory(Serializer<R, W> serializer, JetlangSessionConfig config, Handler<R, W> handler, NioJetlangSendFiber<W> sendFiber, TopicReader charset) {
         this.serializer = serializer;
         this.config = config;
         this.handler = handler;

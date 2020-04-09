@@ -184,7 +184,7 @@ public class JetlangClientHandler<R, W> implements Acceptor.ClientHandler, Clien
                     channels.onNewSession(JetlangClientHandler.this, session);
                     session.startHeartbeat(config.getHeartbeatIntervalInMs(), TimeUnit.MILLISECONDS);
                     sendFiber.start();
-                    JetlangRemotingProtocol<R> protocol = new JetlangRemotingProtocol<R>(session, serializer.getReader(), ser.getCharset());
+                    JetlangRemotingProtocol<R> protocol = new JetlangRemotingProtocol<R>(session, serializer.getReader(), ser.createTopicReader());
                     JetlangRemotingInputStream state = new JetlangRemotingInputStream(socket.getInputStream(), protocol, onReadTimeout);
                     while (state.readFromStream()) {
 
