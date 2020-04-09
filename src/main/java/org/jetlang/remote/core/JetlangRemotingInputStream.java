@@ -7,11 +7,11 @@ import java.nio.ByteBuffer;
 
 public class JetlangRemotingInputStream {
     private final InputStream inputStream;
-    private final JetlangRemotingProtocol protocol;
+    private final JetlangRemotingProtocol<?> protocol;
     private final Runnable onReadTimeout;
     JetlangRemotingProtocol.State nextCommand;
 
-    public JetlangRemotingInputStream(InputStream inputStream, JetlangRemotingProtocol protocol, Runnable onReadTimeout) {
+    public JetlangRemotingInputStream(InputStream inputStream, JetlangRemotingProtocol<?> protocol, Runnable onReadTimeout) {
         this.inputStream = inputStream;
         this.protocol = protocol;
         this.onReadTimeout = onReadTimeout;
