@@ -22,6 +22,9 @@ public class TopicReaderTest {
 
     private String create(String input, TopicReader.Cached cache) {
         ByteBuffer encode = ascii.encode(input);
-        return cache.read(encode.array(), 0, encode.limit());
+        int offset = 9;
+        byte[] offsetArray = new byte[encode.limit() + offset];
+        System.arraycopy(encode.array(), 0, offsetArray, offset, encode.limit());
+        return cache.read(offsetArray, offset, encode.limit());
     }
 }

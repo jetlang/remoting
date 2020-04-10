@@ -61,7 +61,7 @@ public interface TopicReader {
                 this.length = length;
                 int hc = 0;
                 for(int i = 0; i < length; i++){
-                    hc += bufferArray[i + offset];
+                    hc = 31 * hc + bufferArray[i + offset];
                 }
                 this.hashCode = hc;
             }
