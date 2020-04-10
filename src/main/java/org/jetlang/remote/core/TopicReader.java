@@ -42,20 +42,20 @@ public interface TopicReader {
 
         private static class Key {
 
-            int hashCode;
-            int offset;
-            int length;
-            byte[] buffer;
+            private int hashCode;
+            private int offset;
+            private int length;
+            private byte[] buffer;
 
-            public Key(byte[] bufferArray, int offset, int length) {
+            private Key(byte[] bufferArray, int offset, int length) {
                 byte[] copy = Arrays.copyOfRange(bufferArray, offset, offset + length);
                 init(copy, 0, length);
             }
-            public Key(){
+            private Key(){
 
             }
 
-            public void init(byte[] bufferArray, int offset, int length){
+            private void init(byte[] bufferArray, int offset, int length){
                 this.buffer = bufferArray;
                 this.offset = offset;
                 this.length = length;
@@ -68,12 +68,17 @@ public interface TopicReader {
 
             @Override
             public boolean equals(Object other){
-                Key otherKey = (Key)other;
-                if(this.length != otherKey.length){
+                final Key otherKey = (Key)other;
+                final int thisLength = this.length;
+                if(thisLength != otherKey.length){
                     return false;
                 }
-                for(int i = 0; i < length; i++){
-                    if(this.buffer[i + this.offset] != otherKey.buffer[i + otherKey.offset]){
+                final byte[] thisBuffer = this.buffer;
+                final int thisOffset = this.offset;
+                final byte[] otherBuffer = otherKey.buffer;
+                final int otherOffset = otherKey.offset;
+                for(int i = 0; i < thisLength; i++){
+                    if(thisBuffer[i + thisOffset] != otherBuffer[i + otherOffset]){
                         return false;
                     }
                 }
