@@ -37,6 +37,10 @@ public class NioJetlangSendFiber<T> {
         this.stream = new SocketMessageStreamWriter<T>(this.writer, charset, objectByteWriter);
     }
 
+    public Fiber getFiber(){
+        return sendFiber;
+    }
+
     public void onNewSession(ChannelState channel) {
         sendFiber.execute(() -> sessions.add(channel));
     }
@@ -137,6 +141,19 @@ public class NioJetlangSendFiber<T> {
             handleDisconnect(e, channel);
         }
     }
+
+    public boolean writeSubscription(ChannelState channel, String topic, int subscription, Charset charset) {
+        try{
+            set(channel);
+            stream.writeSubscription(subscription, topic, charset);
+            return true;
+        }catch(IOException failed){
+            handleDisconnect(failed, channel);
+            return false;
+        }
+    }
+
+
 
     private void set(ChannelState channel) {
         writer.channel = channel;

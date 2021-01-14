@@ -41,7 +41,7 @@ public class JetlangTcpClient<R, W> implements JetlangClient<R, W> {
     private final JetlangClientConfig config;
     private final Serializer<R, W> ser;
     private final ErrorHandler errorHandler;
-    private static final Charset charset = Charset.forName("US-ASCII");
+    static final Charset charset = Charset.forName("US-ASCII");
     private final SocketConnector socketConnector;
     private Disposable pendingConnect;
     private final CloseableChannel.Group channelsToClose = new CloseableChannel.Group();

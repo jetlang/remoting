@@ -18,12 +18,12 @@ public class NioJetlangProtocolReader<T> {
 
     private final JetlangRemotingProtocol<T> protocol;
     private final SocketChannel accept;
-    private final JetlangMessageHandler<T> session;
+    private final Runnable onActivityTimeout;
     private JetlangRemotingProtocol.State nextCommand;
     private long lastReadMs = System.currentTimeMillis();
 
-    public NioJetlangProtocolReader(SocketChannel accept, JetlangMessageHandler<T> session, ObjectByteReader<T> reader, TopicReader charset) {
-        this.session = session;
+    public NioJetlangProtocolReader(SocketChannel accept, JetlangRemotingProtocol.Handler<T> session, ObjectByteReader<T> reader, TopicReader charset, Runnable onActivityTimeout) {
+        this.onActivityTimeout = onActivityTimeout;
         this.protocol = new JetlangRemotingProtocol<T>(session, reader, charset);
         this.accept = accept;
         this.nextCommand = protocol.root;
@@ -59,7 +59,7 @@ public class NioJetlangProtocolReader<T> {
     public void checkForReadTimeout(int readTimeoutInMs) {
         if (System.currentTimeMillis() - lastReadMs > readTimeoutInMs) {
             lastReadMs = System.currentTimeMillis();
-            session.onReadTimeout(new ReadTimeoutEvent());
+            onActivityTimeout.run();
         }
     }
 }

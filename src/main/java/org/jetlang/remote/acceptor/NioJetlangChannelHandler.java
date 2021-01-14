@@ -23,7 +23,9 @@ public class NioJetlangChannelHandler<T> implements NioChannelHandler {
 
     public NioJetlangChannelHandler(SocketChannel accept, JetlangMessageHandler<T> session, ObjectByteReader<T> reader, Runnable onEnd, TopicReader charset) {
         this.onEnd = onEnd;
-        this.protocol = new NioJetlangProtocolReader<T>(accept, session, reader, charset);
+        this.protocol = new NioJetlangProtocolReader<T>(accept, session, reader, charset, ()->{
+            session.onReadTimeout(new ReadTimeoutEvent());
+        });
         this.accept = accept;
     }
 
