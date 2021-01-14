@@ -17,57 +17,38 @@ import java.nio.charset.Charset;
 
 public class NioJetlangChannelHandler<T> implements NioChannelHandler {
 
-    private final JetlangRemotingProtocol<T> protocol;
+    private final NioJetlangProtocolReader protocol;
     private final SocketChannel accept;
-    private final JetlangMessageHandler<T> session;
     private final Runnable onEnd;
-    private JetlangRemotingProtocol.State nextCommand;
-    private long lastReadMs = System.currentTimeMillis();
 
     public NioJetlangChannelHandler(SocketChannel accept, JetlangMessageHandler<T> session, ObjectByteReader<T> reader, Runnable onEnd, TopicReader charset) {
-        this.session = session;
         this.onEnd = onEnd;
-        this.protocol = new JetlangRemotingProtocol<T>(session, reader, charset);
+        this.protocol = new NioJetlangProtocolReader<T>(accept, session, reader, charset);
         this.accept = accept;
-        this.nextCommand = protocol.root;
     }
 
+    @Override
     public Result onSelect(NioFiber nioFiber, NioControls controls, SelectionKey key) {
-        try {
-            while (true) {
-                //must get latest buffer b/c it may have been resized
-                final ByteBuffer buffer = protocol.buffer;
-                final int e = this.accept.read(buffer);
-                switch (e) {
-                    case -1:
-                        return Result.CloseSocket;
-                    case 0:
-                        return Result.Continue;
-                    default:
-                        buffer.flip();
-                        while (buffer.remaining() >= nextCommand.getRequiredBytes()) {
-                            nextCommand = nextCommand.run();
-                        }
-                        buffer.compact();
-                        if (nextCommand.getRequiredBytes() > buffer.capacity()) {
-                            protocol.resizeBuffer(nextCommand.getRequiredBytes());
-                        }
-                        lastReadMs = System.currentTimeMillis();
-                }
-            }
-        } catch (IOException var6) {
+        boolean result = protocol.read();
+        if(result){
+            return Result.Continue;
+        }
+        else {
             return Result.CloseSocket;
         }
     }
 
+    @Override
     public SelectableChannel getChannel() {
         return this.accept;
     }
 
+    @Override
     public int getInterestSet() {
         return SelectionKey.OP_READ;
     }
 
+    @Override
     public void onEnd() {
         try {
             onEnd.run();
@@ -77,14 +58,12 @@ public class NioJetlangChannelHandler<T> implements NioChannelHandler {
         }
     }
 
+    @Override
     public void onSelectorEnd() {
         onEnd();
     }
 
     public void checkForReadTimeout(int readTimeoutInMs) {
-        if (System.currentTimeMillis() - lastReadMs > readTimeoutInMs) {
-            lastReadMs = System.currentTimeMillis();
-            session.onReadTimeout(new ReadTimeoutEvent());
-        }
+        protocol.checkForReadTimeout(readTimeoutInMs);
     }
 }
