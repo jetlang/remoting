@@ -9,7 +9,6 @@ import org.jetlang.web.NioWriter;
 import org.jetlang.web.SendResult;
 
 import java.io.IOException;
-import java.net.SocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.SelectableChannel;
 import java.nio.channels.SelectionKey;
@@ -49,49 +48,18 @@ public class TcpClientNioFiber {
         }
     }
 
-    public interface ChannelFactory {
-
-        SocketAddress getRemoteAddress();
-
-        default SocketChannel createNewSocketChannel() {
-            try {
-                SocketChannel open = SocketChannel.open();
-                open.configureBlocking(false);
-                return open;
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
-        }
-
-        default void onCloseException(SocketChannel chan, IOException e) {
-
-        }
-
-        default void onFinishConnectException(SocketChannel chan, IOException e) {
-
-        }
-
-        ConnectedClient createClientOnConnect(SocketChannel chan, NioFiber nioFiber, Writer writer);
-
-        default void onInitialConnectException(SocketChannel chan, IOException e) {
-
-        }
-
-        default boolean onConnectTimeout(SocketChannel chan) {
-            return true;
-        }
-    }
-
     public interface ConnectedClient {
 
         boolean read(SocketChannel chan);
 
-        boolean onDisconnect();
+        void onDisconnect();
     }
 
-    public Disposable connect(ChannelFactory channel, int time, TimeUnit timeUnit) {
-        TcpConnectionState state = new TcpConnectionState(channel, fiber, time, timeUnit, pool);
-        fiber.execute(state::startNewConnection);
+    public Disposable connect(TcpClientNioConfig channel) {
+        TcpConnectionState state = new TcpConnectionState(channel, fiber, pool);
+        fiber.execute(() -> {
+            state.startNewConnection(channel.getInitialConnectTimeoutInMs());
+        });
         return () -> fiber.execute(state::close);
     }
 
@@ -99,17 +67,13 @@ public class TcpClientNioFiber {
 
         public boolean closed;
         private final List<SocketChannel> channels = new ArrayList<>();
-        private final ChannelFactory factory;
+        private final TcpClientNioConfig factory;
         private final NioFiber fiber;
-        private final int time;
-        private final TimeUnit timeUnit;
         private final IoBufferPool.Factory pool;
 
-        public TcpConnectionState(ChannelFactory factory, NioFiber fiber, int time, TimeUnit timeUnit, IoBufferPool.Factory pool) {
+        public TcpConnectionState(TcpClientNioConfig factory, NioFiber fiber, IoBufferPool.Factory pool) {
             this.factory = factory;
             this.fiber = fiber;
-            this.time = time;
-            this.timeUnit = timeUnit;
             this.pool = pool;
         }
 
@@ -120,7 +84,7 @@ public class TcpClientNioFiber {
             }
         }
 
-        public void startNewConnection() {
+        public void startNewConnection(int delayInMs) {
             if (!closed) {
                 SocketChannel chan = factory.createNewSocketChannel();
                 boolean connected = false;
@@ -136,9 +100,9 @@ public class TcpClientNioFiber {
                     handler.reconnectOnClose = false;
                     this.fiber.close(chan);
                     if (factory.onConnectTimeout(chan)) {
-                        startNewConnection();
+                        startNewConnection(delayInMs);
                     }
-                }, time, timeUnit);
+                }, delayInMs, TimeUnit.MILLISECONDS);
                 if (connected) {
                     handler.onConnect(fiber);
                 }
@@ -148,14 +112,14 @@ public class TcpClientNioFiber {
 
     private static class TcpChannelHandler implements NioChannelHandler {
         private final SocketChannel chan;
-        private final ChannelFactory channel;
+        private final TcpClientNioConfig channel;
         private final TcpConnectionState state;
         public Disposable connectTimeout;
         public boolean reconnectOnClose = true;
         ConnectedClient client;
         private final IoBufferPool.Factory ioPool;
 
-        public TcpChannelHandler(SocketChannel chan, ChannelFactory channel, TcpConnectionState state, IoBufferPool.Factory pool) {
+        public TcpChannelHandler(SocketChannel chan, TcpClientNioConfig channel, TcpConnectionState state, IoBufferPool.Factory pool) {
             this.chan = chan;
             this.channel = channel;
             this.state = state;
@@ -172,7 +136,6 @@ public class TcpClientNioFiber {
                         onConnect(nioFiber);
                     }
                 } catch (IOException e) {
-                    channel.onFinishConnectException(chan, e);
                     if (state.closed) {
                         return Result.CloseSocket;
                     } else {
@@ -212,12 +175,14 @@ public class TcpClientNioFiber {
                 channel.onCloseException(chan, e);
             }
             state.channels.remove(chan);
-            boolean reconnect = true;
+            boolean isReconnect = false;
             if (client != null) {
-                reconnect = client.onDisconnect();
+                client.onDisconnect();
+                isReconnect = true;
             }
-            if (reconnectOnClose && reconnect) {
-                state.startNewConnection();
+            int connectTimeout = isReconnect ? channel.getReconnectDelayInMs() : channel.getInitialConnectTimeoutInMs();
+            if (reconnectOnClose && connectTimeout >= 0) {
+                state.startNewConnection(connectTimeout);
             }
         }
 
