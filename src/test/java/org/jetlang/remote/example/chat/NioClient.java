@@ -10,7 +10,6 @@ import org.jetlang.remote.acceptor.NioJetlangSendFiber;
 import org.jetlang.remote.client.CloseEvent;
 import org.jetlang.remote.client.ConnectEvent;
 import org.jetlang.remote.client.JetlangClientConfig;
-import org.jetlang.remote.client.JetlangTcpClient;
 import org.jetlang.remote.client.JetlangTcpNioClient;
 import org.jetlang.remote.client.SocketConnector;
 import org.jetlang.remote.core.ErrorHandler;
@@ -22,7 +21,6 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
-import java.util.concurrent.TimeUnit;
 
 public class NioClient {
 
@@ -46,7 +44,7 @@ public class NioClient {
         NioJetlangSendFiber<Object> sendFiber = new NioJetlangSendFiber<>(fiber, nioFiber, javaSerializer.getWriter(), StandardCharsets.UTF_8, new NioFiberImpl.NoOpBuffer());
         TopicReader.Cached topicReader = new TopicReader.Cached(StandardCharsets.UTF_8);
         JetlangTcpNioClient<Object, Object> tcpClient = new JetlangTcpNioClient<>(conn, sendFiber, clientConfig,
-                javaSerializer, new ErrorHandler.SysOut(), null, tcpNio, topicReader);
+                javaSerializer, new ErrorHandler.SysOut(), tcpNio, topicReader);
         SynchronousDisposingExecutor executor = new SynchronousDisposingExecutor();
         tcpClient.getConnectChannel().subscribe(executor, NioClient.<ConnectEvent>print("Connect"));
         tcpClient.getCloseChannel().subscribe(executor, NioClient.<CloseEvent>print("Closed"));

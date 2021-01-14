@@ -7,7 +7,6 @@ import org.jetlang.core.Callback;
 import org.jetlang.core.Disposable;
 import org.jetlang.core.DisposingExecutor;
 import org.jetlang.fibers.NioFiber;
-import org.jetlang.remote.acceptor.JetlangNioSession;
 import org.jetlang.remote.acceptor.NioJetlangProtocolReader;
 import org.jetlang.remote.acceptor.NioJetlangRemotingClientFactory;
 import org.jetlang.remote.acceptor.NioJetlangSendFiber;
@@ -16,6 +15,7 @@ import org.jetlang.remote.core.ErrorHandler;
 import org.jetlang.remote.core.HeartbeatEvent;
 import org.jetlang.remote.core.JetlangRemotingProtocol;
 import org.jetlang.remote.core.MsgTypes;
+import org.jetlang.remote.core.ReadTimeoutEvent;
 import org.jetlang.remote.core.Serializer;
 import org.jetlang.remote.core.TcpClientNioConfig;
 import org.jetlang.remote.core.TcpClientNioFiber;
@@ -47,13 +47,13 @@ public class JetlangTcpNioClient<R, W> {
     private final Channel<ConnectEvent> Connected = channel();
     private final Channel<CloseEvent> Closed = channel();
     private final Channel<HeartbeatEvent> hb = channel();
+    private final Channel<ReadTimeoutEvent> readTimeout  = channel();
 
     public JetlangTcpNioClient(SocketConnector socketConnector,
                                NioJetlangSendFiber<W> sendFiber,
                                JetlangClientConfig config,
                                Serializer<R, W> ser,
                                ErrorHandler errorHandler,
-                               JetlangNioSession.ErrorHandler<R> nioErrorHandler,
                                TcpClientNioFiber readFiber, TopicReader topicReader) {
         RemoteSubscriptions.SubscriptionWriter writer = new RemoteSubscriptions.SubscriptionWriter() {
             @Override
@@ -78,7 +78,7 @@ public class JetlangTcpNioClient<R, W> {
                 errorHandler.onException(new RuntimeException("Req/Reply not supported. " + dataTopicVal + " " + readObject));
             }
         };
-        this.clientFactory = new JetlangClientFactory<>(ser, sendFiber, nioErrorHandler, topicReader, msgHandler);
+        this.clientFactory = new JetlangClientFactory<>(ser, sendFiber, topicReader, msgHandler, remoteSubscriptions, Connected, readTimeout, Closed);
         this.tcpConfig = new TcpClientNioConfig.Default(errorHandler, socketConnector::getInetSocketAddress,
                 clientFactory, config.getInitialConnectDelayInMs(),
                 config.getReconnectDelayInMs(), TimeUnit.MILLISECONDS);
@@ -117,19 +117,29 @@ public class JetlangTcpNioClient<R, W> {
 
         private final Serializer<R, W> ser;
         private final NioJetlangSendFiber<W> sendFiber;
-        private final JetlangNioSession.ErrorHandler<R> errorHandler;
         private final TopicReader topicReader;
         private final JetlangRemotingProtocol.ClientHandler<R> msgHandler;
+        private final RemoteSubscriptions remoteSubscriptions;
+        private final Channel<ConnectEvent> connectEventChannel;
+        private final Channel<ReadTimeoutEvent> timeout;
+        private final Channel<CloseEvent> closed;
 
         private volatile NioJetlangSendFiber.ChannelState channel;
 
-        public JetlangClientFactory(Serializer<R, W> ser, NioJetlangSendFiber<W> sendFiber, JetlangNioSession.ErrorHandler<R> errorHandler,
-                                    TopicReader topicReader, JetlangRemotingProtocol.ClientHandler<R> msgHandler) {
+        public JetlangClientFactory(Serializer<R, W> ser, NioJetlangSendFiber<W> sendFiber,
+                                    TopicReader topicReader, JetlangRemotingProtocol.ClientHandler<R> msgHandler,
+                                    RemoteSubscriptions remoteSubscriptions,
+                                    Channel<ConnectEvent> connectEventChannel,
+                                    Channel<ReadTimeoutEvent> timeout,
+                                    Channel<CloseEvent> closed){
             this.ser = ser;
             this.sendFiber = sendFiber;
-            this.errorHandler = errorHandler;
             this.topicReader = topicReader;
             this.msgHandler = msgHandler;
+            this.remoteSubscriptions = remoteSubscriptions;
+            this.connectEventChannel = connectEventChannel;
+            this.timeout = timeout;
+            this.closed = closed;
         }
 
         @Override
@@ -137,11 +147,13 @@ public class JetlangTcpNioClient<R, W> {
             //JetlangNioSession<R, W> session = new JetlangNioSession<R, W>(nioFiber, chan, sendFiber, new NioJetlangRemotingClientFactory.Id(chan), errorHandler);
             NioJetlangProtocolReader<R> reader = new NioJetlangProtocolReader<R>(chan, msgHandler, ser.getReader(), topicReader,
                     () -> {
-                        //handleTimeout});
+                        timeout.publish(new ReadTimeoutEvent());
                     });
             NioJetlangRemotingClientFactory.Id chanId = new NioJetlangRemotingClientFactory.Id(chan);
             this.channel = new NioJetlangSendFiber.ChannelState(chan, chanId, nioFiber);
             this.sendFiber.onNewSession(channel);
+            this.remoteSubscriptions.onConnect();
+            connectEventChannel.publish(new ConnectEvent());
             return new TcpClientNioFiber.ConnectedClient() {
                 @Override
                 public boolean read(SocketChannel chan) {
@@ -152,6 +164,8 @@ public class JetlangTcpNioClient<R, W> {
                 public void onDisconnect() {
                     sendFiber.handleClose(channel);
                     JetlangClientFactory.this.channel = null;
+                    //TODO distinquish disconnects
+                    closed.publish(new CloseEvent.GracefulDisconnect());
                 }
             };
         }
