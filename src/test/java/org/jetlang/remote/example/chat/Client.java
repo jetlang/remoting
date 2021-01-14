@@ -25,11 +25,17 @@ public class Client {
         SocketConnector conn = new SocketConnector(host, port);
         JetlangClientConfig clientConfig = new JetlangClientConfig();
 
-        JetlangTcpClient tcpClient = new JetlangTcpClient(conn, new ThreadFiber(), clientConfig, new JavaSerializer(), new ErrorHandler.SysOut());
+        JetlangTcpClient<Object, Object> tcpClient = new JetlangTcpClient<>(conn, new ThreadFiber(), clientConfig, new JavaSerializer(), new ErrorHandler.SysOut());
         SynchronousDisposingExecutor executor = new SynchronousDisposingExecutor();
         tcpClient.getConnectChannel().subscribe(executor, Client.<ConnectEvent>print("Connect"));
         tcpClient.getCloseChannel().subscribe(executor, Client.<CloseEvent>print("Closed"));
         tcpClient.start();
+        read(tcpClient, executor);
+
+        tcpClient.close(true).await(1, TimeUnit.SECONDS);
+    }
+
+    public static void read(JetlangTcpClient<Object, Object> tcpClient, SynchronousDisposingExecutor executor) throws IOException {
         BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
         for (String line = reader.readLine(); line != null; line = reader.readLine()) {
             String[] parts = line.split(" ");
@@ -38,12 +44,7 @@ public class Client {
                 break;
             } else if ("subscribe".equalsIgnoreCase(command)) {
                 final String topic = parts[1];
-                Callback<Object> msg = new Callback<Object>() {
-
-                    public void onMessage(Object o) {
-                        System.out.println(topic + ": " + o);
-                    }
-                };
+                Callback<Object> msg = o -> System.out.println(topic + ": " + o);
                 tcpClient.subscribe(topic, executor, msg);
             } else if ("publish".equalsIgnoreCase(command)) {
                 String topic = parts[1];
@@ -53,16 +54,9 @@ public class Client {
                 System.out.println("Unknown command: " + line);
             }
         }
-
-        tcpClient.close(true).await(1, TimeUnit.SECONDS);
     }
 
     public static <T> Callback<T> print(final String connect) {
-        return new Callback<T>() {
-
-            public void onMessage(T t) {
-                System.out.println(connect);
-            }
-        };
+        return t -> System.out.println(connect);
     }
 }

@@ -167,6 +167,19 @@ public class NioJetlangSendFiber<T> {
         });
     }
 
+    public void publishWithoutSubscriptionCheck(ChannelState sc, String topic, T msg){
+        sendFiber.execute(new Runnable() {
+            @Override
+            public void run() {
+                    write(sc, topic, msg);
+            }
+            @Override
+            public String toString() {
+                return "Publish(" + topic + ")";
+            }
+        });
+    }
+
     private void write(ChannelState channel, String topic, T msg) {
         set(channel);
         try {
