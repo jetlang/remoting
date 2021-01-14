@@ -1,5 +1,7 @@
 package org.jetlang.remote.core;
 
+import org.jetlang.channels.Publisher;
+
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
@@ -115,6 +117,47 @@ public class JetlangRemotingProtocol<T> {
         void onRequestReply(int reqId, String dataTopicVal, T readObject);
 
         void onHandlerException(Exception failed);
+    }
+
+    public static abstract class ClientHandler<R> implements Handler<R> {
+
+        private ErrorHandler errorHandler;
+        private Publisher<HeartbeatEvent> hb;
+
+        public ClientHandler(ErrorHandler errorHandler, Publisher<HeartbeatEvent> hb) {
+            this.errorHandler = errorHandler;
+            this.hb = hb;
+        }
+
+        @Override
+        public void onSubscriptionRequest(String val) {
+            errorHandler.onException(new IOException("SubscriptionNotSupported: " + val));
+        }
+
+        @Override
+        public void onRequest(int reqId, String dataTopicVal, Object readObject) {
+            errorHandler.onException(new IOException("RequestNotSupported: " + dataTopicVal + " val: " + readObject));
+        }
+
+        @Override
+        public void onUnsubscribeRequest(String val) {
+            errorHandler.onException(new IOException("UnsubscribeNotSupported: " + val));
+        }
+
+        @Override
+        public void onHandlerException(Exception failed) {
+            errorHandler.onException(failed);
+        }
+
+        @Override
+        public void onHb() {
+            hb.publish(new HeartbeatEvent());
+        }
+
+        @Override
+        public void onUnknownMessage(int read) {
+            errorHandler.onException(new IOException(read + " not supported"));
+        }
     }
 
     public JetlangRemotingProtocol(Handler<T> session, ObjectByteReader<T> reader, TopicReader charset) {

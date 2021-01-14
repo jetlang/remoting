@@ -93,6 +93,22 @@ public class JetlangTcpClient<R, W> implements JetlangClient<R, W> {
         this.config = config;
         this.ser = ser;
         this.errorHandler = errorHandler;
+        protocolHandler = new JetlangRemotingProtocol.ClientHandler<R>(errorHandler, Heartbeat) {
+            @Override
+            public void onMessage(String dataTopicVal, R readObject) {
+                publishData(dataTopicVal, readObject);
+            }
+
+            @Override
+            public void onLogout() {
+                logoutLatch.countDown();
+            }
+
+            @Override
+            public void onRequestReply(int reqId, String dataTopicVal, R readObject) {
+                publishReply(reqId, readObject);
+            }
+        };
     }
 
     private class RemoteSubscription<T> {
@@ -107,27 +123,14 @@ public class JetlangTcpClient<R, W> implements JetlangClient<R, W> {
         public Disposable subscribe(Subscribable<T> callback) {
             final Disposable channelDisposable = channel.subscribe(callback);
 
-            sendFiber.execute(new Runnable() {
-                @Override
-                public void run() {
-                    if (!subscriptionSent) {
-                        subscriptionSent = sendSubscription(topic, MsgTypes.Subscription);
-                    }
+            sendFiber.execute(() -> {
+                if (!subscriptionSent) {
+                    subscriptionSent = sendSubscription(topic, MsgTypes.Subscription);
                 }
             });
-
-            return new Disposable() {
-                @Override
-                public void dispose() {
-                    channelDisposable.dispose();
-
-                    sendFiber.execute(new Runnable() {
-                        @Override
-                        public void run() {
-                            unsubscribeIfNecessary();
-                        }
-                    });
-                }
+            return () -> {
+                channelDisposable.dispose();
+                sendFiber.execute(this::unsubscribeIfNecessary);
             };
         }
 
@@ -279,53 +282,7 @@ public class JetlangTcpClient<R, W> implements JetlangClient<R, W> {
         }
     }
 
-    private final JetlangRemotingProtocol.Handler<R> protocolHandler = new JetlangRemotingProtocol.Handler<R>() {
-        @Override
-        public void onMessage(String dataTopicVal, R readObject) {
-            publishData(dataTopicVal, readObject);
-        }
-
-        @Override
-        public void onSubscriptionRequest(String val) {
-            errorHandler.onException(new IOException("SubscriptionNotSupported: " + val));
-        }
-
-        @Override
-        public void onRequest(int reqId, String dataTopicVal, Object readObject) {
-            errorHandler.onException(new IOException("RequestNotSupported: " + dataTopicVal + " val: " + readObject));
-        }
-
-        @Override
-        public void onUnsubscribeRequest(String val) {
-            errorHandler.onException(new IOException("UnsubscribeNotSupported: " + val));
-        }
-
-        @Override
-        public void onHandlerException(Exception failed) {
-            errorHandler.onException(failed);
-        }
-
-        @Override
-        public void onHb() {
-            Heartbeat.publish(new HeartbeatEvent());
-        }
-
-        @Override
-        public void onLogout() {
-            logoutLatch.countDown();
-        }
-
-        @Override
-        public void onUnknownMessage(int read) {
-            errorHandler.onException(new IOException(read + " not supported"));
-        }
-
-        @Override
-        public void onRequestReply(int reqId, String dataTopicVal, R readObject) {
-            publishReply(reqId, readObject);
-        }
-    };
-
+    private final JetlangRemotingProtocol.ClientHandler<R> protocolHandler;
 
     private void handleReadExceptionOnSendFiber(final IOException e) {
         Runnable exec = new Runnable() {
