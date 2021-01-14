@@ -2,7 +2,6 @@ package org.jetlang.remote.client;
 
 import org.jetlang.channels.Channel;
 import org.jetlang.channels.ChannelSubscription;
-import org.jetlang.channels.MemoryChannel;
 import org.jetlang.channels.Subscribable;
 import org.jetlang.channels.Subscriber;
 import org.jetlang.core.Callback;
@@ -27,7 +26,6 @@ import java.net.Socket;
 import java.nio.charset.Charset;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -47,10 +45,10 @@ public class JetlangTcpClient<R, W> implements JetlangClient<R, W> {
     private final SocketConnector socketConnector;
     private Disposable pendingConnect;
     private final CloseableChannel.Group channelsToClose = new CloseableChannel.Group();
-    private final Map<String, RemoteSubscription> remoteSubscriptions = new LinkedHashMap<String, RemoteSubscription>();
+    private final RemoteSubscriptions remoteSubscriptions;
 
     private <T> CloseableChannel<T> channel() {
-        return channelsToClose.add(new MemoryChannel<T>());
+        return channelsToClose.newChannel();
     }
 
     private final Channel<ConnectEvent> Connected = channel();
@@ -93,12 +91,19 @@ public class JetlangTcpClient<R, W> implements JetlangClient<R, W> {
         this.config = config;
         this.ser = ser;
         this.errorHandler = errorHandler;
-        protocolHandler = new JetlangRemotingProtocol.ClientHandler<R>(errorHandler, Heartbeat) {
+        RemoteSubscriptions.SubscriptionWriter subWriter = new RemoteSubscriptions.SubscriptionWriter() {
             @Override
-            public void onMessage(String dataTopicVal, R readObject) {
-                publishData(dataTopicVal, readObject);
+            public boolean sendSubscription(String topic) {
+                return JetlangTcpClient.this.sendSubscription(topic, MsgTypes.Subscription);
             }
 
+            @Override
+            public void sendUnsubscribe(String topic) {
+                JetlangTcpClient.this.sendSubscription(topic, MsgTypes.Unsubscribe);
+            }
+        };
+        this.remoteSubscriptions = new RemoteSubscriptions(sendFiber, subWriter, channelsToClose);
+        protocolHandler = new JetlangRemotingProtocol.ClientHandler<R>(errorHandler, Heartbeat, this.remoteSubscriptions) {
             @Override
             public void onLogout() {
                 logoutLatch.countDown();
@@ -111,76 +116,9 @@ public class JetlangTcpClient<R, W> implements JetlangClient<R, W> {
         };
     }
 
-    private class RemoteSubscription<T> {
-        private final CloseableChannel<T> channel = channel();
-        private final String topic;
-        private boolean subscriptionSent = false;
-
-        public RemoteSubscription(String topic) {
-            this.topic = topic;
-        }
-
-        public Disposable subscribe(Subscribable<T> callback) {
-            final Disposable channelDisposable = channel.subscribe(callback);
-
-            sendFiber.execute(() -> {
-                if (!subscriptionSent) {
-                    subscriptionSent = sendSubscription(topic, MsgTypes.Subscription);
-                }
-            });
-            return () -> {
-                channelDisposable.dispose();
-                sendFiber.execute(this::unsubscribeIfNecessary);
-            };
-        }
-
-        private void unsubscribeIfNecessary() {
-            synchronized (remoteSubscriptions) {
-                if (channel.subscriptionCount() == 0 && !channel.isClosed()) {
-                    channel.close();
-                    channelsToClose.remove(channel);
-                    if (subscriptionSent) {
-                        sendSubscription(topic, MsgTypes.Unsubscribe);
-                    }
-
-                    remoteSubscriptions.remove(topic);
-                }
-            }
-        }
-
-        public void publish(T object) {
-            channel.publish(object);
-        }
-
-        public void onConnect() {
-            subscriptionSent = sendSubscription(topic, MsgTypes.Subscription);
-        }
-    }
-
     @Override
     public <T extends R> Disposable subscribe(final String subject, Subscribable<T> callback) {
-        synchronized (remoteSubscriptions) {
-            final RemoteSubscription<T> remoteSubscription;
-            if (remoteSubscriptions.containsKey(subject)) {
-                //noinspection unchecked
-                remoteSubscription = (RemoteSubscription<T>) remoteSubscriptions.get(subject);
-            } else {
-                remoteSubscription = new RemoteSubscription<T>(subject);
-                remoteSubscriptions.put(subject, remoteSubscription);
-            }
-            return remoteSubscription.subscribe(callback);
-        }
-    }
-
-    private void publishData(String topic, R object) {
-        RemoteSubscription channel;
-        synchronized (remoteSubscriptions) {
-            channel = remoteSubscriptions.get(topic);
-        }
-        if (channel != null) {
-            //noinspection unchecked
-            channel.publish(object);
-        }
+        return remoteSubscriptions.subscribe(subject, callback);
     }
 
     private void publishReply(int id, R reply) {
@@ -244,35 +182,23 @@ public class JetlangTcpClient<R, W> implements JetlangClient<R, W> {
         }
     };
 
-    private final Runnable onReadTimeout = new Runnable() {
-        @Override
-        public void run() {
-            ReadTimeout.publish(new ReadTimeoutEvent());
-        }
-    };
+    private final Runnable onReadTimeout = () -> ReadTimeout.publish(new ReadTimeoutEvent());
 
     private void handleConnect(Socket newSocket) throws IOException {
         this.pendingConnect.dispose();
         this.pendingConnect = null;
         this.socket = new SocketMessageStreamWriter<W>(new TcpSocket(newSocket, errorHandler), charset, ser.getWriter());
-        synchronized (remoteSubscriptions) {
-            for (RemoteSubscription subscription : remoteSubscriptions.values()) {
-                subscription.onConnect();
-            }
-        }
+        this.remoteSubscriptions.onConnect();
         final InputStream stream = newSocket.getInputStream();
-        final Runnable reader = new Runnable() {
-            @Override
-            public void run() {
-                final JetlangRemotingProtocol protocol = new JetlangRemotingProtocol<R>(protocolHandler, ser.getReader(), config.createTopicReader(charset));
-                final JetlangRemotingInputStream inputStream = new JetlangRemotingInputStream(stream, protocol, onReadTimeout);
-                try {
-                    Connected.publish(new ConnectEvent());
-                    while (inputStream.readFromStream()) {
-                    }
-                } catch (IOException failed) {
-                    handleReadExceptionOnSendFiber(failed);
+        final Runnable reader = () -> {
+            final JetlangRemotingProtocol protocol = new JetlangRemotingProtocol<R>(protocolHandler, ser.getReader(), config.createTopicReader(charset));
+            final JetlangRemotingInputStream inputStream = new JetlangRemotingInputStream(stream, protocol, onReadTimeout);
+            try {
+                Connected.publish(new ConnectEvent());
+                while (inputStream.readFromStream()) {
                 }
+            } catch (IOException failed) {
+                handleReadExceptionOnSendFiber(failed);
             }
         };
         Thread readThread = new Thread(reader, getClass().getSimpleName());
@@ -285,12 +211,7 @@ public class JetlangTcpClient<R, W> implements JetlangClient<R, W> {
     private final JetlangRemotingProtocol.ClientHandler<R> protocolHandler;
 
     private void handleReadExceptionOnSendFiber(final IOException e) {
-        Runnable exec = new Runnable() {
-            @Override
-            public void run() {
-                handleDisconnect(new CloseEvent.ReadException(e));
-            }
-        };
+        Runnable exec = () -> handleDisconnect(new CloseEvent.ReadException(e));
         sendFiber.execute(exec);
     }
 

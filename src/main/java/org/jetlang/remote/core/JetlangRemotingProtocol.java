@@ -1,10 +1,10 @@
 package org.jetlang.remote.core;
 
 import org.jetlang.channels.Publisher;
+import org.jetlang.remote.client.RemoteSubscriptions;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.nio.charset.Charset;
 
 public class JetlangRemotingProtocol<T> {
 
@@ -121,12 +121,19 @@ public class JetlangRemotingProtocol<T> {
 
     public static abstract class ClientHandler<R> implements Handler<R> {
 
-        private ErrorHandler errorHandler;
-        private Publisher<HeartbeatEvent> hb;
+        private final ErrorHandler errorHandler;
+        private final Publisher<HeartbeatEvent> hb;
+        private final RemoteSubscriptions subscriptions;
 
-        public ClientHandler(ErrorHandler errorHandler, Publisher<HeartbeatEvent> hb) {
+        public ClientHandler(ErrorHandler errorHandler, Publisher<HeartbeatEvent> hb, RemoteSubscriptions subscriptions) {
             this.errorHandler = errorHandler;
             this.hb = hb;
+            this.subscriptions = subscriptions;
+        }
+
+        @Override
+        public void onMessage(String dataTopicVal, R readObject) {
+            subscriptions.dispatch(dataTopicVal, readObject);
         }
 
         @Override

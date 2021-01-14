@@ -1,6 +1,7 @@
 package org.jetlang.remote.core;
 
 import org.jetlang.channels.Channel;
+import org.jetlang.channels.MemoryChannel;
 import org.jetlang.channels.Subscribable;
 import org.jetlang.core.Callback;
 import org.jetlang.core.Disposable;
@@ -109,6 +110,10 @@ public class CloseableChannel<T> implements Channel<T> {
             synchronized (allChannels) {
                 allChannels.remove(toRemove);
             }
+        }
+
+        public <T> CloseableChannel<T> newChannel() {
+            return add(new MemoryChannel<T>());
         }
     }
 }
