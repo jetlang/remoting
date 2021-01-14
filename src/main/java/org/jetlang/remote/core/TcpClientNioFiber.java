@@ -1,4 +1,4 @@
-package org.jetlang.remote.client;
+package org.jetlang.remote.core;
 
 import org.jetlang.core.Disposable;
 import org.jetlang.fibers.NioChannelHandler;

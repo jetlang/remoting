@@ -3,7 +3,7 @@ package org.jetlang.remote.example;
 import org.jetlang.core.Disposable;
 import org.jetlang.fibers.NioFiber;
 import org.jetlang.fibers.NioFiberImpl;
-import org.jetlang.remote.client.TcpClientNioFiber;
+import org.jetlang.remote.core.TcpClientNioFiber;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
