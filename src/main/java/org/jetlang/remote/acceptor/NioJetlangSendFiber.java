@@ -1,5 +1,6 @@
 package org.jetlang.remote.acceptor;
 
+import org.jetlang.core.Disposable;
 import org.jetlang.fibers.Fiber;
 import org.jetlang.fibers.NioChannelHandler;
 import org.jetlang.fibers.NioControls;
@@ -21,6 +22,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 
 public class NioJetlangSendFiber<T> {
 
@@ -43,6 +45,12 @@ public class NioJetlangSendFiber<T> {
 
     public void onNewSession(ChannelState channel) {
         sendFiber.execute(() -> sessions.add(channel));
+    }
+
+    public Disposable scheduleHeartbeat(ChannelState newState, int firstInterval, int subsequent, TimeUnit milliseconds) {
+        return sendFiber.scheduleAtFixedRate(()->{
+            writeIntAsByte(newState, MsgTypes.Heartbeat);
+        }, firstInterval, subsequent, milliseconds);
     }
 
     private class BulkPublish implements Runnable {
