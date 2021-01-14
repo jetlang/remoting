@@ -31,9 +31,9 @@ public interface TcpClientNioConfig {
         return true;
     }
 
-    int getInitialConnectTimeoutInMs();
+    long getInitialConnectTimeoutInMs();
 
-    int getReconnectDelayInMs();
+    long getReconnectDelayInMs();
 
     void onInitialConnectException(SocketChannel chan, IOException e);
 
@@ -49,12 +49,12 @@ public interface TcpClientNioConfig {
 
         private final ErrorHandler handler;
         private ClientFactory clientFactory;
-        private final int connectTimeoutInMs;
-        private final int reconnectDelayInMs;
+        private final long connectTimeoutInMs;
+        private final long reconnectDelayInMs;
         private final Supplier<SocketAddress> addressSupplier;
 
         public Default(ErrorHandler handler, Supplier<SocketAddress> addressSupplier, ClientFactory clientFactory,
-                       int connectTimeout, int reconnectDelay, TimeUnit timeUnit){
+                       long connectTimeout, long reconnectDelay, TimeUnit timeUnit){
             this.handler = handler;
             this.clientFactory = clientFactory;
             this.connectTimeoutInMs = toMs(connectTimeout, timeUnit);
@@ -62,11 +62,11 @@ public interface TcpClientNioConfig {
             this.addressSupplier = addressSupplier;
         }
 
-        private static int toMs(int reconnectDelay, TimeUnit timeUnit) {
+        private static long toMs(long reconnectDelay, TimeUnit timeUnit) {
             if(reconnectDelay == -1){
                 return reconnectDelay;
             }
-            return (int)timeUnit.toMillis(reconnectDelay);
+            return timeUnit.toMillis(reconnectDelay);
         }
 
         @Override
@@ -95,12 +95,12 @@ public interface TcpClientNioConfig {
         }
 
         @Override
-        public int getInitialConnectTimeoutInMs() {
+        public long getInitialConnectTimeoutInMs() {
             return connectTimeoutInMs;
         }
 
         @Override
-        public int getReconnectDelayInMs() {
+        public long getReconnectDelayInMs() {
             return reconnectDelayInMs;
         }
     }

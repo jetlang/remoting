@@ -61,10 +61,14 @@ public class SocketConnector {
     }
 
     public Socket connect() throws IOException {
-        InetSocketAddress endpoint = new InetSocketAddress(host, port);
+        InetSocketAddress endpoint = getInetSocketAddress();
         Socket socket = configureSocket();
         socket.connect(endpoint, connectTimeoutInMs);
         return socket;
+    }
+
+    public InetSocketAddress getInetSocketAddress() {
+        return new InetSocketAddress(host, port);
     }
 
     public Socket configureSocket() throws SocketException {

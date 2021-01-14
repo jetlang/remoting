@@ -86,7 +86,7 @@ public class TcpClientNioFiber {
             }
         }
 
-        public void startNewConnection(int delayInMs) {
+        public void startNewConnection(long delayInMs) {
             if (!closed) {
                 SocketChannel chan = factory.createNewSocketChannel();
                 boolean connected = false;
@@ -185,7 +185,7 @@ public class TcpClientNioFiber {
                 client.onDisconnect();
                 isReconnect = true;
             }
-            int connectTimeout = isReconnect ? channel.getReconnectDelayInMs() : channel.getInitialConnectTimeoutInMs();
+            long connectTimeout = isReconnect ? channel.getReconnectDelayInMs() : channel.getInitialConnectTimeoutInMs();
             if (reconnectOnClose && connectTimeout >= 0) {
                 state.startNewConnection(connectTimeout);
             }
