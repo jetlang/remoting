@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.net.SocketAddress;
 import java.net.StandardSocketOptions;
 import java.nio.channels.SocketChannel;
+import java.nio.channels.UnresolvedAddressException;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 
@@ -37,6 +38,8 @@ public interface TcpClientNioConfig {
     void onInitialConnectException(SocketChannel chan, IOException e);
 
     void onCloseException(SocketChannel chan, IOException e);
+
+    void onUnresolvedAddress(SocketChannel chan, UnresolvedAddressException unresolved);
 
     interface ClientFactory {
         TcpClientNioFiber.ConnectedClient createClientOnConnect(SocketChannel chan, NioFiber nioFiber, TcpClientNioFiber.Writer writer);
@@ -74,6 +77,11 @@ public interface TcpClientNioConfig {
         @Override
         public void onInitialConnectException(SocketChannel chan, IOException e) {
             handler.onException(e);
+        }
+
+        @Override
+        public void onUnresolvedAddress(SocketChannel chan, UnresolvedAddressException unresolved) {
+            handler.onException(unresolved);
         }
 
         @Override

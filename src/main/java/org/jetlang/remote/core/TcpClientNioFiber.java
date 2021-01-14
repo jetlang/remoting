@@ -10,9 +10,11 @@ import org.jetlang.web.SendResult;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.channels.NoConnectionPendingException;
 import java.nio.channels.SelectableChannel;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.SocketChannel;
+import java.nio.channels.UnresolvedAddressException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -93,6 +95,9 @@ public class TcpClientNioFiber {
                 } catch (IOException e) {
                     factory.onInitialConnectException(chan, e);
                 }
+                catch (UnresolvedAddressException unresolved){
+                    factory.onUnresolvedAddress(chan, unresolved);
+                }
                 TcpChannelHandler handler = new TcpChannelHandler(chan, factory, this, pool);
                 this.fiber.addHandler(handler);
                 channels.add(chan);
@@ -135,7 +140,7 @@ public class TcpClientNioFiber {
                     if (chan.finishConnect()) {
                         onConnect(nioFiber);
                     }
-                } catch (IOException e) {
+                } catch (IOException | NoConnectionPendingException e) {
                     if (state.closed) {
                         return Result.CloseSocket;
                     } else {
