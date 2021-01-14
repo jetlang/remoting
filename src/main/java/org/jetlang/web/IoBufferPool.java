@@ -14,9 +14,9 @@ public interface IoBufferPool {
 
     void returnReadBufferOnClose(ByteBuffer bb);
 
-    ByteBuffer beginWebSocketWrite(int minSize);
+    ByteBuffer beginWrite(int minSize);
 
-    void endWebSocketWrite(ByteBuffer bb);
+    void returnBufferAfterWrite(ByteBuffer bb);
 
     interface Factory {
         IoBufferPool createFor(SocketChannel channel, NioFiber fiber);
@@ -30,7 +30,7 @@ public interface IoBufferPool {
         public IoBufferPool createFor(SocketChannel channel, NioFiber fiber) {
             return new IoBufferPool() {
                 @Override
-                public ByteBuffer beginWebSocketWrite(int minSize) {
+                public ByteBuffer beginWrite(int minSize) {
                     ByteBuffer reusedWsWriteBuffer = threadLocalWriteBuffer.get();
                     if (reusedWsWriteBuffer == null || reusedWsWriteBuffer.capacity() < minSize) {
                         reusedWsWriteBuffer = NioReader.bufferAllocateDirect(minSize);
@@ -42,7 +42,7 @@ public interface IoBufferPool {
                 }
 
                 @Override
-                public void endWebSocketWrite(ByteBuffer bb) {
+                public void returnBufferAfterWrite(ByteBuffer bb) {
 
                 }
 
