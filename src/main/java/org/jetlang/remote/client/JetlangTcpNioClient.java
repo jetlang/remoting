@@ -88,6 +88,9 @@ public class JetlangTcpNioClient<R, W> {
         this.readFiber = readFiber;
     }
 
+    public Subscriber<ReadTimeoutEvent> getReadTimeoutChannel(){
+        return readTimeout;
+    }
     public Subscriber<ConnectEvent> getConnectChannel() {
         return Connected;
     }

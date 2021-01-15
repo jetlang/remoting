@@ -46,8 +46,9 @@ public class NioClient {
         JetlangTcpNioClient<Object, Object> tcpClient = new JetlangTcpNioClient<>(conn, sendFiber, clientConfig,
                 javaSerializer, new ErrorHandler.SysOut(), tcpNio, topicReader);
         SynchronousDisposingExecutor executor = new SynchronousDisposingExecutor();
-        tcpClient.getConnectChannel().subscribe(executor, NioClient.<ConnectEvent>print("Connect"));
-        tcpClient.getCloseChannel().subscribe(executor, NioClient.<CloseEvent>print("Closed"));
+        tcpClient.getConnectChannel().subscribe(executor, print("Connect"));
+        tcpClient.getCloseChannel().subscribe(executor, print("Closed"));
+        tcpClient.getReadTimeoutChannel().subscribe(executor, print("ReadTimeout"));
         Disposable client = tcpClient.start();
         read(tcpClient, executor);
 
