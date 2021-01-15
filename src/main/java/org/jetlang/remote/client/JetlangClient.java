@@ -6,6 +6,7 @@ import org.jetlang.channels.Subscriber;
 import org.jetlang.core.Callback;
 import org.jetlang.core.Disposable;
 import org.jetlang.core.DisposingExecutor;
+import org.jetlang.core.SynchronousDisposingExecutor;
 import org.jetlang.remote.core.ReadTimeoutEvent;
 
 import java.util.concurrent.TimeUnit;
@@ -32,6 +33,21 @@ public interface JetlangClient<R, W> {
     default <T extends R> Disposable subscribe(String topic, DisposingExecutor clientFiber, Callback<T> cb) {
         return subscribe(topic, new ChannelSubscription<T>(clientFiber, cb));
     }
+
+    default  <T extends R> Disposable subscribeOnReadThread(String topic, Callback<T> msg) {
+        return subscribe(topic, new Subscribable<T>() {
+            private final SynchronousDisposingExecutor unused = new SynchronousDisposingExecutor();
+            @Override
+            public void onMessage(T t) {
+                msg.onMessage(t);
+            }
+            @Override
+            public DisposingExecutor getQueue() {
+                return unused;
+            }
+        });
+    }
+
 
     void start();
 

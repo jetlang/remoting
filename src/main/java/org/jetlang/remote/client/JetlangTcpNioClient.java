@@ -7,6 +7,7 @@ import org.jetlang.channels.Subscriber;
 import org.jetlang.core.Callback;
 import org.jetlang.core.Disposable;
 import org.jetlang.core.DisposingExecutor;
+import org.jetlang.core.SynchronousDisposingExecutor;
 import org.jetlang.fibers.NioFiber;
 import org.jetlang.remote.acceptor.NioJetlangProtocolReader;
 import org.jetlang.remote.acceptor.NioJetlangRemotingClientFactory;
@@ -191,6 +192,20 @@ public class JetlangTcpNioClient<R, W> {
 
     }
 
+
+    public <T extends R> Disposable subscribeOnReadThread(String topic, Callback<T> msg) {
+        return subscribe(topic, new Subscribable<T>() {
+            private final SynchronousDisposingExecutor unused = new SynchronousDisposingExecutor();
+            @Override
+            public void onMessage(T t) {
+                msg.onMessage(t);
+            }
+            @Override
+            public DisposingExecutor getQueue() {
+                return unused;
+            }
+        });
+    }
     public <T extends R> Disposable subscribe(String topic, DisposingExecutor executor, Callback<T> msg) {
         return subscribe(topic, new ChannelSubscription<>(executor, msg));
     }
