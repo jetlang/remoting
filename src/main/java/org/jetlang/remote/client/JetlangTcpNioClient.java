@@ -3,6 +3,7 @@ package org.jetlang.remote.client;
 import org.jetlang.channels.Channel;
 import org.jetlang.channels.ChannelSubscription;
 import org.jetlang.channels.Subscribable;
+import org.jetlang.channels.Subscriber;
 import org.jetlang.core.Callback;
 import org.jetlang.core.Disposable;
 import org.jetlang.core.DisposingExecutor;
@@ -29,8 +30,6 @@ import java.util.concurrent.TimeUnit;
  */
 public class JetlangTcpNioClient<R, W> {
 
-    private final TcpClientNioConfig tcpConfig;
-    private final NioJetlangSendFiber<W> sendFiber;
     private final JetlangClientConfig config;
     private final Serializer<R, W> ser;
     private final ErrorHandler errorHandler;
@@ -39,6 +38,7 @@ public class JetlangTcpNioClient<R, W> {
     private final CloseableChannel.Group channelsToClose = new CloseableChannel.Group();
     private final JetlangClientFactory<R, W> clientFactory;
     private final RemoteSubscriptions remoteSubscriptions;
+    private final SocketConnector socketConnector;
 
     private <T> CloseableChannel<T> channel() {
         return channelsToClose.newChannel();
@@ -47,7 +47,7 @@ public class JetlangTcpNioClient<R, W> {
     private final Channel<ConnectEvent> Connected = channel();
     private final Channel<CloseEvent> Closed = channel();
     private final Channel<HeartbeatEvent> hb = channel();
-    private final Channel<ReadTimeoutEvent> readTimeout  = channel();
+    private final Channel<ReadTimeoutEvent> readTimeout = channel();
 
     public JetlangTcpNioClient(SocketConnector socketConnector,
                                NioJetlangSendFiber<W> sendFiber,
@@ -55,6 +55,7 @@ public class JetlangTcpNioClient<R, W> {
                                Serializer<R, W> ser,
                                ErrorHandler errorHandler,
                                TcpClientNioFiber readFiber, TopicReader topicReader) {
+        this.socketConnector = socketConnector;
         RemoteSubscriptions.SubscriptionWriter writer = new RemoteSubscriptions.SubscriptionWriter() {
             @Override
             public boolean sendSubscription(String topic) {
@@ -80,25 +81,31 @@ public class JetlangTcpNioClient<R, W> {
         };
         this.clientFactory = new JetlangClientFactory<>(ser, sendFiber, topicReader, msgHandler,
                 remoteSubscriptions, Connected, readTimeout, Closed, config, socketConnector.getReadTimeoutInMs());
-        this.tcpConfig = new TcpClientNioConfig.Default(errorHandler, socketConnector::getInetSocketAddress,
-                clientFactory, config.getInitialConnectDelayInMs(),
-                config.getReconnectDelayInMs(), TimeUnit.MILLISECONDS);
-        this.sendFiber = sendFiber;
         this.config = config;
         this.ser = ser;
         this.errorHandler = errorHandler;
         this.readFiber = readFiber;
     }
 
-    public Channel<ConnectEvent> getConnectChannel() {
+    public Subscriber<ConnectEvent> getConnectChannel() {
         return Connected;
     }
 
-    public Channel<CloseEvent> getCloseChannel() {
+    public Subscriber<CloseEvent> getCloseChannel() {
         return Closed;
     }
 
     public Disposable start() {
+        TcpClientNioConfig.Default tcpConfig = new TcpClientNioConfig.Default(errorHandler, socketConnector::getInetSocketAddress,
+                clientFactory, config.getInitialConnectDelayInMs(),
+                config.getReconnectDelayInMs(), TimeUnit.MILLISECONDS) {
+            @Override
+            public void onDispose() {
+                channelsToClose.closeAndClear();
+            }
+        };
+        tcpConfig.setReceiveBufferSize(socketConnector.getReceiveBufferSize());
+        tcpConfig.setSendBufferSize(socketConnector.getSendBufferSize());
         return readFiber.connect(tcpConfig);
     }
 
@@ -136,7 +143,7 @@ public class JetlangTcpNioClient<R, W> {
                                     Channel<ReadTimeoutEvent> timeout,
                                     Channel<CloseEvent> closed,
                                     JetlangClientConfig config,
-                                    int readTimeoutInMs){
+                                    int readTimeoutInMs) {
             this.ser = ser;
             this.sendFiber = sendFiber;
             this.topicReader = topicReader;
@@ -164,7 +171,7 @@ public class JetlangTcpNioClient<R, W> {
 
             Disposable hbSched = sendFiber.scheduleHeartbeat(newState,
                     config.getHeartbeatIntervalInMs(), config.getHeartbeatIntervalInMs(), TimeUnit.MILLISECONDS);
-            Disposable readTimeout = nioFiber.scheduleAtFixedRate(()->{
+            Disposable readTimeout = nioFiber.scheduleAtFixedRate(() -> {
                 reader.checkForReadTimeout(readTimeoutInMs);
             }, readTimeoutInMs, readTimeoutInMs, TimeUnit.MILLISECONDS);
             this.channel = newState;

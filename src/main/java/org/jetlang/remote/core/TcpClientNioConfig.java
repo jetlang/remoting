@@ -41,20 +41,26 @@ public interface TcpClientNioConfig {
 
     void onUnresolvedAddress(SocketChannel chan, UnresolvedAddressException unresolved);
 
+    default void onDispose(){
+
+    }
+
     interface ClientFactory {
         TcpClientNioFiber.ConnectedClient createClientOnConnect(SocketChannel chan, NioFiber nioFiber, TcpClientNioFiber.Writer writer);
     }
 
-    class Default implements TcpClientNioConfig{
+    class Default implements TcpClientNioConfig {
 
         private final ErrorHandler handler;
         private ClientFactory clientFactory;
         private final long connectTimeoutInMs;
         private final long reconnectDelayInMs;
+        private int receiveBufferSize = -1;
+        private int sendBufferSize = -1;
         private final Supplier<SocketAddress> addressSupplier;
 
         public Default(ErrorHandler handler, Supplier<SocketAddress> addressSupplier, ClientFactory clientFactory,
-                       long connectTimeout, long reconnectDelay, TimeUnit timeUnit){
+                       long connectTimeout, long reconnectDelay, TimeUnit timeUnit) {
             this.handler = handler;
             this.clientFactory = clientFactory;
             this.connectTimeoutInMs = toMs(connectTimeout, timeUnit);
@@ -63,10 +69,43 @@ public interface TcpClientNioConfig {
         }
 
         private static long toMs(long reconnectDelay, TimeUnit timeUnit) {
-            if(reconnectDelay == -1){
+            if (reconnectDelay == -1) {
                 return reconnectDelay;
             }
             return timeUnit.toMillis(reconnectDelay);
+        }
+
+        public int getReceiveBufferSize() {
+            return receiveBufferSize;
+        }
+
+        public void setReceiveBufferSize(int receiveBufferSize) {
+            this.receiveBufferSize = receiveBufferSize;
+        }
+
+        public int getSendBufferSize() {
+            return sendBufferSize;
+        }
+
+        public void setSendBufferSize(int sendBufferSize) {
+            this.sendBufferSize = sendBufferSize;
+        }
+
+
+        @Override
+        public SocketChannel createNewSocketChannel() {
+            SocketChannel channel = TcpClientNioConfig.super.createNewSocketChannel();
+            try {
+                if (receiveBufferSize > 0) {
+                    channel.setOption(StandardSocketOptions.SO_RCVBUF, receiveBufferSize);
+                }
+                if (sendBufferSize > 0) {
+                    channel.setOption(StandardSocketOptions.SO_SNDBUF, sendBufferSize);
+                }
+            } catch (IOException failed) {
+                handler.onException(failed);
+            }
+            return channel;
         }
 
         @Override

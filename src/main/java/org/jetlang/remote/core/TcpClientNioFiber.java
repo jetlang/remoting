@@ -84,6 +84,7 @@ public class TcpClientNioFiber {
             for (SocketChannel channel : new ArrayList<>(channels)) {
                 fiber.close(channel);
             }
+            factory.onDispose();
         }
 
         public void startNewConnection(long delayInMs) {
