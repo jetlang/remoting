@@ -137,6 +137,16 @@ public class JetlangTcpNioClient<R, W> {
         return false;
     }
 
+    public void stopNow(){
+        synchronized (lifecycleLock){
+            if(stopper != null){
+                Stopper t = stopper;
+                stopper = null;
+                t.stopNow();
+            }
+        }
+    }
+
     public static class Stopper {
 
         private final Disposable connect;
@@ -161,6 +171,11 @@ public class JetlangTcpNioClient<R, W> {
             }
         }
 
+        public void stopNow() {
+            clientFactory.sendLogoutIfConnected();
+            connect.dispose();
+        }
+
         private boolean tryLogout(long timeToWaitForLogout, TimeUnit unit) {
             if(clientFactory.sendLogoutIfConnected()){
                 try {
@@ -173,13 +188,14 @@ public class JetlangTcpNioClient<R, W> {
                 return false;
             }
         }
+
     }
 
     public <T extends R> Disposable subscribe(String topic, DisposingExecutor executor, Callback<T> msg) {
         return subscribe(topic, new ChannelSubscription<>(executor, msg));
     }
 
-    private <T> Disposable subscribe(String topic, Subscribable<T> tChannelSubscription) {
+    public <T> Disposable subscribe(String topic, Subscribable<T> tChannelSubscription) {
         return remoteSubscriptions.subscribe(topic, tChannelSubscription);
     }
 
