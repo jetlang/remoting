@@ -1,5 +1,6 @@
 package org.jetlang.remote.client;
 
+import org.jetlang.channels.ChannelSubscription;
 import org.jetlang.channels.Subscribable;
 import org.jetlang.channels.Subscriber;
 import org.jetlang.core.Callback;
@@ -28,19 +29,21 @@ public interface JetlangClient<R, W> {
 
     <T extends R> Disposable subscribe(String subject, Subscribable<T> callback);
 
-    <T extends R> Disposable subscribe(String topic, DisposingExecutor clientFiber, Callback<T> cb);
+    default <T extends R> Disposable subscribe(String topic, DisposingExecutor clientFiber, Callback<T> cb) {
+        return subscribe(topic, new ChannelSubscription<T>(clientFiber, cb));
+    }
 
     void start();
 
     LogoutResult close(boolean sendLogoutIfStillConnected);
 
     <T extends W, C extends R> Disposable request(String reqTopic,
-                           T req,
-                           DisposingExecutor executor,
-                           Callback<C> callback,
-                           Callback<TimeoutControls> timeoutRunnable,
-                           int timeout,
-                           TimeUnit timeUnit);
+                                                  T req,
+                                                  DisposingExecutor executor,
+                                                  Callback<C> callback,
+                                                  Callback<TimeoutControls> timeoutRunnable,
+                                                  int timeout,
+                                                  TimeUnit timeUnit);
 
     void execOnSendThread(Callback<SocketWriter<W>> cb);
 }

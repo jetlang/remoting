@@ -232,11 +232,6 @@ public class JetlangTcpClient<R, W> implements JetlangClient<R, W> {
     }
 
     @Override
-    public <T extends R> Disposable subscribe(String topic, DisposingExecutor clientFiber, Callback<T> cb) {
-        return subscribe(topic, new ChannelSubscription<T>(clientFiber, cb));
-    }
-
-    @Override
     public LogoutResult close(final boolean sendLogoutIfStillConnected) {
         final CountDownLatch closedLatch = new CountDownLatch(1);
         final AtomicBoolean logoutLatchComplete = new AtomicBoolean(false);
