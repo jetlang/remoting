@@ -363,23 +363,16 @@ public class JetlangTcpClient<R, W> implements JetlangClient<R, W> {
     }
 
     public <T extends W> void publish(final String topic, final T msg, final Runnable onSend) {
-        Runnable r = new Runnable() {
-            public void run() {
-                if(socketWriter.send(topic, msg)){
-                    if (onSend != null)
-                        onSend.run();
-                }
+        Runnable r = () -> {
+            if(socketWriter.send(topic, msg)){
+                if (onSend != null)
+                    onSend.run();
             }
         };
         sendFiber.execute(r);
     }
 
     public void execOnSendThread(final Callback<SocketWriter<W>> cb){
-        Runnable r = new Runnable() {
-            public void run() {
-                cb.onMessage(socketWriter);
-            }
-        };
-        sendFiber.execute(r);
+        sendFiber.execute(() -> cb.onMessage(socketWriter));
     }
 }
