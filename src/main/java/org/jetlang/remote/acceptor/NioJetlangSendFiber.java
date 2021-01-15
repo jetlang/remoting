@@ -160,9 +160,6 @@ public class NioJetlangSendFiber<T> {
             return false;
         }
     }
-
-
-
     private void set(ChannelState channel) {
         writer.channel = channel;
         buffer.session = channel;

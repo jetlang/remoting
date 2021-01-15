@@ -23,6 +23,7 @@ import org.jetlang.remote.core.TcpClientNioFiber;
 import org.jetlang.remote.core.TopicReader;
 
 import java.nio.channels.SocketChannel;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -95,18 +96,39 @@ public class JetlangTcpNioClient<R, W> {
         return Closed;
     }
 
-    public Disposable start() {
+    public Stopper start() {
+        CountDownLatch disposeLatch = new CountDownLatch(1);
         TcpClientNioConfig.Default tcpConfig = new TcpClientNioConfig.Default(errorHandler, socketConnector::getInetSocketAddress,
                 clientFactory, config.getInitialConnectDelayInMs(),
                 config.getReconnectDelayInMs(), TimeUnit.MILLISECONDS) {
             @Override
             public void onDispose() {
                 channelsToClose.closeAndClear();
+                disposeLatch.countDown();
             }
         };
         tcpConfig.setReceiveBufferSize(socketConnector.getReceiveBufferSize());
         tcpConfig.setSendBufferSize(socketConnector.getSendBufferSize());
-        return readFiber.connect(tcpConfig);
+        return new Stopper(readFiber.connect(tcpConfig), disposeLatch, clientFactory);
+    }
+
+    public static class Stopper implements Disposable{
+
+        private final Disposable connect;
+        private final CountDownLatch disposeLatch;
+        private final JetlangClientFactory<?, ?> clientFactory;
+
+        public Stopper(Disposable connect, CountDownLatch disposeLatch, JetlangClientFactory<?, ?> clientFactory) {
+            this.connect = connect;
+            this.disposeLatch = disposeLatch;
+            this.clientFactory = clientFactory;
+        }
+
+        @Override
+        public void dispose() {
+            clientFactory.sendLogoutIfConnected();
+            connect.dispose();
+        }
     }
 
     public <T extends R> Disposable subscribe(String topic, DisposingExecutor executor, Callback<T> msg) {
@@ -203,6 +225,15 @@ public class JetlangTcpNioClient<R, W> {
         public boolean sendRemoteSubscription(String topic, int msgType) {
             NioJetlangSendFiber.ChannelState channel = this.channel;
             return channel != null && this.sendFiber.writeSubscription(channel, topic, msgType, JetlangTcpClient.charset);
+        }
+
+        public boolean sendLogoutIfConnected() {
+            NioJetlangSendFiber.ChannelState channel = this.channel;
+            if(channel != null){
+                this.sendFiber.sendIntAsByte(channel, MsgTypes.Disconnect);
+                return true;
+            }
+            return false;
         }
     }
 }
