@@ -25,6 +25,7 @@ import org.jetlang.remote.core.TopicReader;
 import java.nio.channels.SocketChannel;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  *
@@ -40,6 +41,7 @@ public class JetlangTcpNioClient<R, W> {
     private final JetlangClientFactory<R, W> clientFactory;
     private final RemoteSubscriptions remoteSubscriptions;
     private final SocketConnector socketConnector;
+    private final CountDownLatch logoutLatch = new CountDownLatch(1);
 
     private <T> CloseableChannel<T> channel() {
         return channelsToClose.newChannel();
@@ -49,6 +51,9 @@ public class JetlangTcpNioClient<R, W> {
     private final Channel<CloseEvent> Closed = channel();
     private final Channel<HeartbeatEvent> hb = channel();
     private final Channel<ReadTimeoutEvent> readTimeout = channel();
+
+    private final AtomicBoolean lifecycleLock = new AtomicBoolean();
+    private Stopper stopper = null;
 
     public JetlangTcpNioClient(SocketConnector socketConnector,
                                NioJetlangSendFiber<W> sendFiber,
@@ -72,7 +77,7 @@ public class JetlangTcpNioClient<R, W> {
         JetlangRemotingProtocol.ClientHandler<R> msgHandler = new JetlangRemotingProtocol.ClientHandler<R>(errorHandler, hb, this.remoteSubscriptions) {
             @Override
             public void onLogout() {
-
+                logoutLatch.countDown();
             }
 
             @Override
@@ -99,38 +104,74 @@ public class JetlangTcpNioClient<R, W> {
         return Closed;
     }
 
-    public Stopper start() {
-        CountDownLatch disposeLatch = new CountDownLatch(1);
-        TcpClientNioConfig.Default tcpConfig = new TcpClientNioConfig.Default(errorHandler, socketConnector::getInetSocketAddress,
-                clientFactory, config.getInitialConnectDelayInMs(),
-                config.getReconnectDelayInMs(), TimeUnit.MILLISECONDS) {
-            @Override
-            public void onDispose() {
-                channelsToClose.closeAndClear();
-                disposeLatch.countDown();
+    public void start() {
+        synchronized (lifecycleLock) {
+            if(lifecycleLock.get()){
+                throw new RuntimeException("Already started");
             }
-        };
-        tcpConfig.setReceiveBufferSize(socketConnector.getReceiveBufferSize());
-        tcpConfig.setSendBufferSize(socketConnector.getSendBufferSize());
-        return new Stopper(readFiber.connect(tcpConfig), disposeLatch, clientFactory);
+            CountDownLatch disposeLatch = new CountDownLatch(1);
+            TcpClientNioConfig.Default tcpConfig = new TcpClientNioConfig.Default(errorHandler, socketConnector::getInetSocketAddress,
+                    clientFactory, config.getInitialConnectDelayInMs(),
+                    config.getReconnectDelayInMs(), TimeUnit.MILLISECONDS) {
+                @Override
+                public void onDispose() {
+                    channelsToClose.closeAndClear();
+                    disposeLatch.countDown();
+                }
+            };
+            tcpConfig.setReceiveBufferSize(socketConnector.getReceiveBufferSize());
+            tcpConfig.setSendBufferSize(socketConnector.getSendBufferSize());
+            stopper =  new Stopper(readFiber.connect(tcpConfig), disposeLatch, clientFactory, logoutLatch);
+            lifecycleLock.set(true);
+        }
     }
 
-    public static class Stopper implements Disposable{
+    public boolean stop(long timeToWaitForLogout, TimeUnit unit){
+        synchronized (lifecycleLock){
+            if(stopper != null){
+                Stopper t = stopper;
+                stopper = null;
+                return t.attemptStop(timeToWaitForLogout, unit);
+            }
+        }
+        return false;
+    }
+
+    public static class Stopper {
 
         private final Disposable connect;
         private final CountDownLatch disposeLatch;
         private final JetlangClientFactory<?, ?> clientFactory;
+        private final CountDownLatch logout;
 
-        public Stopper(Disposable connect, CountDownLatch disposeLatch, JetlangClientFactory<?, ?> clientFactory) {
+        public Stopper(Disposable connect, CountDownLatch disposeLatch, JetlangClientFactory<?, ?> clientFactory, CountDownLatch logout) {
             this.connect = connect;
             this.disposeLatch = disposeLatch;
             this.clientFactory = clientFactory;
+            this.logout = logout;
         }
 
-        @Override
-        public void dispose() {
-            clientFactory.sendLogoutIfConnected();
+        public boolean attemptStop(long timeToWaitForLogout, TimeUnit unit) {
+            boolean result = tryLogout(timeToWaitForLogout, unit);
             connect.dispose();
+            try {
+                return result && disposeLatch.await(timeToWaitForLogout, unit);
+            } catch (InterruptedException e) {
+                return false;
+            }
+        }
+
+        private boolean tryLogout(long timeToWaitForLogout, TimeUnit unit) {
+            if(clientFactory.sendLogoutIfConnected()){
+                try {
+                    return logout.await(timeToWaitForLogout, unit);
+                } catch (InterruptedException e) {
+                    return false;
+                }
+            }
+            else {
+                return false;
+            }
         }
     }
 

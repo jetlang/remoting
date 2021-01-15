@@ -21,6 +21,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.util.concurrent.TimeUnit;
 
 public class NioClient {
 
@@ -49,10 +50,11 @@ public class NioClient {
         tcpClient.getConnectChannel().subscribe(executor, print("Connect"));
         tcpClient.getCloseChannel().subscribe(executor, print("Closed"));
         tcpClient.getReadTimeoutChannel().subscribe(executor, print("ReadTimeout"));
-        Disposable client = tcpClient.start();
+        tcpClient.start();
         read(tcpClient, executor);
 
-        client.dispose();
+        boolean result = tcpClient.stop(1, TimeUnit.SECONDS);
+        System.out.println("stop = " + result);
         fiber.dispose();
         nioFiber.dispose();
     }
