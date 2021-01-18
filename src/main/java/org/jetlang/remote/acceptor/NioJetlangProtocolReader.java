@@ -34,8 +34,8 @@ public class NioJetlangProtocolReader<T> {
             while (true) {
                 //must get latest buffer b/c it may have been resized
                 final ByteBuffer buffer = protocol.buffer;
-                final int e = this.accept.read(buffer);
-                switch (e) {
+                final int read = this.accept.read(buffer);
+                switch (read) {
                     case -1:
                         return false;
                     case 0:

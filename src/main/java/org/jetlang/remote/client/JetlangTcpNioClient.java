@@ -112,7 +112,7 @@ public class JetlangTcpNioClient<R, W> {
             }
             CountDownLatch disposeLatch = new CountDownLatch(1);
             TcpClientNioConfig.Default tcpConfig = new TcpClientNioConfig.Default(errorHandler, socketConnector::getInetSocketAddress,
-                    clientFactory, config.getInitialConnectDelayInMs(),
+                    clientFactory, config.getReconnectDelayInMs(),
                     config.getReconnectDelayInMs(), TimeUnit.MILLISECONDS) {
                 @Override
                 public void onDispose() {
