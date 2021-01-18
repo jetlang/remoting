@@ -210,7 +210,7 @@ public class JetlangTcpNioClient<R, W> {
         return subscribe(topic, new ChannelSubscription<>(executor, msg));
     }
 
-    public <T> Disposable subscribe(String topic, Subscribable<T> tChannelSubscription) {
+    public <T extends R> Disposable subscribe(String topic, Subscribable<T> tChannelSubscription) {
         return remoteSubscriptions.subscribe(topic, tChannelSubscription);
     }
 
