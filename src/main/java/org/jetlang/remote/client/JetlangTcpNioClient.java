@@ -262,7 +262,9 @@ public class JetlangTcpNioClient<R, W> {
                     });
             NioJetlangRemotingClientFactory.Id chanId = new NioJetlangRemotingClientFactory.Id(chan);
             NioJetlangSendFiber.ChannelState newState = new NioJetlangSendFiber.ChannelState(chan, chanId, nioFiber);
+            //notify send fiber first about the session before assigning the state
             this.sendFiber.onNewSession(newState);
+            this.channel = newState;
             this.remoteSubscriptions.onConnect();
             this.connectEventChannel.publish(new ConnectEvent());
 
@@ -271,7 +273,7 @@ public class JetlangTcpNioClient<R, W> {
             Disposable readTimeout = nioFiber.scheduleAtFixedRate(() -> {
                 reader.checkForReadTimeout(readTimeoutInMs);
             }, readTimeoutInMs, readTimeoutInMs, TimeUnit.MILLISECONDS);
-            this.channel = newState;
+
             return new TcpClientNioFiber.ConnectedClient() {
                 @Override
                 public boolean read(SocketChannel chan) {
