@@ -63,7 +63,7 @@ public class JetlangTcpNioClient<R, W> {
 
     interface Sender<W> {
 
-        ConnectedChannel connect(SocketChannel chan, NioFiber nioFiber, TcpClientNioFiber.Writer writer, ObjectByteWriter<W> objWriter, Charset charset);
+        ConnectedChannel connect(SocketChannel chan, NioFiber nioFiber, TcpClientNioFiber.Writer writer, ObjectByteWriter<W> objWriter, Charset charset, Subscriptions subscriptions);
 
         SendResult publish(String topic, W msg);
 
@@ -73,14 +73,9 @@ public class JetlangTcpNioClient<R, W> {
     }
 
     private static class Disconnected<T> implements Sender<T> {
-        private Subscriptions subscriptions;
-
-        public Disconnected(Subscriptions subscriptions) {
-            this.subscriptions = subscriptions;
-        }
 
         @Override
-        public ConnectedChannel connect(SocketChannel chan, NioFiber nioFiber, TcpClientNioFiber.Writer writer, ObjectByteWriter<T> objWriter, Charset charset) {
+        public ConnectedChannel connect(SocketChannel chan, NioFiber nioFiber, TcpClientNioFiber.Writer writer, ObjectByteWriter<T> objWriter, Charset charset, Subscriptions subscriptions) {
             ConnectedChannel connectedChannel = new ConnectedChannel(chan, writer, subscriptions, objWriter, charset);
             subscriptions.onConnect(connectedChannel);
             return connectedChannel;
@@ -119,7 +114,7 @@ public class JetlangTcpNioClient<R, W> {
         }
 
         @Override
-        public ConnectedChannel connect(SocketChannel chan, NioFiber nioFiber, TcpClientNioFiber.Writer writer, ObjectByteWriter objWriter, Charset charset) {
+        public ConnectedChannel connect(SocketChannel chan, NioFiber nioFiber, TcpClientNioFiber.Writer writer, ObjectByteWriter objWriter, Charset charset, Subscriptions subscriptions) {
             throw new RuntimeException("should not connect");
         }
 
@@ -145,7 +140,7 @@ public class JetlangTcpNioClient<R, W> {
         }
 
         public Disconnected onDisconnect() {
-            return new Disconnected(subscriptions);
+            return new Disconnected();
         }
 
         public void sendHb() {
@@ -408,7 +403,7 @@ public class JetlangTcpNioClient<R, W> {
             this.ser = ser;
             this.subscriptions = new Subscriptions(channelsToClose);
             this.hb = hb;
-            this.channel = new Disconnected(subscriptions);
+            this.channel = new Disconnected();
             this.topicReader = topicReader;
             this.connectEventChannel = connectEventChannel;
             this.timeout = timeout;
@@ -436,7 +431,7 @@ public class JetlangTcpNioClient<R, W> {
                     () -> {
                         timeout.publish(new ReadTimeoutEvent());
                     });
-            ConnectedChannel connect = channel.connect(chan, nioFiber, writer, ser.getWriter(), StandardCharsets.US_ASCII);
+            ConnectedChannel connect = channel.connect(chan, nioFiber, writer, ser.getWriter(), StandardCharsets.US_ASCII, subscriptions);
             this.channel = connect;
             this.connectEventChannel.publish(new ConnectEvent());
 
