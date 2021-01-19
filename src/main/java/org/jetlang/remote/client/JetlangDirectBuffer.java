@@ -7,6 +7,7 @@ import org.jetlang.remote.core.TcpClientNioFiber;
 import org.jetlang.web.SendResult;
 
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.nio.charset.Charset;
 
 public class JetlangDirectBuffer {
@@ -17,7 +18,11 @@ public class JetlangDirectBuffer {
     };
 
     public JetlangDirectBuffer(int initialSize) {
-        this.buffer = ByteBuffer.allocateDirect(initialSize);
+        this.buffer = allocate(initialSize);
+    }
+
+    private static ByteBuffer allocate(int initialSize) {
+        return ByteBuffer.allocateDirect(initialSize).order(ByteOrder.BIG_ENDIAN);
     }
 
     public <T> SendResult write(String topic, T msg, ObjectByteWriter<T> objWriter, TcpClientNioFiber.Writer chan, Charset charset) {
@@ -41,7 +46,7 @@ public class JetlangDirectBuffer {
         buffer.put(topicBytes, offset, length);
     }
 
-    public <T> SendResult writeMsgType(int msgType, TcpClientNioFiber.Writer writer) {
+    public SendResult writeMsgType(int msgType, TcpClientNioFiber.Writer writer) {
         appendIntAsByte(msgType);
         return flush(writer);
     }
@@ -58,7 +63,7 @@ public class JetlangDirectBuffer {
 
     private void resize(int required) {
         if (buffer.remaining() < required) {
-            ByteBuffer resized = ByteBuffer.allocateDirect(buffer.capacity() + (required * 2));
+            ByteBuffer resized = allocate(buffer.capacity() + (required * 2));
             buffer.flip();
             resized.put(buffer);
             this.buffer = resized;
