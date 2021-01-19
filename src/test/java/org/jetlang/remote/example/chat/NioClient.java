@@ -16,6 +16,7 @@ import org.jetlang.remote.core.ErrorHandler;
 import org.jetlang.remote.core.JavaSerializer;
 import org.jetlang.remote.core.TcpClientNioFiber;
 import org.jetlang.remote.core.TopicReader;
+import org.jetlang.web.SendResult;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -72,7 +73,8 @@ public class NioClient {
             } else if ("publish".equalsIgnoreCase(command)) {
                 String topic = parts[1];
                 String msg = parts[2];
-                tcpClient.publish(topic, msg);
+                SendResult res = tcpClient.publish(topic, msg);
+                System.out.println("result: " + res);
             } else {
                 System.out.println("Unknown command: " + line);
             }

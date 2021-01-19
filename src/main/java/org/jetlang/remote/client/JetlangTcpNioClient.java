@@ -367,8 +367,8 @@ public class JetlangTcpNioClient<R, W> {
         return clientFactory.subscribe(topic, tChannelSubscription);
     }
 
-    public void publish(String topic, W msg) {
-        clientFactory.publish(topic, msg);
+    public SendResult publish(String topic, W msg) {
+        return clientFactory.publish(topic, msg);
     }
 
     private static class JetlangClientFactory<R, W> implements TcpClientNioConfig.ClientFactory {
@@ -454,8 +454,8 @@ public class JetlangTcpNioClient<R, W> {
             };
         }
 
-        public void publish(String topic, W msg) {
-            this.channel.publish(topic, msg);
+        public SendResult publish(String topic, W msg) {
+            return this.channel.publish(topic, msg);
         }
 
         public boolean sendLogoutIfConnected() {

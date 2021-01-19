@@ -11,6 +11,13 @@ public class SendResult {
         this.type = type;
     }
 
+    @Override
+    public String toString() {
+        return "SendResult{" +
+                type +
+                '}';
+    }
+
     public Type getType() {
         return type;
     }
