@@ -427,7 +427,7 @@ public class JetlangTcpNioClient<R, W> {
             };
             NioJetlangProtocolReader<R> reader = new NioJetlangProtocolReader<R>(chan, msgHandler, ser.getReader(), topicReader,
                     () -> timeout.publish(new ReadTimeoutEvent()));
-            ConnectedChannel<W> connect = channel.connect(chan, nioFiber, writer, ser.getWriter(), StandardCharsets.US_ASCII, subscriptions);
+            ConnectedChannel<W> connect = channel.connect(chan, nioFiber, writer, ser.getWriter(), JetlangTcpClient.charset, subscriptions);
             this.channel = connect;
             this.connectEventChannel.publish(new ConnectEvent());
 

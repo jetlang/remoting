@@ -24,6 +24,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.Socket;
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -41,7 +42,7 @@ public class JetlangTcpClient<R, W> implements JetlangClient<R, W> {
     private final JetlangClientConfig config;
     private final Serializer<R, W> ser;
     private final ErrorHandler errorHandler;
-    static final Charset charset = Charset.forName("US-ASCII");
+    static final Charset charset = StandardCharsets.US_ASCII;
     private final SocketConnector socketConnector;
     private Disposable pendingConnect;
     private final CloseableChannel.Group channelsToClose = new CloseableChannel.Group();
