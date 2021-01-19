@@ -63,7 +63,7 @@ public class JetlangTcpNioClient<R, W> {
 
     interface Sender<W> {
 
-        ConnectedChannel connect(SocketChannel chan, NioFiber nioFiber, TcpClientNioFiber.Writer writer, ObjectByteWriter<W> objWriter, Charset charset, Subscriptions subscriptions);
+        ConnectedChannel<W> connect(SocketChannel chan, NioFiber nioFiber, TcpClientNioFiber.Writer writer, ObjectByteWriter<W> objWriter, Charset charset, Subscriptions subscriptions);
 
         SendResult publish(String topic, W msg);
 
@@ -75,8 +75,8 @@ public class JetlangTcpNioClient<R, W> {
     private static class Disconnected<T> implements Sender<T> {
 
         @Override
-        public ConnectedChannel connect(SocketChannel chan, NioFiber nioFiber, TcpClientNioFiber.Writer writer, ObjectByteWriter<T> objWriter, Charset charset, Subscriptions subscriptions) {
-            ConnectedChannel connectedChannel = new ConnectedChannel(chan, writer, subscriptions, objWriter, charset);
+        public ConnectedChannel<T> connect(SocketChannel chan, NioFiber nioFiber, TcpClientNioFiber.Writer writer, ObjectByteWriter<T> objWriter, Charset charset, Subscriptions subscriptions) {
+            ConnectedChannel<T> connectedChannel = new ConnectedChannel<>(writer, objWriter, charset);
             subscriptions.onConnect(connectedChannel);
             return connectedChannel;
         }
@@ -100,21 +100,19 @@ public class JetlangTcpNioClient<R, W> {
     private static class ConnectedChannel<T> implements Sender<T> {
 
         private final TcpClientNioFiber.Writer writer;
-        private final Subscriptions subscriptions;
-        private ObjectByteWriter<T> objWriter;
-        private Charset charset;
+        private final ObjectByteWriter<T> objWriter;
+        private final Charset charset;
         private final JetlangDirectBuffer directMemoryBuffer;
 
-        public ConnectedChannel(SocketChannel chan, TcpClientNioFiber.Writer writer, Subscriptions subscriptions, ObjectByteWriter<T> objWriter, Charset charset) {
+        public ConnectedChannel(TcpClientNioFiber.Writer writer, ObjectByteWriter<T> objWriter, Charset charset) {
             this.writer = writer;
-            this.subscriptions = subscriptions;
             this.objWriter = objWriter;
             this.charset = charset;
             this.directMemoryBuffer = new JetlangDirectBuffer(1024);
         }
 
         @Override
-        public ConnectedChannel connect(SocketChannel chan, NioFiber nioFiber, TcpClientNioFiber.Writer writer, ObjectByteWriter objWriter, Charset charset, Subscriptions subscriptions) {
+        public ConnectedChannel<T> connect(SocketChannel chan, NioFiber nioFiber, TcpClientNioFiber.Writer writer, ObjectByteWriter objWriter, Charset charset, Subscriptions subscriptions) {
             throw new RuntimeException("should not connect");
         }
 
@@ -387,7 +385,7 @@ public class JetlangTcpNioClient<R, W> {
         private final Subscriptions subscriptions;
         private final Publisher<HeartbeatEvent> hb;
 
-        private volatile Sender channel;
+        private volatile Sender<W> channel;
 
         public JetlangClientFactory(Serializer<R, W> ser,
                                     TopicReader topicReader,
@@ -403,7 +401,7 @@ public class JetlangTcpNioClient<R, W> {
             this.ser = ser;
             this.subscriptions = new Subscriptions(channelsToClose);
             this.hb = hb;
-            this.channel = new Disconnected();
+            this.channel = new Disconnected<>();
             this.topicReader = topicReader;
             this.connectEventChannel = connectEventChannel;
             this.timeout = timeout;
@@ -428,10 +426,8 @@ public class JetlangTcpNioClient<R, W> {
                 }
             };
             NioJetlangProtocolReader<R> reader = new NioJetlangProtocolReader<R>(chan, msgHandler, ser.getReader(), topicReader,
-                    () -> {
-                        timeout.publish(new ReadTimeoutEvent());
-                    });
-            ConnectedChannel connect = channel.connect(chan, nioFiber, writer, ser.getWriter(), StandardCharsets.US_ASCII, subscriptions);
+                    () -> timeout.publish(new ReadTimeoutEvent()));
+            ConnectedChannel<W> connect = channel.connect(chan, nioFiber, writer, ser.getWriter(), StandardCharsets.US_ASCII, subscriptions);
             this.channel = connect;
             this.connectEventChannel.publish(new ConnectEvent());
 
