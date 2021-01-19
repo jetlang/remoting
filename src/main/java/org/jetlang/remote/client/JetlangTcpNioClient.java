@@ -137,8 +137,8 @@ public class JetlangTcpNioClient<R, W> {
             }
         }
 
-        public Disconnected onDisconnect() {
-            return new Disconnected();
+        public Disconnected<T> onDisconnect() {
+            return new Disconnected<>();
         }
 
         public void sendHb() {
