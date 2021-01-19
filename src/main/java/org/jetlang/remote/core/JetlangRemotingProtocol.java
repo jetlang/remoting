@@ -119,13 +119,18 @@ public class JetlangRemotingProtocol<T> {
         void onHandlerException(Exception failed);
     }
 
+    public interface MessageDispatcher {
+
+        <R> void dispatch(String dataTopicVal, R readObject);
+    }
+
     public static abstract class ClientHandler<R> implements Handler<R> {
 
         private final ErrorHandler errorHandler;
         private final Publisher<HeartbeatEvent> hb;
-        private final RemoteSubscriptions subscriptions;
+        private final MessageDispatcher subscriptions;
 
-        public ClientHandler(ErrorHandler errorHandler, Publisher<HeartbeatEvent> hb, RemoteSubscriptions subscriptions) {
+        public ClientHandler(ErrorHandler errorHandler, Publisher<HeartbeatEvent> hb, MessageDispatcher subscriptions) {
             this.errorHandler = errorHandler;
             this.hb = hb;
             this.subscriptions = subscriptions;

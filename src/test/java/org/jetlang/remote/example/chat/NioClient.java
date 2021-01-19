@@ -42,9 +42,8 @@ public class NioClient {
         Fiber fiber = new ThreadFiber();
         fiber.start();
         JavaSerializer javaSerializer = new JavaSerializer();
-        NioJetlangSendFiber<Object> sendFiber = new NioJetlangSendFiber<>(fiber, nioFiber, javaSerializer.getWriter(), StandardCharsets.UTF_8, new NioFiberImpl.NoOpBuffer());
         TopicReader.Cached topicReader = new TopicReader.Cached(StandardCharsets.UTF_8);
-        JetlangTcpNioClient<Object, Object> tcpClient = new JetlangTcpNioClient<>(conn, sendFiber, clientConfig,
+        JetlangTcpNioClient<Object, Object> tcpClient = new JetlangTcpNioClient<>(conn, clientConfig,
                 javaSerializer, new ErrorHandler.SysOut(), tcpNio, topicReader);
         SynchronousDisposingExecutor executor = new SynchronousDisposingExecutor();
         tcpClient.getConnectChannel().subscribe(executor, print("Connect"));

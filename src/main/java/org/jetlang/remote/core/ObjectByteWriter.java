@@ -8,5 +8,5 @@ import java.io.IOException;
  * Time: 9:00 AM
  */
 public interface ObjectByteWriter<T> {
-    void write(String topic, T msg, ByteMessageWriter writer) throws IOException;
+    void write(String topic, T msg, ByteMessageWriter writer);
 }

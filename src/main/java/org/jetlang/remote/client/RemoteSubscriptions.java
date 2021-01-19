@@ -4,13 +4,14 @@ import org.jetlang.channels.MemoryChannel;
 import org.jetlang.channels.Subscribable;
 import org.jetlang.core.Disposable;
 import org.jetlang.remote.core.CloseableChannel;
+import org.jetlang.remote.core.JetlangRemotingProtocol;
 import org.jetlang.remote.core.MsgTypes;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.Executor;
 
-public class RemoteSubscriptions {
+public class RemoteSubscriptions implements JetlangRemotingProtocol.MessageDispatcher {
 
     private final Map<String, RemoteSubscription> remoteSubscriptions = new LinkedHashMap<String, RemoteSubscription>();
     private final Executor sendFiber;
