@@ -20,11 +20,15 @@ public class JavaSerializationWriter implements ObjectByteWriter<Object> {
 
     final ByteStream bytes = new ByteStream();
 
-    public void write(String toTopic, Object msg, ByteMessageWriter writer) throws IOException {
+    public void write(String toTopic, Object msg, ByteMessageWriter writer){
         bytes.reset();
-        ObjectOutputStream output = new ObjectOutputStream(bytes);
-        output.writeObject(msg);
-        writer.writeObjectAsBytes(bytes.getBuffer(), 0, bytes.size());
+        try {
+            ObjectOutputStream output = new ObjectOutputStream(bytes);
+            output.writeObject(msg);
+            writer.writeObjectAsBytes(bytes.getBuffer(), 0, bytes.size());
+        }catch(IOException failed){
+            throw new RuntimeException(failed);
+        }
     }
 
 
