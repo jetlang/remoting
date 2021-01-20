@@ -6,10 +6,9 @@ import org.jetlang.fibers.NioChannelHandler;
 import org.jetlang.fibers.NioControls;
 import org.jetlang.fibers.NioFiber;
 import org.jetlang.fibers.NioFiberImpl;
-import org.jetlang.remote.core.ByteArrayBuffer;
+import org.jetlang.remote.client.JetlangDirectBuffer;
 import org.jetlang.remote.core.MsgTypes;
 import org.jetlang.remote.core.ObjectByteWriter;
-import org.jetlang.remote.core.SocketMessageStreamWriter;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -27,30 +26,20 @@ import java.util.concurrent.TimeUnit;
 public class NioJetlangSendFiber<T> {
 
     private final Fiber sendFiber;
-    private final Writer writer;
-    private final SocketMessageStreamWriter<T> stream;
-    private final Buffer buffer;
+    private final Buffer<T> buffer;
     private final List<ChannelState> sessions = new ArrayList<>();
 
     public NioJetlangSendFiber(Fiber sendFiber, NioFiber receiveFiber, ObjectByteWriter<T> objectByteWriter, Charset charset, NioFiberImpl.OnBuffer ob) {
         this.sendFiber = sendFiber;
-        this.buffer = new Buffer(receiveFiber, sendFiber, ob);
-        this.writer = new Writer(buffer);
-        this.stream = new SocketMessageStreamWriter<T>(this.writer, charset, objectByteWriter);
+        this.buffer = new Buffer<>(receiveFiber, sendFiber, ob, objectByteWriter, charset);
     }
 
-    public Fiber getFiber(){
+    public Fiber getFiber() {
         return sendFiber;
     }
 
     public void onNewSession(ChannelState channel) {
         sendFiber.execute(() -> sessions.add(channel));
-    }
-
-    public Disposable scheduleHeartbeat(ChannelState newState, int firstInterval, int subsequent, TimeUnit milliseconds) {
-        return sendFiber.scheduleAtFixedRate(()->{
-            writeIntAsByte(newState, MsgTypes.Heartbeat);
-        }, firstInterval, subsequent, milliseconds);
     }
 
     private class BulkPublish implements Runnable {
@@ -88,15 +77,11 @@ public class NioJetlangSendFiber<T> {
         for (int i = 0; i < sessions.size(); i++) {
             final ChannelState channelState = sessions.get(i);
             if (channelState.subscriptions.contains(topic)) {
-                set(channelState);
-                try {
-                    if (position == -1) {
-                        position = stream.writeWithoutFlush(topic, object);
-                    }
-                    stream.setPositionAndFlush(position);
-                } catch (IOException failed) {
-                    handleDisconnect(failed, channelState);
+                if (position == -1) {
+                    buffer.append(topic, object);
+                    position = buffer.position();
                 }
+                buffer.setPositionAndFlush(position, channelState);
             }
         }
         return position;
@@ -131,10 +116,6 @@ public class NioJetlangSendFiber<T> {
         public String toString() {
             return id.toString();
         }
-
-        private void safeCloseAndLog(IOException e) {
-            closeOnNioFiber();
-        }
     }
 
     public void sendIntAsByte(ChannelState channel, int heartbeat) {
@@ -142,28 +123,9 @@ public class NioJetlangSendFiber<T> {
     }
 
     private void writeIntAsByte(ChannelState channel, int heartbeat) {
-        try {
-            set(channel);
-            stream.writeByteAsInt(heartbeat);
-        } catch (IOException e) {
-            handleDisconnect(e, channel);
-        }
+        buffer.writeSingleByte(heartbeat, channel);
     }
 
-    public boolean writeSubscription(ChannelState channel, String topic, int subscription, Charset charset) {
-        try{
-            set(channel);
-            stream.writeSubscription(subscription, topic, charset);
-            return true;
-        }catch(IOException failed){
-            handleDisconnect(failed, channel);
-            return false;
-        }
-    }
-    private void set(ChannelState channel) {
-        writer.channel = channel;
-        buffer.session = channel;
-    }
 
     public void onSubscriptionRequest(String topic, ChannelState sc) {
         sendFiber.execute(() -> sc.subscriptions.add(topic));
@@ -178,7 +140,7 @@ public class NioJetlangSendFiber<T> {
             @Override
             public void run() {
                 if (sc.subscriptions.contains(topic)) {
-                    write(sc, topic, msg);
+                    buffer.write(topic, msg, sc);
                 }
             }
 
@@ -189,65 +151,24 @@ public class NioJetlangSendFiber<T> {
         });
     }
 
-    public void publishWithoutSubscriptionCheck(ChannelState sc, String topic, T msg){
-        sendFiber.execute(new Runnable() {
-            @Override
-            public void run() {
-                    write(sc, topic, msg);
-            }
-            @Override
-            public String toString() {
-                return "Publish(" + topic + ")";
-            }
-        });
-    }
 
-    private void write(ChannelState channel, String topic, T msg) {
-        set(channel);
-        try {
-            stream.write(topic, msg);
-        } catch (IOException e) {
-            handleDisconnect(e, channel);
-        }
-    }
-
-    private void writeBytes(ChannelState channel, byte[] msg) {
-        set(channel);
-        try {
-            stream.writeBytes(msg);
-        } catch (IOException e) {
-            handleDisconnect(e, channel);
-        }
-    }
-
-
-    private void handleDisconnect(IOException e, ChannelState sc) {
-        sc.safeCloseAndLog(e);
-        sc.buffer = null;
-        removeSubscriptions(sc);
-    }
 
     public void reply(ChannelState sc, int reqId, String replyTopic, T replyMsg) {
         sendFiber.execute(() -> {
-            set(sc);
-            try {
-                stream.writeReply(reqId, replyTopic, replyMsg);
-            } catch (IOException e) {
-                handleDisconnect(e, sc);
-            }
+            buffer.writeReply(reqId, replyTopic, replyMsg, sc);
         });
     }
 
     public void publishIfSubscribed(ChannelState sc, String topic, byte[] data) {
         sendFiber.execute(() -> {
             if (sc.subscriptions.contains(topic)) {
-                writeBytes(sc, data);
+                buffer.writeBytes(data, sc);
             }
         });
     }
 
     public void publishBytes(ChannelState channel, byte[] data) {
-        sendFiber.execute(() -> writeBytes(channel, data));
+        sendFiber.execute(() -> buffer.writeBytes(data, channel));
     }
 
     public void handleLogout(ChannelState channel) {
@@ -310,7 +231,7 @@ public class NioJetlangSendFiber<T> {
                 }
             } catch (IOException e) {
                 buffered.buffer = null;
-                buffered.safeCloseAndLog(e);
+                buffered.closeOnNioFiber();
             }
         }
 
@@ -333,52 +254,65 @@ public class NioJetlangSendFiber<T> {
         }
     }
 
-    private static class Buffer extends ByteArrayBuffer {
+    private static class Buffer<T> {
 
         private final NioFiber nioFiber;
         private final Fiber sendFiber;
         private final NioFiberImpl.OnBuffer onBuffer;
-        public ChannelState session;
-        private ByteBuffer byteBuffer;
+        private final ObjectByteWriter<T> objectByteWriter;
+        private final Charset charset;
+        private final JetlangDirectBuffer byteBuffer;
 
-        public Buffer(NioFiber nioFiber, Fiber sendFiber, NioFiberImpl.OnBuffer onBuffer) {
+        public Buffer(NioFiber nioFiber, Fiber sendFiber, NioFiberImpl.OnBuffer onBuffer, ObjectByteWriter<T> objectByteWriter, Charset charset) {
             this.nioFiber = nioFiber;
             this.sendFiber = sendFiber;
             this.onBuffer = onBuffer;
-            this.byteBuffer = ByteBuffer.wrap(buffer);
+            this.objectByteWriter = objectByteWriter;
+            this.charset = charset;
+            this.byteBuffer = new JetlangDirectBuffer(1024);
         }
 
-        @Override
-        protected void afterResize() {
-            super.afterResize();
-            this.byteBuffer = ByteBuffer.wrap(buffer);
+        public void flush(ChannelState session) {
+            ByteBuffer toSend = byteBuffer.buffer;
+            toSend.flip();
+            executeFlush(toSend, session);
+            toSend.clear();
         }
 
-        public void flush() {
-            byteBuffer.position(0);
-            byteBuffer.limit(position);
-            position = 0;
+        private void executeFlush(ByteBuffer toSend, ChannelState session) {
             final SocketChannel channel = session.channel;
             BufferState st = session.buffer;
             if (st != null) {
                 if (channel.isOpen())
-                    st.add(byteBuffer);
+                    st.add(toSend);
                 else
                     session.buffer = null;
                 return;
             }
             try {
-                tryWrite(channel, byteBuffer);
-                if (byteBuffer.remaining() > 0) {
+                tryWrite(channel, toSend);
+                if (toSend.remaining() > 0) {
                     if (channel.isOpen()) {
                         final BufferState value = new BufferState(channel, nioFiber, sendFiber, session, onBuffer);
-                        value.add(byteBuffer);
+                        value.add(toSend);
                         session.buffer = value;
                     }
                 }
             } catch (IOException e) {
-                session.safeCloseAndLog(e);
+                session.closeOnNioFiber();
             }
+        }
+
+        public void append(String topic, T object) {
+            byteBuffer.append(topic, object, objectByteWriter, charset);
+        }
+
+        public void write(String topic, T msg, ChannelState channel) {
+            write(topic, msg, objectByteWriter, charset, channel);
+        }
+
+        public void writeReply(int reqId, String replyTopic, T replyMsg, ChannelState channel) {
+            writeReply(reqId, replyTopic, replyMsg, objectByteWriter, charset, channel);
         }
 
         public static void tryWrite(WritableByteChannel channel, ByteBuffer byteBuffer) throws IOException {
@@ -388,54 +322,35 @@ public class NioJetlangSendFiber<T> {
             } while (write > 0 && byteBuffer.remaining() > 0);
         }
 
-        public void writeSingleByte(int byteToWrite) {
-            buffer[position] = (byte) byteToWrite;
-            position++;
-            flush();
+        public void writeSingleByte(int byteToWrite, ChannelState session) {
+            byteBuffer.appendIntAsByte(byteToWrite);
+            flush(session);
         }
 
-        public void writeBytes(byte[] bytes) {
-            System.arraycopy(bytes, 0, buffer, 0, bytes.length);
-            position += bytes.length;
-            flush();
-        }
-    }
-
-    private static class Writer implements SocketMessageStreamWriter.Out {
-
-        private final Buffer buffer;
-        public ChannelState channel;
-
-        public Writer(Buffer buffer) {
-            this.buffer = buffer;
+        public void writeBytes(byte[] bytes, ChannelState session) {
+            byteBuffer.appendBytes(bytes);
+            flush(session);
         }
 
-        @Override
-        public ByteArrayBuffer getBuffer() {
-            return buffer;
+        public void setPositionAndFlush(int position, ChannelState session) {
+            ByteBuffer bb = byteBuffer.buffer;
+            bb.position(position);
+            flush(session);
         }
 
-        @Override
-        public void flush() {
-            buffer.flush();
+        public int position() {
+            return byteBuffer.position();
         }
 
-        @Override
-        public void write(int byteToWrite) throws IOException {
-            buffer.writeSingleByte(byteToWrite);
+        public <T> void write(String topic, T msg, ObjectByteWriter<T> objectByteWriter, Charset charset, ChannelState session) {
+            byteBuffer.append(topic, msg, objectByteWriter, charset);
+            flush(session);
         }
 
-        @Override
-        public void writeBytes(byte[] bytes) {
-            buffer.writeBytes(bytes);
-        }
-
-        @Override
-        public boolean close() {
-            channel.closeOnNioFiber();
-            return false;
+        public <T> void writeReply(int reqId, String replyTopic, T replyMsg, ObjectByteWriter<T> objectByteWriter, Charset charset, ChannelState session) {
+            byteBuffer.appendIntAsByte(MsgTypes.DataReply);
+            byteBuffer.appendInt(reqId);
+            write(replyTopic, replyMsg, objectByteWriter, charset, session);
         }
     }
-
-
 }

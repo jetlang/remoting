@@ -11,7 +11,7 @@ import java.nio.ByteOrder;
 import java.nio.charset.Charset;
 
 public class JetlangDirectBuffer {
-    private ByteBuffer buffer;
+    public ByteBuffer buffer;
     private final ByteMessageWriter byteMsgWriter = (buffer, offset, length) -> {
         appendInt(length);
         append(buffer, offset, length);
@@ -26,12 +26,20 @@ public class JetlangDirectBuffer {
     }
 
     public <T> SendResult write(String topic, T msg, ObjectByteWriter<T> objWriter, TcpClientNioFiber.Writer chan, Charset charset) {
+        append(topic, msg, objWriter, charset);
+        return flush(chan);
+    }
+
+    public <T> void append(String topic, T msg, ObjectByteWriter<T> objWriter, Charset charset) {
         appendIntAsByte(MsgTypes.Data);
         byte[] topicBytes = topic.getBytes(charset);
         appendIntAsByte(topicBytes.length);
         append(topicBytes, 0, topicBytes.length);
         objWriter.write(topic, msg, byteMsgWriter);
-        return flush(chan);
+    }
+
+    public int position(){
+        return buffer.position();
     }
 
     private SendResult flush(TcpClientNioFiber.Writer chan) {
@@ -51,12 +59,12 @@ public class JetlangDirectBuffer {
         return flush(writer);
     }
 
-    private void appendIntAsByte(int msgType) {
+    public void appendIntAsByte(int msgType) {
         resize(1);
         buffer.put((byte) msgType);
     }
 
-    private void appendInt(int value) {
+    public void appendInt(int value) {
         resize(4);
         buffer.putInt(value);
     }
@@ -76,5 +84,9 @@ public class JetlangDirectBuffer {
         appendIntAsByte(bytes.length);
         append(bytes, 0, bytes.length);
         return flush(writer);
+    }
+
+    public void appendBytes(byte[] bytes) {
+        append(bytes, 0, bytes.length);
     }
 }
