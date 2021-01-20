@@ -45,12 +45,12 @@ public class Server {
             public void onNewSession(JetlangNioSession<byte[], byte[]> session) {
                 System.out.println("Connect:" + session.getSessionId());
                 session.getLogoutChannel().subscribe(new SynchronousDisposingExecutor(), (msg)-> System.out.println("msg = " + msg));
-                session.getHeartbeatChannel().subscribe(new SynchronousDisposingExecutor(), (hb)-> System.out.println("hb = " + hb));
+                //session.getHeartbeatChannel().subscribe(new SynchronousDisposingExecutor(), (hb)-> System.out.println("hb = " + hb));
                 Callback<SessionMessage<byte[]>> onMsg = sessionMessage -> {
                     //forward the bytes to any and all clients that have subscribed to the topic
                     //message is serialized and written to clients on send fiber
                     sender.publishToAllSubscribedClients(sessionMessage.getTopic(), sessionMessage.getMessage());
-                    System.out.println("topic: " + sessionMessage.getTopic() + " msg: " + sessionMessage.getMessage());
+                    //System.out.println("topic: " + sessionMessage.getTopic() + " msg: " + sessionMessage.getMessage());
                 };
 
                 //receive messages on nio read thread
