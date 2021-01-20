@@ -1,6 +1,5 @@
 package org.jetlang.remote.acceptor;
 
-import org.jetlang.core.Disposable;
 import org.jetlang.fibers.Fiber;
 import org.jetlang.fibers.NioChannelHandler;
 import org.jetlang.fibers.NioControls;
@@ -21,7 +20,6 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.concurrent.TimeUnit;
 
 public class NioJetlangSendFiber<T> {
 
@@ -308,11 +306,12 @@ public class NioJetlangSendFiber<T> {
         }
 
         public void write(String topic, T msg, ChannelState channel) {
-            write(topic, msg, objectByteWriter, charset, channel);
+            append(topic, msg);
+            flush(channel);
         }
-
-        public void writeReply(int reqId, String replyTopic, T replyMsg, ChannelState channel) {
-            writeReply(reqId, replyTopic, replyMsg, objectByteWriter, charset, channel);
+        public void writeReply(int reqId, String replyTopic, T replyMsg, ChannelState session) {
+            byteBuffer.appendReply(reqId, replyTopic, replyMsg, objectByteWriter, charset);
+            flush(session);
         }
 
         public static void tryWrite(WritableByteChannel channel, ByteBuffer byteBuffer) throws IOException {
@@ -340,17 +339,6 @@ public class NioJetlangSendFiber<T> {
 
         public int position() {
             return byteBuffer.position();
-        }
-
-        public <T> void write(String topic, T msg, ObjectByteWriter<T> objectByteWriter, Charset charset, ChannelState session) {
-            byteBuffer.append(topic, msg, objectByteWriter, charset);
-            flush(session);
-        }
-
-        public <T> void writeReply(int reqId, String replyTopic, T replyMsg, ObjectByteWriter<T> objectByteWriter, Charset charset, ChannelState session) {
-            byteBuffer.appendIntAsByte(MsgTypes.DataReply);
-            byteBuffer.appendInt(reqId);
-            write(replyTopic, replyMsg, objectByteWriter, charset, session);
         }
     }
 }

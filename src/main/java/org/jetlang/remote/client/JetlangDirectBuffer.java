@@ -89,4 +89,10 @@ public class JetlangDirectBuffer {
     public void appendBytes(byte[] bytes) {
         append(bytes, 0, bytes.length);
     }
+
+    public <T> void appendReply(int reqId, String replyTopic, T replyMsg, ObjectByteWriter<T> objectByteWriter, Charset charset) {
+        appendIntAsByte(MsgTypes.DataReply);
+        appendInt(reqId);
+        append(replyTopic, replyMsg, objectByteWriter, charset);
+    }
 }
