@@ -32,6 +32,10 @@ public class JetlangDirectBuffer {
 
     public <T> void append(String topic, T msg, ObjectByteWriter<T> objWriter, Charset charset) {
         appendIntAsByte(MsgTypes.Data);
+        appendMsgBody(topic, msg, objWriter, charset);
+    }
+
+    private <T> void appendMsgBody(String topic, T msg, ObjectByteWriter<T> objWriter, Charset charset) {
         byte[] topicBytes = topic.getBytes(charset);
         appendIntAsByte(topicBytes.length);
         append(topicBytes, 0, topicBytes.length);
@@ -71,7 +75,7 @@ public class JetlangDirectBuffer {
 
     private void resize(int required) {
         if (buffer.remaining() < required) {
-            ByteBuffer resized = allocate(buffer.capacity() + (required * 2));
+            ByteBuffer resized = allocate(buffer.capacity() + Math.max(required, 128));
             buffer.flip();
             resized.put(buffer);
             this.buffer = resized;
@@ -93,6 +97,6 @@ public class JetlangDirectBuffer {
     public <T> void appendReply(int reqId, String replyTopic, T replyMsg, ObjectByteWriter<T> objectByteWriter, Charset charset) {
         appendIntAsByte(MsgTypes.DataReply);
         appendInt(reqId);
-        append(replyTopic, replyMsg, objectByteWriter, charset);
+        appendMsgBody(replyTopic, replyMsg, objectByteWriter, charset);
     }
 }

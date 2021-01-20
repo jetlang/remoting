@@ -13,7 +13,7 @@ import java.io.OutputStream;
  */
 public class CloseableByteArrayStream implements ClosableOutputStream {
 
-    final ByteArrayOutputStream data = new ByteArrayOutputStream();
+    public final ByteArrayOutputStream data = new ByteArrayOutputStream();
 
     public OutputStream getOutputStream() {
         return data;
