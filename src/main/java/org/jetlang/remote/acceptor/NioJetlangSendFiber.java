@@ -416,7 +416,7 @@ public class NioJetlangSendFiber<T> {
         }
 
         @Override
-        public void flush() throws IOException {
+        public void flush() {
             buffer.flush();
         }
 
@@ -426,7 +426,7 @@ public class NioJetlangSendFiber<T> {
         }
 
         @Override
-        public void writeBytes(byte[] bytes) throws IOException {
+        public void writeBytes(byte[] bytes) {
             buffer.writeBytes(bytes);
         }
 
