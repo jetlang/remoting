@@ -11,6 +11,7 @@ import java.io.ObjectInputStream;
  */
 public class JavaSerializationReader implements ObjectByteReader<Object> {
 
+    @Override
     public Object readObject(String fromTopic, byte[] buffer, int offset, int length) throws IOException {
         ByteArrayInputStream readStream = new ByteArrayInputStream(buffer, offset, length);
         try {
