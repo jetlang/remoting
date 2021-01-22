@@ -5,7 +5,7 @@
     <artifactId>jetlang.remoting</artifactId>
     <packaging>jar</packaging>
 
-    <version>0.6.59</version>
+    <version>0.6.60</version>
     <name>Jetlang Remoting</name>
     <url>hhttps://github.com/jetlang/remoting</url>
 
