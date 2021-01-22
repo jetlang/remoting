@@ -1,5 +1,7 @@
 package org.jetlang.remote.core;
 
+import java.nio.ByteBuffer;
+
 /**
  * User: mrettig
  * Date: 4/6/11
@@ -7,4 +9,5 @@ package org.jetlang.remote.core;
  */
 public interface ByteMessageWriter {
     void writeObjectAsBytes(byte[] buffer, int offset, int length);
+    void writeObjectAsBytes(ByteBuffer buffer, int length);
 }

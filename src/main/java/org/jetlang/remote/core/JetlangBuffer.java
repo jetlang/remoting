@@ -7,9 +7,18 @@ import java.nio.charset.Charset;
 
 public class JetlangBuffer {
     private ByteBuffer buffer;
-    private final ByteMessageWriter byteMsgWriter = (buffer, offset, length) -> {
-        appendInt(length);
-        append(buffer, offset, length);
+    private final ByteMessageWriter byteMsgWriter = new ByteMessageWriter() {
+        @Override
+        public void writeObjectAsBytes(byte[] buffer, int offset, int length) {
+                appendInt(length);
+                append(buffer, offset, length);
+        }
+
+        @Override
+        public void writeObjectAsBytes(ByteBuffer buffer, int length) {
+            appendInt(length);
+            append(buffer, length);
+        }
     };
 
     public ByteBuffer getBuffer(){
@@ -57,6 +66,15 @@ public class JetlangBuffer {
         resize(length);
         buffer.put(topicBytes, offset, length);
     }
+
+    private void append(ByteBuffer msg, int length) {
+        resize(length);
+        int origLimit = msg.limit();
+        msg.limit(msg.position() + length);
+        buffer.put(msg);
+        msg.limit(Math.max(origLimit, msg.limit()));
+    }
+
 
     public void appendIntAsByte(int msgType) {
         resize(1);

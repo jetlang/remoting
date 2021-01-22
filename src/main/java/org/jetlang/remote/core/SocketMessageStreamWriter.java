@@ -4,6 +4,7 @@ import org.jetlang.remote.acceptor.MessageStreamWriter;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
 
 /**
@@ -51,6 +52,12 @@ public class SocketMessageStreamWriter<T> implements MessageStreamWriter<T> {
         public void writeObjectAsBytes(byte[] data, int offset, int length) {
             buffer.appendInt(length);
             buffer.append(data, offset, length);
+        }
+
+        @Override
+        public void writeObjectAsBytes(ByteBuffer bb, int length) {
+            buffer.appendInt(length);
+            buffer.append(bb, length);
         }
     };
 

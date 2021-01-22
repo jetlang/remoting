@@ -2,6 +2,7 @@ package org.jetlang.remote.core;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.nio.ByteBuffer;
 
 /**
  * User: mrettig
@@ -47,6 +48,13 @@ public class ByteArrayBuffer {
         System.arraycopy(bytes, offset, buffer, position, length);
         position += length;
     }
+
+    public void append(ByteBuffer bytes, int length) {
+        resize(length);
+        bytes.get(buffer, position, length);
+        position += length;
+    }
+
 
     public void append(byte[] bytes) {
         append(bytes, 0, bytes.length);

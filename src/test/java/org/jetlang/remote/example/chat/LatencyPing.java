@@ -32,8 +32,6 @@ import java.util.concurrent.TimeUnit;
  */
 public class LatencyPing {
 
-    private static volatile CountDownLatch latch;
-
     public static void main(String[] args) throws InterruptedException {
         String host = "localhost";
         int port = 8081;
@@ -43,7 +41,13 @@ public class LatencyPing {
         }
         final int iteration = 50000;
         System.out.println("iterations = " + iteration);
-        latch = new CountDownLatch(1);
+        for(int i = 0; i < 5; i++) {
+            execute(host, port, iteration);
+        }
+    }
+
+    private static void execute(String host, int port, int iteration) throws InterruptedException {
+        CountDownLatch latch = new CountDownLatch(1);
         SocketConnector conn = new SocketConnector(host, port);
         JetlangClientConfig clientConfig = new JetlangClientConfig();
 
