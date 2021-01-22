@@ -9,7 +9,6 @@ import java.nio.ByteBuffer;
 public class JetlangRemotingProtocol<T> {
 
     public ByteBuffer buffer;
-    public byte[] bufferArray = new byte[1024 * 8];
     private final Handler<T> session;
     private final TopicReader topicReader;
     private final DataRequest dataRequest = new DataRequest();
@@ -91,8 +90,7 @@ public class JetlangRemotingProtocol<T> {
     private final ObjectByteReader<T> reader;
 
     public void resizeBuffer(int requiredBytes) {
-        bufferArray = new byte[requiredBytes];
-        ByteBuffer b = ByteBuffer.wrap(bufferArray);
+        ByteBuffer b = ByteBuffer.allocateDirect(requiredBytes);
         buffer.flip();
         b.put(buffer);
         buffer = b;
@@ -175,7 +173,7 @@ public class JetlangRemotingProtocol<T> {
     public JetlangRemotingProtocol(Handler<T> session, ObjectByteReader<T> reader, TopicReader charset) {
         this.session = session;
         this.topicReader = charset;
-        this.buffer = ByteBuffer.wrap(this.bufferArray);
+        this.buffer = ByteBuffer.allocateDirect(128);
         this.reader = reader;
     }
 
@@ -195,8 +193,9 @@ public class JetlangRemotingProtocol<T> {
 
             @Override
             public State run() throws IOException {
-                String val = topicReader.read(bufferArray, buffer.position(), stringSize);
-                buffer.position(buffer.position() + stringSize);
+                int origPos = buffer.position();
+                String val = topicReader.read(buffer, stringSize);
+                buffer.position(origPos + stringSize);
                 return onString(val);
             }
         };
@@ -227,8 +226,9 @@ public class JetlangRemotingProtocol<T> {
 
             @Override
             public State run() throws IOException {
-                final T readObject = reader.readObject(dataTopicVal, bufferArray, buffer.position(), dataSizeVal);
-                buffer.position(buffer.position() + dataSizeVal);
+                int origPos = buffer.position();
+                final T readObject = reader.readObject(dataTopicVal, buffer, dataSizeVal);
+                buffer.position(origPos + dataSizeVal);
                 return onObject(dataTopicVal, readObject);
             }
         };

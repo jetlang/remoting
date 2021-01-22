@@ -2,12 +2,14 @@ package org.jetlang.remote.core;
 
 import sun.nio.cs.ArrayDecoder;
 
+import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
 import java.nio.charset.CharsetDecoder;
 
 public interface StringDecoder {
 
-    String decode(byte[] bytes, int offset, int length);
+    String decode(ByteBuffer bb, int length);
+    String decode(byte[] result, int offset, int length);
 
     static StringDecoder create(String name) {
         Charset cs = Charset.forName(name);
@@ -15,9 +17,30 @@ public interface StringDecoder {
     }
 
     static StringDecoder create(Charset cs) {
+        ByteArrayDecoder byteArrayDecoder = createByteArrayDecoder(cs);
+        return new StringDecoder() {
+            @Override
+            public String decode(ByteBuffer bb, int length) {
+                byte[] chars = new byte[length];
+                bb.get(chars);
+                return new String(chars, cs);
+            }
+
+            @Override
+            public String decode(byte[] result, int i, int size) {
+                return byteArrayDecoder.decode(result, i, size);
+            }
+        };
+    }
+
+    interface ByteArrayDecoder {
+        String decode(byte[] result, int i, int size);
+    }
+
+    static ByteArrayDecoder createByteArrayDecoder(Charset cs){
         CharsetDecoder charsetDecoder = cs.newDecoder();
         if (charsetDecoder instanceof ArrayDecoder) {
-            return new StringDecoder() {
+            return new ByteArrayDecoder() {
                 ArrayDecoder decoder = (ArrayDecoder) charsetDecoder;
 
                 @Override
@@ -34,4 +57,5 @@ public interface StringDecoder {
             return (bytes, offset, length) -> new String(bytes, offset, length, cs);
         }
     }
+
 }

@@ -10,6 +10,7 @@ public class JetlangRemotingInputStream {
     private final JetlangRemotingProtocol<?> protocol;
     private final Runnable onReadTimeout;
     JetlangRemotingProtocol.State nextCommand;
+    private byte[] toRead = new byte[0];
 
     public JetlangRemotingInputStream(InputStream inputStream, JetlangRemotingProtocol<?> protocol, Runnable onReadTimeout) {
         this.inputStream = inputStream;
@@ -24,8 +25,6 @@ public class JetlangRemotingInputStream {
         if (read < 0) {
             return false;
         }
-        buffer.position(buffer.position() + read);
-        buffer.flip();
         while (buffer.remaining() >= nextCommand.getRequiredBytes()) {
             nextCommand = nextCommand.run();
         }
@@ -38,9 +37,17 @@ public class JetlangRemotingInputStream {
 
     private int attemptRead() throws IOException {
         final ByteBuffer buffer = protocol.buffer;
+        if(toRead.length < buffer.remaining()){
+            toRead = new byte[buffer.remaining()];
+        }
         while (true) {
             try {
-                return inputStream.read(protocol.bufferArray, buffer.position(), buffer.remaining());
+                int read = inputStream.read(toRead, 0, buffer.remaining());
+                if(read > 0){
+                    buffer.put(toRead, 0, read);
+                    buffer.flip();
+                }
+                return read;
             } catch (SocketTimeoutException timeout) {
                 onReadTimeout.run();
             }

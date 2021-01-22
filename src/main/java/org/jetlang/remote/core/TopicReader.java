@@ -1,11 +1,12 @@
 package org.jetlang.remote.core;
 
+import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
 import java.util.Arrays;
 import java.util.HashMap;
 
 public interface TopicReader {
-    String read(byte[] bufferArray, int offset, int length);
+    String read(ByteBuffer bufferArray, int length);
 
     class Default implements TopicReader {
         private StringDecoder charset;
@@ -15,14 +16,14 @@ public interface TopicReader {
         }
 
         @Override
-        public String read(byte[] bufferArray, int offset, int length) {
-            return charset.decode(bufferArray, offset, length);
+        public String read(ByteBuffer bb, int length) {
+            return charset.decode(bb, length);
         }
     }
 
     class Cached implements TopicReader {
         private final Default charset;
-        private final Key searchKey = new Key();
+        private final Key searchKey = new Key(new byte[0], 0);
         private final HashMap<Key, String> cache = new HashMap<>();
 
         public Cached(Charset charset) {
@@ -30,12 +31,14 @@ public interface TopicReader {
         }
 
         @Override
-        public String read(byte[] bufferArray, int offset, int length) {
-            searchKey.init(bufferArray, offset, length);
+        public String read(ByteBuffer bb, int length) {
+            int origPosition = bb.position();
+            searchKey.init(bb, length);
             String result = cache.get(searchKey);
-            if(result == null){
-                result = charset.read(bufferArray, offset, length);
-                cache.put(new Key(bufferArray, offset, length), result);
+            if (result == null) {
+                bb.position(origPosition);
+                result = charset.read(bb, length);
+                cache.put(searchKey.copy(), result);
             }
             return result;
         }
@@ -43,42 +46,50 @@ public interface TopicReader {
         private static class Key {
 
             private int hashCode;
-            private int offset;
             private int length;
             private byte[] buffer;
 
-            private Key(byte[] bufferArray, int offset, int length) {
-                byte[] copy = Arrays.copyOfRange(bufferArray, offset, offset + length);
-                init(copy, 0, length);
-            }
-            private Key(){
-
+            private Key(byte[] bufferArray, int length) {
+                this.buffer = Arrays.copyOfRange(bufferArray, 0, length);
+                init(length);
             }
 
-            private void init(byte[] bufferArray, int offset, int length){
-                this.buffer = bufferArray;
-                this.offset = offset;
+            public Key copy() {
+                return new Key(buffer, length);
+            }
+
+            private void init(ByteBuffer bb, int length) {
+                resize(length);
+                bb.get(this.buffer, 0, length);
+                init( length);
+            }
+
+            private void init(int length) {
                 this.length = length;
                 int hc = 0;
-                for(int i = 0; i < length; i++){
-                    hc = 31 * hc + bufferArray[i + offset];
+                for (int i = 0; i < length; i++) {
+                    hc = 31 * hc + buffer[i];
                 }
                 this.hashCode = hc;
             }
 
+            private void resize(int length) {
+                if (buffer.length < length) {
+                    buffer = new byte[length];
+                }
+            }
+
             @Override
-            public boolean equals(Object other){
-                final Key otherKey = (Key)other;
+            public boolean equals(Object other) {
+                final Key otherKey = (Key) other;
                 final int thisLength = this.length;
-                if(thisLength != otherKey.length){
+                if (thisLength != otherKey.length) {
                     return false;
                 }
                 final byte[] thisBuffer = this.buffer;
-                final int thisOffset = this.offset;
                 final byte[] otherBuffer = otherKey.buffer;
-                final int otherOffset = otherKey.offset;
-                for(int i = 0; i < thisLength; i++){
-                    if(thisBuffer[i + thisOffset] != otherBuffer[i + otherOffset]){
+                for (int i = 0; i < thisLength; i++) {
+                    if (thisBuffer[i] != otherBuffer[i]) {
                         return false;
                     }
                 }

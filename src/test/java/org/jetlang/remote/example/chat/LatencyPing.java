@@ -54,16 +54,17 @@ public class LatencyPing {
             long latency = 0;
             long min = Long.MAX_VALUE;
             long max = 0;
+
             public void onMessage(Long message) {
                 long duration = System.nanoTime() - message;
                 min = Math.min(duration, min);
                 max = Math.max(duration, max);
                 count++;
-                latency+= duration;
-                if(count == iteration){
+                latency += duration;
+                if (count == iteration) {
                     System.out.println("Min: " + min + " Max: " + max);
                     System.out.println("Count: " + count);
-                    System.out.println("AvgNanos: " + (latency/count));
+                    System.out.println("AvgNanos: " + (latency / count));
                     latch.countDown();
                 }
             }
@@ -91,10 +92,10 @@ public class LatencyPing {
     private static Client startClient(SocketConnector conn, JetlangClientConfig clientConfig) {
         JetlangTcpClient tcpClient = new JetlangTcpClient(conn, new ThreadFiber(), clientConfig, new LongSerializer(), new ErrorHandler.SysOut());
         SynchronousDisposingExecutor executor = new SynchronousDisposingExecutor();
-        tcpClient.getConnectChannel().subscribe(executor, (msg)->{
+        tcpClient.getConnectChannel().subscribe(executor, (msg) -> {
             System.out.println("msg = " + msg);
         });
-        tcpClient.getCloseChannel().subscribe(executor, (msg)->{
+        tcpClient.getCloseChannel().subscribe(executor, (msg) -> {
             System.out.println("msg = " + msg);
         });
         tcpClient.start();
@@ -125,16 +126,16 @@ public class LatencyPing {
                 new ErrorHandler.SysOut(), readFiber, topicReader);
         SynchronousDisposingExecutor executor = new SynchronousDisposingExecutor();
         CountDownLatch connect = new CountDownLatch(1);
-        tcpClient.getConnectChannel().subscribe(executor, (msg)->{
+        tcpClient.getConnectChannel().subscribe(executor, (msg) -> {
             System.out.println("msg = " + msg);
             connect.countDown();
         });
-        tcpClient.getCloseChannel().subscribe(executor, (msg)->{
+        tcpClient.getCloseChannel().subscribe(executor, (msg) -> {
             System.out.println("msg = " + msg);
         });
         tcpClient.start();
         boolean connected = connect.await(5, TimeUnit.SECONDS);
-        if(! connected){
+        if (!connected) {
             throw new RuntimeException("Failed to connect");
         }
         return new Client() {
@@ -163,6 +164,7 @@ public class LatencyPing {
             return new ObjectByteWriter<Long>() {
                 byte[] bytes = new byte[8];
                 ByteBuffer buffer = ByteBuffer.wrap(bytes);
+
                 @Override
                 public void write(String topic, Long msg, ByteMessageWriter writer) {
                     buffer.clear();
@@ -173,13 +175,7 @@ public class LatencyPing {
         }
 
         public ObjectByteReader<Long> getReader() {
-            return (fromTopic, buffer, offset, length) -> {
-                final ByteBuffer wrap = ByteBuffer.wrap(buffer);
-                if(offset > 0){
-                    wrap.position(offset);
-                }
-                return wrap.getLong();
-            };
+            return (topic, bb, length) -> bb.getLong();
         }
     }
 

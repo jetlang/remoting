@@ -1,6 +1,7 @@
 package org.jetlang.remote.core;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
 
 /**
  * User: mrettig
@@ -19,9 +20,9 @@ public class ByteArraySerializer implements Serializer<byte[], byte[]> {
     public static class Reader implements ObjectByteReader<byte[]> {
 
         @Override
-        public byte[] readObject(String fromTopic, byte[] buffer, int offset, int length) {
+        public byte[] readObject(String fromTopic, ByteBuffer bb, int length) {
             byte[] toReturn = new byte[length];
-            System.arraycopy(buffer, offset, toReturn, 0, length);
+            bb.get(toReturn);
             return toReturn;
         }
     }

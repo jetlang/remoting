@@ -3,6 +3,7 @@ package org.jetlang.remote.core;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
+import java.nio.ByteBuffer;
 
 /**
  * User: mrettig
@@ -12,8 +13,10 @@ import java.io.ObjectInputStream;
 public class JavaSerializationReader implements ObjectByteReader<Object> {
 
     @Override
-    public Object readObject(String fromTopic, byte[] buffer, int offset, int length) throws IOException {
-        ByteArrayInputStream readStream = new ByteArrayInputStream(buffer, offset, length);
+    public Object readObject(String fromTopic, ByteBuffer bb, int length) throws IOException{
+        byte[] body = new byte[length];
+        bb.get(body);
+        ByteArrayInputStream readStream = new ByteArrayInputStream(body, 0, length);
         try {
             return new ObjectInputStream(readStream).readObject();
         } catch (ClassNotFoundException e) {
