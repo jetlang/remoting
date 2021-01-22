@@ -5,7 +5,7 @@ import org.jetlang.fibers.NioChannelHandler;
 import org.jetlang.fibers.NioControls;
 import org.jetlang.fibers.NioFiber;
 import org.jetlang.fibers.NioFiberImpl;
-import org.jetlang.remote.client.JetlangDirectBuffer;
+import org.jetlang.remote.client.JetlangBuffer;
 import org.jetlang.remote.core.MsgTypes;
 import org.jetlang.remote.core.ObjectByteWriter;
 
@@ -259,7 +259,7 @@ public class NioJetlangSendFiber<T> {
         private final NioFiberImpl.OnBuffer onBuffer;
         private final ObjectByteWriter<T> objectByteWriter;
         private final Charset charset;
-        private final JetlangDirectBuffer byteBuffer;
+        private final JetlangBuffer byteBuffer;
 
         public Buffer(NioFiber nioFiber, Fiber sendFiber, NioFiberImpl.OnBuffer onBuffer, ObjectByteWriter<T> objectByteWriter, Charset charset) {
             this.nioFiber = nioFiber;
@@ -267,7 +267,7 @@ public class NioJetlangSendFiber<T> {
             this.onBuffer = onBuffer;
             this.objectByteWriter = objectByteWriter;
             this.charset = charset;
-            this.byteBuffer = new JetlangDirectBuffer(1024);
+            this.byteBuffer = new JetlangBuffer(1024);
         }
 
         public void flush(ChannelState session) {
@@ -302,7 +302,7 @@ public class NioJetlangSendFiber<T> {
         }
 
         public void append(String topic, T object) {
-            byteBuffer.append(topic, object, objectByteWriter, charset);
+            byteBuffer.appendMsg(topic, object, objectByteWriter, charset);
         }
 
         public void write(String topic, T msg, ChannelState channel) {

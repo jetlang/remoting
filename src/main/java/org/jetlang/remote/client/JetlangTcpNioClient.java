@@ -25,9 +25,9 @@ import org.jetlang.remote.core.TcpClientNioFiber;
 import org.jetlang.remote.core.TopicReader;
 import org.jetlang.web.SendResult;
 
+import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
 import java.nio.charset.Charset;
-import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
@@ -67,9 +67,11 @@ public class JetlangTcpNioClient<R, W> {
 
         SendResult publish(String topic, W msg);
 
-        SendResult sendIntAsByte(int msgType);
-
         void sendSubscription(String subject, int subscriptionType);
+
+        SendResult publish(JetlangBuffer buffer);
+
+        SendResult publishMsgType(int msgType);
     }
 
     private static class Disconnected<T> implements Sender<T> {
@@ -87,7 +89,13 @@ public class JetlangTcpNioClient<R, W> {
         }
 
         @Override
-        public SendResult sendIntAsByte(int msgType) {
+        public SendResult publish(JetlangBuffer buffer) {
+            buffer.buffer.clear();
+            return SendResult.Closed;
+        }
+
+        @Override
+        public SendResult publishMsgType(int msgType) {
             return SendResult.Closed;
         }
 
@@ -102,13 +110,13 @@ public class JetlangTcpNioClient<R, W> {
         private final TcpClientNioFiber.Writer writer;
         private final ObjectByteWriter<T> objWriter;
         private final Charset charset;
-        private final JetlangDirectBuffer directMemoryBuffer;
+        private final JetlangBuffer directMemoryBuffer;
 
         public ConnectedChannel(TcpClientNioFiber.Writer writer, ObjectByteWriter<T> objWriter, Charset charset) {
             this.writer = writer;
             this.objWriter = objWriter;
             this.charset = charset;
-            this.directMemoryBuffer = new JetlangDirectBuffer(1024);
+            this.directMemoryBuffer = new JetlangBuffer(128);
         }
 
         @Override
@@ -119,30 +127,40 @@ public class JetlangTcpNioClient<R, W> {
         @Override
         public SendResult publish(String topic, T msg) {
             synchronized (directMemoryBuffer) {
-                return directMemoryBuffer.write(topic, msg, objWriter, writer, charset);
+                directMemoryBuffer.appendMsg(topic, msg, objWriter, charset);
+                return flush();
             }
         }
 
         @Override
-        public SendResult sendIntAsByte(int msgType) {
-            synchronized (directMemoryBuffer) {
-                return directMemoryBuffer.writeMsgType(msgType, writer);
+        public SendResult publishMsgType(int msgType) {
+            synchronized (directMemoryBuffer){
+                directMemoryBuffer.appendIntAsByte(msgType);
+                return flush();
             }
+        }
+
+        private SendResult flush() {
+            final ByteBuffer buffer = directMemoryBuffer.buffer;
+            buffer.flip();
+            return writer.write(buffer);
+        }
+
+        @Override
+        public SendResult publish(JetlangBuffer buffer) {
+            return writer.write(buffer.buffer);
         }
 
         @Override
         public void sendSubscription(String subject, int msgType) {
             synchronized (directMemoryBuffer){
-                directMemoryBuffer.writeSubscription(subject, msgType, charset, writer);
+                directMemoryBuffer.appendSubscription(subject, msgType, charset);
+                flush();
             }
         }
 
         public Disconnected<T> onDisconnect() {
             return new Disconnected<>();
-        }
-
-        public void sendHb() {
-            sendIntAsByte(MsgTypes.Heartbeat);
         }
     }
 
@@ -371,6 +389,10 @@ public class JetlangTcpNioClient<R, W> {
         return clientFactory.publish(topic, msg);
     }
 
+    public SendResult publish(JetlangBuffer buffer){
+        return clientFactory.publish(buffer);
+    }
+
     private static class JetlangClientFactory<R, W> implements TcpClientNioConfig.ClientFactory {
 
         private final Serializer<R, W> ser;
@@ -431,7 +453,10 @@ public class JetlangTcpNioClient<R, W> {
             this.channel = connect;
             this.connectEventChannel.publish(new ConnectEvent());
 
-            Disposable hbSched = nioFiber.scheduleAtFixedRate(connect::sendHb,
+            Runnable sendHb = ()->{
+                connect.publishMsgType(MsgTypes.Heartbeat);
+            };
+            Disposable hbSched = nioFiber.scheduleAtFixedRate(sendHb,
                     config.getHeartbeatIntervalInMs(), config.getHeartbeatIntervalInMs(), TimeUnit.MILLISECONDS);
             Disposable readTimeout = nioFiber.scheduleAtFixedRate(() -> {
                 reader.checkForReadTimeout(readTimeoutInMs);
@@ -459,11 +484,15 @@ public class JetlangTcpNioClient<R, W> {
         }
 
         public boolean sendLogoutIfConnected() {
-            return channel.sendIntAsByte(MsgTypes.Disconnect).equals(SendResult.SUCCESS);
+            return channel.publishMsgType(MsgTypes.Disconnect).equals(SendResult.SUCCESS);
         }
 
         public <T extends R> Disposable subscribe(String topic, Subscribable<T> tChannelSubscription) {
             return subscriptions.subscribe(topic, tChannelSubscription, channel);
+        }
+
+        public SendResult publish(JetlangBuffer buffer) {
+            return channel.publish(buffer);
         }
     }
 }

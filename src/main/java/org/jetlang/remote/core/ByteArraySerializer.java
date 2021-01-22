@@ -10,6 +10,7 @@ import java.io.IOException;
 public class ByteArraySerializer implements Serializer<byte[], byte[]> {
 
     public static class Writer implements ObjectByteWriter<byte[]> {
+        @Override
         public void write(String topic, byte[] obj, ByteMessageWriter writer) {
             writer.writeObjectAsBytes(obj, 0, obj.length);
         }

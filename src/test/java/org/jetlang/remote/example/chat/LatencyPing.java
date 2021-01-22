@@ -163,6 +163,7 @@ public class LatencyPing {
             return new ObjectByteWriter<Long>() {
                 byte[] bytes = new byte[8];
                 ByteBuffer buffer = ByteBuffer.wrap(bytes);
+                @Override
                 public void write(String topic, Long msg, ByteMessageWriter writer) {
                     buffer.clear();
                     buffer.putLong(msg);

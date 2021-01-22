@@ -45,7 +45,9 @@ public class TcpClientNioFiber {
         }
 
         public SendResult write(ByteBuffer bb) {
-            return writer.send(bb);
+            SendResult send = writer.send(bb);
+            bb.clear();
+            return send;
         }
     }
 

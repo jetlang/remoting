@@ -3,21 +3,19 @@ package org.jetlang.remote.client;
 import org.jetlang.remote.core.ByteMessageWriter;
 import org.jetlang.remote.core.MsgTypes;
 import org.jetlang.remote.core.ObjectByteWriter;
-import org.jetlang.remote.core.TcpClientNioFiber;
-import org.jetlang.web.SendResult;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.charset.Charset;
 
-public class JetlangDirectBuffer {
+public class JetlangBuffer {
     public ByteBuffer buffer;
     private final ByteMessageWriter byteMsgWriter = (buffer, offset, length) -> {
         appendInt(length);
         append(buffer, offset, length);
     };
 
-    public JetlangDirectBuffer(int initialSize) {
+    public JetlangBuffer(int initialSize) {
         this.buffer = allocate(initialSize);
     }
 
@@ -25,32 +23,33 @@ public class JetlangDirectBuffer {
         return ByteBuffer.allocateDirect(initialSize).order(ByteOrder.BIG_ENDIAN);
     }
 
-    public <T> SendResult write(String topic, T msg, ObjectByteWriter<T> objWriter, TcpClientNioFiber.Writer chan, Charset charset) {
-        append(topic, msg, objWriter, charset);
-        return flush(chan);
-    }
-
-    public <T> void append(String topic, T msg, ObjectByteWriter<T> objWriter, Charset charset) {
+    public <T> void appendMsg(String topic, T msg, ObjectByteWriter<T> objWriter, Charset charset) {
         appendIntAsByte(MsgTypes.Data);
         appendMsgBody(topic, msg, objWriter, charset);
     }
 
+    public <T> void appendMsg(byte[] topicBytes, ByteBuffer msg) {
+        int sz = msg.limit();
+        resize(sz + 4 + 1 + 1 + topicBytes.length);
+        appendIntAsByte(MsgTypes.Data);
+        appendString(topicBytes);
+        appendInt(sz);
+        buffer.put(msg);
+    }
+
     private <T> void appendMsgBody(String topic, T msg, ObjectByteWriter<T> objWriter, Charset charset) {
         byte[] topicBytes = topic.getBytes(charset);
-        appendIntAsByte(topicBytes.length);
-        append(topicBytes, 0, topicBytes.length);
+        appendString(topicBytes);
         objWriter.write(topic, msg, byteMsgWriter);
     }
 
-    public int position(){
-        return buffer.position();
+    private void appendString(byte[] topicBytes) {
+        appendIntAsByte(topicBytes.length);
+        append(topicBytes, 0, topicBytes.length);
     }
 
-    private SendResult flush(TcpClientNioFiber.Writer chan) {
-        buffer.flip();
-        SendResult result = chan.write(buffer);
-        buffer.clear();
-        return result;
+    public int position() {
+        return buffer.position();
     }
 
     private void append(byte[] topicBytes, int offset, int length) {
@@ -58,17 +57,12 @@ public class JetlangDirectBuffer {
         buffer.put(topicBytes, offset, length);
     }
 
-    public SendResult writeMsgType(int msgType, TcpClientNioFiber.Writer writer) {
-        appendIntAsByte(msgType);
-        return flush(writer);
-    }
-
     public void appendIntAsByte(int msgType) {
         resize(1);
         buffer.put((byte) msgType);
     }
 
-    public void appendInt(int value) {
+    private void appendInt(int value) {
         resize(4);
         buffer.putInt(value);
     }
@@ -82,12 +76,10 @@ public class JetlangDirectBuffer {
         }
     }
 
-    public SendResult writeSubscription(String subject, int subscriptionType, Charset charset, TcpClientNioFiber.Writer writer) {
+    public void appendSubscription(String subject, int subscriptionType, Charset charset) {
         byte[] bytes = subject.getBytes(charset);
         appendIntAsByte(subscriptionType);
-        appendIntAsByte(bytes.length);
-        append(bytes, 0, bytes.length);
-        return flush(writer);
+        appendString(bytes);
     }
 
     public void appendBytes(byte[] bytes) {
@@ -98,5 +90,14 @@ public class JetlangDirectBuffer {
         appendIntAsByte(MsgTypes.DataReply);
         appendInt(reqId);
         appendMsgBody(replyTopic, replyMsg, objectByteWriter, charset);
+    }
+
+    public void flip() {
+        buffer.flip();
+    }
+
+    public void move(int position, int limit) {
+        buffer.position(position);
+        buffer.limit(limit);
     }
 }

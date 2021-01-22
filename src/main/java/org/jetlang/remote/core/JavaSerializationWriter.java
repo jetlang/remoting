@@ -20,6 +20,7 @@ public class JavaSerializationWriter implements ObjectByteWriter<Object> {
 
     final ByteStream bytes = new ByteStream();
 
+    @Override
     public void write(String toTopic, Object msg, ByteMessageWriter writer){
         bytes.reset();
         try {

@@ -1,18 +1,16 @@
 package org.jetlang.remote.core;
 
 import org.jetlang.remote.acceptor.CloseableByteArrayStream;
-import org.jetlang.remote.client.JetlangDirectBuffer;
+import org.jetlang.remote.client.JetlangBuffer;
 import org.junit.Test;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.OutputStream;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 
 import static org.junit.Assert.assertEquals;
 
-public class JetlangDirectBufferTest {
+public class JetlangBufferTest {
 
     @Test
     public void same() throws IOException {
@@ -21,7 +19,7 @@ public class JetlangDirectBufferTest {
         CloseableByteArrayStream b = new CloseableByteArrayStream();
         SocketMessageStreamWriter<byte[]> stream = new SocketMessageStreamWriter<byte[]>(createOut(b), usAscii, serializer.getWriter());
         byte[] contents = new byte[0];
-        JetlangDirectBuffer direct = new JetlangDirectBuffer(128);
+        JetlangBuffer direct = new JetlangBuffer(128);
         direct.appendReply(5, "reply", contents, serializer.getWriter(), usAscii);
         stream.writeReply(5, "reply", contents);
         byte[] expected = b.data.toByteArray();
