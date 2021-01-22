@@ -29,6 +29,9 @@ public class Client {
         SynchronousDisposingExecutor executor = new SynchronousDisposingExecutor();
         tcpClient.getConnectChannel().subscribe(executor, Client.<ConnectEvent>print("Connect"));
         tcpClient.getCloseChannel().subscribe(executor, Client.<CloseEvent>print("Closed"));
+        tcpClient.getReadTimeoutChannel().subscribe(executor, (timeout)->{
+            System.out.println("timeout = " + timeout);
+        });
         tcpClient.start();
         read(tcpClient, executor);
 

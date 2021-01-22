@@ -28,10 +28,12 @@ public class SocketMessageStreamWriter<T> implements MessageStreamWriter<T> {
         this(new BufferedStream(new ByteArrayBuffer(), socket), charset, writer);
     }
 
+    @Override
     public void writeByteAsInt(int byteToWrite) throws IOException {
         socketOutputStream.write(byteToWrite);
     }
 
+    @Override
     public void writeSubscription(int msgType, String subject, Charset charset) throws IOException {
         byte[] bytes = subject.getBytes(charset);
         buffer.appendIntAsByte(msgType);
@@ -40,6 +42,7 @@ public class SocketMessageStreamWriter<T> implements MessageStreamWriter<T> {
         socketOutputStream.flush();
     }
 
+    @Override
     public boolean tryClose() {
         return socketOutputStream.close();
     }
@@ -51,28 +54,20 @@ public class SocketMessageStreamWriter<T> implements MessageStreamWriter<T> {
         }
     };
 
+    @Override
     public void write(String topic, T msg) throws IOException {
         buffer.appendIntAsByte(MsgTypes.Data);
         writeData(topic, msg);
     }
 
-    public int writeWithoutFlush(String topic, T msg) throws IOException {
-        buffer.appendIntAsByte(MsgTypes.Data);
-        writeIntoBuffer(topic, msg);
-        return buffer.position;
-    }
-
-    public void setPositionAndFlush(int position) throws IOException {
-        buffer.position = position;
-        socketOutputStream.flush();
-    }
-
+    @Override
     public void writeRequest(int id, String reqTopic, T req) throws IOException {
         buffer.appendIntAsByte(MsgTypes.DataRequest);
         buffer.appendInt(id);
         writeData(reqTopic, req);
     }
 
+    @Override
     public void writeReply(int reqId, String requestTopic, T replyMsg) throws IOException {
         buffer.appendIntAsByte(MsgTypes.DataReply);
         buffer.appendInt(reqId);
@@ -91,6 +86,7 @@ public class SocketMessageStreamWriter<T> implements MessageStreamWriter<T> {
         writer.write(topic, req, byteMessageWriter);
     }
 
+    @Override
     public void writeBytes(byte[] bytes) throws IOException {
         socketOutputStream.writeBytes(bytes);
     }
@@ -118,24 +114,29 @@ public class SocketMessageStreamWriter<T> implements MessageStreamWriter<T> {
             this.output = closable.getOutputStream();
         }
 
+        @Override
         public ByteArrayBuffer getBuffer() {
             return buffer;
         }
 
+        @Override
         public void flush() throws IOException {
             buffer.flushTo(closable.getOutputStream());
         }
 
+        @Override
         public void write(int byteToWrite) throws IOException {
             //write directly. no need for buffer.
             output.write(byteToWrite);
         }
 
+        @Override
         public void writeBytes(byte[] bytes) throws IOException {
             //write directly. no need for buffer.
             output.write(bytes);
         }
 
+        @Override
         public boolean close() {
             return closable.close();
         }

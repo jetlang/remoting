@@ -4,6 +4,8 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.SocketException;
+import java.net.StandardSocketOptions;
+import java.nio.channels.SocketChannel;
 
 public class SocketConnector {
 
@@ -59,6 +61,22 @@ public class SocketConnector {
     public void setSendBufferSize(int sendBufferSize) {
         this.sendBufferSize = sendBufferSize;
     }
+
+    public SocketChannel connectBlockingChannel() throws IOException {
+        InetSocketAddress endpoint = getInetSocketAddress();
+        SocketChannel channel = SocketChannel.open();
+        channel.configureBlocking(true);
+        channel.setOption(StandardSocketOptions.TCP_NODELAY, true);
+        //read timeout isn't supported for blocking socket channels
+        //channel.socket().setSoTimeout(readTimeoutInMs);
+        if (receiveBufferSize > 0)
+            channel.setOption(StandardSocketOptions.SO_RCVBUF, receiveBufferSize);
+        if (sendBufferSize > 0)
+            channel.setOption(StandardSocketOptions.SO_SNDBUF, sendBufferSize);
+        channel.socket().connect(endpoint, connectTimeoutInMs);
+        return channel;
+    }
+
 
     public Socket connect() throws IOException {
         InetSocketAddress endpoint = getInetSocketAddress();

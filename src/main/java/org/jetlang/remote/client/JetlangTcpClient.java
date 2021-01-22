@@ -23,6 +23,7 @@ import org.jetlang.remote.core.TcpSocket;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.Socket;
+import java.nio.channels.SocketChannel;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
@@ -60,6 +61,7 @@ public class JetlangTcpClient<R, W> implements JetlangClient<R, W> {
     private final AtomicBoolean closed = new AtomicBoolean(false);
     private final CountDownLatch logoutLatch = new CountDownLatch(1);
     private Disposable hbSchedule;
+    private Disposable timeoutSchedule;
     private final Channel<HeartbeatEvent> Heartbeat = channel();
     private AtomicInteger reqId = new AtomicInteger();
     private final Map<Integer, Req> pendingRequests = Collections.synchronizedMap(new HashMap<Integer, Req>());
@@ -148,6 +150,11 @@ public class JetlangTcpClient<R, W> implements JetlangClient<R, W> {
             socket = null;
             if (hbSchedule != null) {
                 hbSchedule.dispose();
+                hbSchedule = null;
+            }
+            if(timeoutSchedule != null){
+                timeoutSchedule.dispose();
+                timeoutSchedule = null;
             }
             if (closed.get()) {
                 this.Closed.publish(new CloseEvent.GracefulDisconnect());
@@ -161,7 +168,7 @@ public class JetlangTcpClient<R, W> implements JetlangClient<R, W> {
         @Override
         public void run() {
             try {
-                Socket socket = socketConnector.connect();
+                SocketChannel socket = socketConnector.connectBlockingChannel();
                 handleConnect(socket);
             } catch (Exception failed) {
                 errorHandler.onException(failed);
@@ -185,18 +192,19 @@ public class JetlangTcpClient<R, W> implements JetlangClient<R, W> {
 
     private final Runnable onReadTimeout = () -> ReadTimeout.publish(new ReadTimeoutEvent());
 
-    private void handleConnect(Socket newSocket) throws IOException {
+    private void handleConnect(SocketChannel newSocket) throws IOException {
         this.pendingConnect.dispose();
         this.pendingConnect = null;
-        this.socket = new SocketMessageStreamWriter<W>(new TcpSocket(newSocket, errorHandler), charset, ser.getWriter());
+        this.socket = new MessageStreamWriter.NioChannel<W>(newSocket, charset, ser.getWriter());
         this.remoteSubscriptions.onConnect();
-        final InputStream stream = newSocket.getInputStream();
+        final AtomicBoolean lastRead = new AtomicBoolean(true);
         final Runnable reader = () -> {
             final JetlangRemotingProtocol protocol = new JetlangRemotingProtocol<R>(protocolHandler, ser.getReader(), config.createTopicReader(charset));
-            final JetlangRemotingInputStream inputStream = new JetlangRemotingInputStream(stream, protocol, onReadTimeout);
+            final JetlangRemotingInputStream inputStream = new JetlangRemotingInputStream(newSocket, protocol, onReadTimeout);
             try {
                 Connected.publish(new ConnectEvent());
                 while (inputStream.readFromStream()) {
+                    lastRead.set(true);
                 }
             } catch (IOException failed) {
                 handleReadExceptionOnSendFiber(failed);
@@ -207,6 +215,18 @@ public class JetlangTcpClient<R, W> implements JetlangClient<R, W> {
         if (config.getHeartbeatIntervalInMs() > 0) {
             hbSchedule = sendFiber.scheduleWithFixedDelay(hb, config.getHeartbeatIntervalInMs(), config.getHeartbeatIntervalInMs(), TimeUnit.MILLISECONDS);
         }
+        if(socketConnector.getReadTimeoutInMs() > 0) {
+            Runnable checkTimeout = () -> {
+                if (!lastRead.get()) {
+                    lastRead.set(true);
+                    onReadTimeout.run();
+                } else {
+                    lastRead.set(false);
+                }
+            };
+            timeoutSchedule = sendFiber.scheduleWithFixedDelay(checkTimeout, socketConnector.getReadTimeoutInMs(), socketConnector.getReadTimeoutInMs(), TimeUnit.MILLISECONDS);
+        }
+
     }
 
     private final JetlangRemotingProtocol.ClientHandler<R> protocolHandler;
@@ -296,49 +316,37 @@ public class JetlangTcpClient<R, W> implements JetlangClient<R, W> {
                                   final Callback<TimeoutControls> timeoutRunnable, int timeout, TimeUnit timeUnit) {
         final AtomicBoolean disposed = new AtomicBoolean(false);
         final int id = reqId.incrementAndGet();
-        Runnable reqSend = new Runnable() {
-            public void run() {
-                if (!disposed.get()) {
-                    if (socket != null) {
-                        pendingRequests.put(id, new Req<C>(executor, callback, disposed));
-                        try {
-                            socket.writeRequest(id, reqTopic, req);
-                        } catch (IOException e) {
-                            pendingRequests.remove(id);
-                            handleDisconnect(new CloseEvent.WriteException(e));
-                        }
+        Runnable reqSend = () -> {
+            if (!disposed.get()) {
+                if (socket != null) {
+                    pendingRequests.put(id, new Req<C>(executor, callback, disposed));
+                    try {
+                        socket.writeRequest(id, reqTopic, req);
+                    } catch (IOException e) {
+                        pendingRequests.remove(id);
+                        handleDisconnect(new CloseEvent.WriteException(e));
                     }
                 }
             }
         };
         sendFiber.execute(reqSend);
         if (timeout > 0 && callback != null) {
-            Runnable onTimeout = new Runnable() {
-                public void run() {
-                    if (!disposed.get()) {
-                        TimeoutControls controls = new TimeoutControls() {
-                            public void cancelRequest() {
-                                disposed.set(true);
-                                pendingRequests.remove(id);
-                            }
-                        };
-                        timeoutRunnable.onMessage(controls);
-                    }
+            Runnable onTimeout = () -> {
+                if (!disposed.get()) {
+                    TimeoutControls controls = () -> {
+                        disposed.set(true);
+                        pendingRequests.remove(id);
+                    };
+                    timeoutRunnable.onMessage(controls);
                 }
             };
             final Disposable disposable = sendFiber.schedule(onTimeout, timeout, timeUnit);
-            return new Disposable() {
-                public void dispose() {
-                    disposed.set(true);
-                    disposable.dispose();
-                }
+            return () -> {
+                disposed.set(true);
+                disposable.dispose();
             };
         } else {
-            return new Disposable() {
-                public void dispose() {
-                    disposed.set(true);
-                }
-            };
+            return () -> disposed.set(true);
         }
     }
 
