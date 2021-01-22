@@ -1,7 +1,6 @@
 package org.jetlang.remote.core;
 
 import org.jetlang.remote.acceptor.CloseableByteArrayStream;
-import org.jetlang.remote.client.JetlangBuffer;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -23,10 +22,10 @@ public class JetlangBufferTest {
         direct.appendReply(5, "reply", contents, serializer.getWriter(), usAscii);
         stream.writeReply(5, "reply", contents);
         byte[] expected = b.data.toByteArray();
-        assertEquals(expected.length, direct.buffer.position());
-        direct.buffer.flip();
-        byte[] bytes = new byte[direct.buffer.position()];
-        direct.buffer.get(bytes);
+        assertEquals(expected.length, direct.position());
+        direct.flip();
+        byte[] bytes = new byte[direct.position()];
+        direct.getBuffer().get(bytes);
         for(int i = 0; i < bytes.length; i++){
             assertEquals(bytes[i], expected[i]);
         }

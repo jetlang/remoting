@@ -1,19 +1,19 @@
-package org.jetlang.remote.client;
-
-import org.jetlang.remote.core.ByteMessageWriter;
-import org.jetlang.remote.core.MsgTypes;
-import org.jetlang.remote.core.ObjectByteWriter;
+package org.jetlang.remote.core;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.charset.Charset;
 
 public class JetlangBuffer {
-    public ByteBuffer buffer;
+    private ByteBuffer buffer;
     private final ByteMessageWriter byteMsgWriter = (buffer, offset, length) -> {
         appendInt(length);
         append(buffer, offset, length);
     };
+
+    public ByteBuffer getBuffer(){
+        return buffer;
+    }
 
     public JetlangBuffer(int initialSize) {
         this.buffer = allocate(initialSize);

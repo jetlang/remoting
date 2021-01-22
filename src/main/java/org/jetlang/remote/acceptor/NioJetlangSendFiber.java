@@ -5,7 +5,7 @@ import org.jetlang.fibers.NioChannelHandler;
 import org.jetlang.fibers.NioControls;
 import org.jetlang.fibers.NioFiber;
 import org.jetlang.fibers.NioFiberImpl;
-import org.jetlang.remote.client.JetlangBuffer;
+import org.jetlang.remote.core.JetlangBuffer;
 import org.jetlang.remote.core.MsgTypes;
 import org.jetlang.remote.core.ObjectByteWriter;
 
@@ -271,7 +271,7 @@ public class NioJetlangSendFiber<T> {
         }
 
         public void flush(ChannelState session) {
-            ByteBuffer toSend = byteBuffer.buffer;
+            ByteBuffer toSend = byteBuffer.getBuffer();
             toSend.flip();
             executeFlush(toSend, session);
             toSend.clear();
@@ -332,7 +332,7 @@ public class NioJetlangSendFiber<T> {
         }
 
         public void setPositionAndFlush(int position, ChannelState session) {
-            ByteBuffer bb = byteBuffer.buffer;
+            ByteBuffer bb = byteBuffer.getBuffer();
             bb.position(position);
             flush(session);
         }

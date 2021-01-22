@@ -15,6 +15,7 @@ import org.jetlang.remote.acceptor.NioJetlangProtocolReader;
 import org.jetlang.remote.core.CloseableChannel;
 import org.jetlang.remote.core.ErrorHandler;
 import org.jetlang.remote.core.HeartbeatEvent;
+import org.jetlang.remote.core.JetlangBuffer;
 import org.jetlang.remote.core.JetlangRemotingProtocol;
 import org.jetlang.remote.core.MsgTypes;
 import org.jetlang.remote.core.ObjectByteWriter;
@@ -90,7 +91,7 @@ public class JetlangTcpNioClient<R, W> {
 
         @Override
         public SendResult publish(JetlangBuffer buffer) {
-            buffer.buffer.clear();
+            buffer.getBuffer().clear();
             return SendResult.Closed;
         }
 
@@ -141,14 +142,14 @@ public class JetlangTcpNioClient<R, W> {
         }
 
         private SendResult flush() {
-            final ByteBuffer buffer = directMemoryBuffer.buffer;
+            final ByteBuffer buffer = directMemoryBuffer.getBuffer();
             buffer.flip();
             return writer.write(buffer);
         }
 
         @Override
         public SendResult publish(JetlangBuffer buffer) {
-            return writer.write(buffer.buffer);
+            return writer.write(buffer.getBuffer());
         }
 
         @Override
