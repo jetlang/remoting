@@ -49,6 +49,12 @@ public class JetlangTcpNioClient<R, W> {
     private final JetlangClientFactory<R, W> clientFactory;
     private final SocketConnector socketConnector;
     private final CountDownLatch logoutLatch = new CountDownLatch(1);
+    private ReplyHandler<R> replyHandler  = new ReplyHandler<R>() {
+        @Override
+        public void onReply(int reqId, String dataTopicVal, R readObject) {
+            errorHandler.onException(new RuntimeException("Req/Reply not supported. " + dataTopicVal + " " + readObject));
+        }
+    };
 
     private <T> CloseableChannel<T> channel() {
         return channelsToClose.newChannel();
@@ -70,7 +76,7 @@ public class JetlangTcpNioClient<R, W> {
 
         void sendSubscription(String subject, int subscriptionType);
 
-        SendResult publish(JetlangBuffer buffer);
+        SendResult publish(SendBuffer buffer);
 
         SendResult publishMsgType(int msgType);
     }
@@ -90,8 +96,8 @@ public class JetlangTcpNioClient<R, W> {
         }
 
         @Override
-        public SendResult publish(JetlangBuffer buffer) {
-            buffer.getBuffer().clear();
+        public SendResult publish(SendBuffer buffer) {
+            buffer.clear();
             return SendResult.Closed;
         }
 
@@ -148,7 +154,7 @@ public class JetlangTcpNioClient<R, W> {
         }
 
         @Override
-        public SendResult publish(JetlangBuffer buffer) {
+        public SendResult publish(SendBuffer buffer) {
             return writer.write(buffer.getBuffer());
         }
 
@@ -256,11 +262,16 @@ public class JetlangTcpNioClient<R, W> {
         this.socketConnector = socketConnector;
         this.clientFactory = new JetlangClientFactory<>(ser, topicReader,
                 Connected, readTimeout, Closed, config,
-                socketConnector.getReadTimeoutInMs(), channelsToClose, logoutLatch, errorHandler, hb);
+                socketConnector.getReadTimeoutInMs(), channelsToClose, logoutLatch, errorHandler, hb,
+                (ReplyHandler<R>) (reqId, dataTopicVal, readObject) -> replyHandler.onReply(reqId, dataTopicVal, readObject));
         this.config = config;
         this.ser = ser;
         this.errorHandler = errorHandler;
         this.readFiber = readFiber;
+    }
+
+    public void setReplyHandler(ReplyHandler<R> replyHandler) {
+        this.replyHandler = replyHandler;
     }
 
     public Subscriber<ReadTimeoutEvent> getReadTimeoutChannel() {
@@ -390,8 +401,13 @@ public class JetlangTcpNioClient<R, W> {
         return clientFactory.publish(topic, msg);
     }
 
-    public SendResult publish(JetlangBuffer buffer){
+    public SendResult publish(SendBuffer buffer){
         return clientFactory.publish(buffer);
+    }
+
+    public interface ReplyHandler<R> {
+
+        void onReply(int reqId, String dataTopicVal, R readObject);
     }
 
     private static class JetlangClientFactory<R, W> implements TcpClientNioConfig.ClientFactory {
@@ -407,6 +423,7 @@ public class JetlangTcpNioClient<R, W> {
         private final ErrorHandler errorHandler;
         private final Subscriptions subscriptions;
         private final Publisher<HeartbeatEvent> hb;
+        private ReplyHandler replyHandler;
 
         private volatile Sender<W> channel;
 
@@ -420,10 +437,12 @@ public class JetlangTcpNioClient<R, W> {
                                     CloseableChannel.Group channelsToClose,
                                     CountDownLatch logoutLatch,
                                     ErrorHandler errorHandler,
-                                    Publisher<HeartbeatEvent> hb) {
+                                    Publisher<HeartbeatEvent> hb,
+                                    ReplyHandler replyHandler) {
             this.ser = ser;
             this.subscriptions = new Subscriptions(channelsToClose);
             this.hb = hb;
+            this.replyHandler = replyHandler;
             this.channel = new Disconnected<>();
             this.topicReader = topicReader;
             this.connectEventChannel = connectEventChannel;
@@ -445,7 +464,7 @@ public class JetlangTcpNioClient<R, W> {
 
                 @Override
                 public void onRequestReply(int reqId, String dataTopicVal, R readObject) {
-                    errorHandler.onException(new RuntimeException("Req/Reply not supported. " + dataTopicVal + " " + readObject));
+                    replyHandler.onReply(reqId, dataTopicVal, readObject);
                 }
             };
             NioJetlangProtocolReader<R> reader = new NioJetlangProtocolReader<R>(chan, msgHandler, ser.getReader(), topicReader,
@@ -492,7 +511,7 @@ public class JetlangTcpNioClient<R, W> {
             return subscriptions.subscribe(topic, tChannelSubscription, channel);
         }
 
-        public SendResult publish(JetlangBuffer buffer) {
+        public SendResult publish(SendBuffer buffer) {
             return channel.publish(buffer);
         }
     }

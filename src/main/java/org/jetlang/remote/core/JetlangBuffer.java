@@ -1,5 +1,6 @@
 package org.jetlang.remote.core;
 
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.charset.Charset;
@@ -30,7 +31,7 @@ public class JetlangBuffer {
 
     public <T> void appendMsg(byte[] topicBytes, ByteBuffer msg) {
         int sz = msg.limit();
-        resize(sz + 4 + 1 + 1 + topicBytes.length);
+        resize(1 + 1 + topicBytes.length + 4 + sz);
         appendIntAsByte(MsgTypes.Data);
         appendString(topicBytes);
         appendInt(sz);
@@ -86,10 +87,27 @@ public class JetlangBuffer {
         append(bytes, 0, bytes.length);
     }
 
-    public <T> void appendReply(int reqId, String replyTopic, T replyMsg, ObjectByteWriter<T> objectByteWriter, Charset charset) {
+    public <T> void appendRequest(int reqId, String reqTopic, T reqMsg, ObjectByteWriter<T> objectByteWriter, Charset topicCharset) {
+        appendIntAsByte(MsgTypes.DataRequest);
+        appendInt(reqId);
+        appendMsgBody(reqTopic, reqMsg, objectByteWriter, topicCharset);
+    }
+
+    public <T> void appendRequest(int reqId, byte[] reqTopic, ByteBuffer reqMsg) {
+        int sz = reqMsg.limit();
+        resize(1 + 4 + 1 + reqTopic.length + 4 + sz);
+        appendIntAsByte(MsgTypes.DataRequest);
+        appendInt(reqId);
+        appendString(reqTopic);
+        appendInt(sz);
+        buffer.put(reqMsg);
+    }
+
+
+    public <T> void appendReply(int reqId, String replyTopic, T replyMsg, ObjectByteWriter<T> objectByteWriter, Charset topicCharset) {
         appendIntAsByte(MsgTypes.DataReply);
         appendInt(reqId);
-        appendMsgBody(replyTopic, replyMsg, objectByteWriter, charset);
+        appendMsgBody(replyTopic, replyMsg, objectByteWriter, topicCharset);
     }
 
     public void flip() {
