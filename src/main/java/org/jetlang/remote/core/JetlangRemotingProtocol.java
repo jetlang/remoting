@@ -227,9 +227,10 @@ public class JetlangRemotingProtocol<T> {
             @Override
             public State run() throws IOException {
                 int origPos = buffer.position();
-                final T readObject = reader.readObject(dataTopicVal, buffer, dataSizeVal);
+                T readObject = reader.readObject(dataTopicVal, buffer, dataSizeVal);
+                State newState = onObject(dataTopicVal, readObject);
                 buffer.position(origPos + dataSizeVal);
-                return onObject(dataTopicVal, readObject);
+                return newState;
             }
         };
         State dataSize = new State() {
