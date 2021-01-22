@@ -15,9 +15,9 @@ public class JetlangBuffer {
         }
 
         @Override
-        public void writeObjectAsBytes(ByteBuffer buffer, int length) {
-            appendInt(length);
-            append(buffer, length);
+        public void writeObjectAsBytes(ByteBuffer buffer) {
+            appendInt(buffer.remaining());
+            append(buffer);
         }
     };
 
@@ -67,12 +67,9 @@ public class JetlangBuffer {
         buffer.put(topicBytes, offset, length);
     }
 
-    private void append(ByteBuffer msg, int length) {
-        resize(length);
-        int origLimit = msg.limit();
-        msg.limit(msg.position() + length);
+    private void append(ByteBuffer msg) {
+        resize(msg.remaining());
         buffer.put(msg);
-        msg.limit(Math.max(origLimit, msg.limit()));
     }
 
 

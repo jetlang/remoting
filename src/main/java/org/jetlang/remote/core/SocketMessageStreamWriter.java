@@ -55,9 +55,9 @@ public class SocketMessageStreamWriter<T> implements MessageStreamWriter<T> {
         }
 
         @Override
-        public void writeObjectAsBytes(ByteBuffer bb, int length) {
-            buffer.appendInt(length);
-            buffer.append(bb, length);
+        public void writeObjectAsBytes(ByteBuffer bb) {
+            buffer.appendInt(bb.remaining());
+            buffer.append(bb);
         }
     };
 

@@ -9,5 +9,5 @@ import java.nio.ByteBuffer;
  */
 public interface ByteMessageWriter {
     void writeObjectAsBytes(byte[] buffer, int offset, int length);
-    void writeObjectAsBytes(ByteBuffer buffer, int length);
+    void writeObjectAsBytes(ByteBuffer buffer);
 }

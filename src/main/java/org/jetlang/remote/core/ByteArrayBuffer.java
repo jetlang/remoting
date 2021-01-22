@@ -49,7 +49,8 @@ public class ByteArrayBuffer {
         position += length;
     }
 
-    public void append(ByteBuffer bytes, int length) {
+    public void append(ByteBuffer bytes) {
+        int length = bytes.remaining();
         resize(length);
         bytes.get(buffer, position, length);
         position += length;
