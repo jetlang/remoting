@@ -96,8 +96,7 @@ public class JetlangBuffer {
         buffer.flip();
     }
 
-    public void move(int position, int limit) {
-        buffer.position(position);
-        buffer.limit(limit);
+    public void clear(){
+        buffer.clear();
     }
 }
