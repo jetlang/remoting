@@ -177,4 +177,8 @@ public class NioWriter {
             return sendResult;
         }
     }
+
+    public SendResult send(byte[] bytes) {
+        return send(bytes, 0, bytes.length);
+    }
 }

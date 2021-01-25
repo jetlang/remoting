@@ -1,6 +1,7 @@
 package org.jetlang.remote.core;
 
 import org.jetlang.fibers.NioFiber;
+import org.jetlang.web.NioWriter;
 
 import java.io.IOException;
 import java.net.SocketAddress;
@@ -25,7 +26,7 @@ public interface TcpClientNioConfig {
         }
     }
 
-    TcpClientNioFiber.ConnectedClient createClientOnConnect(SocketChannel chan, NioFiber nioFiber, TcpClientNioFiber.Writer writer);
+    TcpClientNioFiber.ConnectedClient createClientOnConnect(SocketChannel chan, NioFiber nioFiber, NioWriter writer);
 
     default boolean onConnectTimeout(SocketChannel chan) {
         return true;
@@ -46,7 +47,7 @@ public interface TcpClientNioConfig {
     }
 
     interface ClientFactory {
-        TcpClientNioFiber.ConnectedClient createClientOnConnect(SocketChannel chan, NioFiber nioFiber, TcpClientNioFiber.Writer writer);
+        TcpClientNioFiber.ConnectedClient createClientOnConnect(SocketChannel chan, NioFiber nioFiber, NioWriter writer);
     }
 
     class Default implements TcpClientNioConfig {
@@ -109,7 +110,7 @@ public interface TcpClientNioConfig {
         }
 
         @Override
-        public TcpClientNioFiber.ConnectedClient createClientOnConnect(SocketChannel chan, NioFiber nioFiber, TcpClientNioFiber.Writer writer) {
+        public TcpClientNioFiber.ConnectedClient createClientOnConnect(SocketChannel chan, NioFiber nioFiber, NioWriter writer) {
             return clientFactory.createClientOnConnect(chan, nioFiber, writer);
         }
 

@@ -24,6 +24,7 @@ import org.jetlang.remote.core.Serializer;
 import org.jetlang.remote.core.TcpClientNioConfig;
 import org.jetlang.remote.core.TcpClientNioFiber;
 import org.jetlang.remote.core.TopicReader;
+import org.jetlang.web.NioWriter;
 import org.jetlang.web.SendResult;
 
 import java.nio.ByteBuffer;
@@ -70,7 +71,7 @@ public class JetlangTcpNioClient<R, W> {
 
     interface Sender<W> {
 
-        ConnectedChannel<W> connect(SocketChannel chan, NioFiber nioFiber, TcpClientNioFiber.Writer writer, ObjectByteWriter<W> objWriter, Charset charset, Subscriptions subscriptions);
+        ConnectedChannel<W> connect(SocketChannel chan, NioFiber nioFiber, NioWriter writer, ObjectByteWriter<W> objWriter, Charset charset, Subscriptions subscriptions);
 
         SendResult publish(String topic, W msg);
 
@@ -84,7 +85,7 @@ public class JetlangTcpNioClient<R, W> {
     private static class Disconnected<T> implements Sender<T> {
 
         @Override
-        public ConnectedChannel<T> connect(SocketChannel chan, NioFiber nioFiber, TcpClientNioFiber.Writer writer, ObjectByteWriter<T> objWriter, Charset charset, Subscriptions subscriptions) {
+        public ConnectedChannel<T> connect(SocketChannel chan, NioFiber nioFiber, NioWriter writer, ObjectByteWriter<T> objWriter, Charset charset, Subscriptions subscriptions) {
             ConnectedChannel<T> connectedChannel = new ConnectedChannel<>(writer, objWriter, charset);
             subscriptions.onConnect(connectedChannel);
             return connectedChannel;
@@ -114,12 +115,12 @@ public class JetlangTcpNioClient<R, W> {
 
     private static class ConnectedChannel<T> implements Sender<T> {
 
-        private final TcpClientNioFiber.Writer writer;
+        private final NioWriter writer;
         private final ObjectByteWriter<T> objWriter;
         private final Charset charset;
         private final JetlangBuffer directMemoryBuffer;
 
-        public ConnectedChannel(TcpClientNioFiber.Writer writer, ObjectByteWriter<T> objWriter, Charset charset) {
+        public ConnectedChannel(NioWriter writer, ObjectByteWriter<T> objWriter, Charset charset) {
             this.writer = writer;
             this.objWriter = objWriter;
             this.charset = charset;
@@ -127,7 +128,7 @@ public class JetlangTcpNioClient<R, W> {
         }
 
         @Override
-        public ConnectedChannel<T> connect(SocketChannel chan, NioFiber nioFiber, TcpClientNioFiber.Writer writer, ObjectByteWriter objWriter, Charset charset, Subscriptions subscriptions) {
+        public ConnectedChannel<T> connect(SocketChannel chan, NioFiber nioFiber, NioWriter writer, ObjectByteWriter objWriter, Charset charset, Subscriptions subscriptions) {
             throw new RuntimeException("should not connect");
         }
 
@@ -150,12 +151,18 @@ public class JetlangTcpNioClient<R, W> {
         private SendResult flush() {
             final ByteBuffer buffer = directMemoryBuffer.getBuffer();
             buffer.flip();
-            return writer.write(buffer);
+            return flush(buffer);
+        }
+
+        private SendResult flush(ByteBuffer buffer) {
+            SendResult send = writer.send(buffer);
+            buffer.clear();
+            return send;
         }
 
         @Override
         public SendResult publish(SendBuffer buffer) {
-            return writer.write(buffer.getBuffer());
+            return flush(buffer.getBuffer());
         }
 
         @Override
@@ -455,7 +462,7 @@ public class JetlangTcpNioClient<R, W> {
         }
 
         @Override
-        public TcpClientNioFiber.ConnectedClient createClientOnConnect(SocketChannel chan, NioFiber nioFiber, TcpClientNioFiber.Writer writer) {
+        public TcpClientNioFiber.ConnectedClient createClientOnConnect(SocketChannel chan, NioFiber nioFiber, NioWriter writer) {
             JetlangRemotingProtocol.ClientHandler<R> msgHandler = new JetlangRemotingProtocol.ClientHandler<R>(errorHandler, hb, subscriptions) {
                 @Override
                 public void onLogout() {

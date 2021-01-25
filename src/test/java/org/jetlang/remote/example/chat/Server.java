@@ -49,7 +49,8 @@ public class Server {
                 Callback<SessionMessage<byte[]>> onMsg = sessionMessage -> {
                     //forward the bytes to any and all clients that have subscribed to the topic
                     //message is serialized and written to clients on send fiber
-                    sender.publishToAllSubscribedClients(sessionMessage.getTopic(), sessionMessage.getMessage());
+                    //sender.publishToAllSubscribedClients(sessionMessage.getTopic(), sessionMessage.getMessage());
+                    session.publish(sessionMessage.getTopic(), sessionMessage.getMessage());
                     //System.out.println("topic: " + sessionMessage.getTopic() + " msg: " + sessionMessage.getMessage());
                 };
 

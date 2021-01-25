@@ -21,6 +21,7 @@ import org.jetlang.remote.core.TopicReader;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -40,8 +41,9 @@ public class LatencyPing {
             port = Integer.parseInt(args[1]);
         }
         final int iteration = 50000;
-        System.out.println("iterations = " + iteration);
-        for(int i = 0; i < 5; i++) {
+        final int loops = 1;
+        System.out.println("iterations = " + iteration + " loops: " + loops);
+        for(int i = 0; i < loops; i++) {
             execute(host, port, iteration);
         }
     }
@@ -73,7 +75,7 @@ public class LatencyPing {
                 }
             }
         };
-        tcpClient.subscribe("t", new SynchronousDisposingExecutor(), onMsg);
+        tcpClient.subscribeOnReadThread("t", onMsg);
 
         int sleepTime = 1;
         for (int i = 0; i < iteration; i++) {
@@ -86,11 +88,12 @@ public class LatencyPing {
 
     interface Client {
 
-        void subscribe(String topic, SynchronousDisposingExecutor executor, Callback<Long> onMsg);
+        void subscribeOnReadThread(String t, Callback<Long> onMsg);
 
         void publish(String t, long nanoTime);
 
         void close() throws InterruptedException;
+
     }
 
     private static Client startClient(SocketConnector conn, JetlangClientConfig clientConfig) {
@@ -105,7 +108,7 @@ public class LatencyPing {
         tcpClient.start();
         return new Client() {
             @Override
-            public void subscribe(String topic, SynchronousDisposingExecutor executor, Callback<Long> onMsg) {
+            public void subscribeOnReadThread(String topic, Callback<Long> onMsg) {
                 tcpClient.subscribe(topic, executor, onMsg);
             }
 
@@ -143,9 +146,10 @@ public class LatencyPing {
             throw new RuntimeException("Failed to connect");
         }
         return new Client() {
+
             @Override
-            public void subscribe(String topic, SynchronousDisposingExecutor executor, Callback<Long> onMsg) {
-                tcpClient.subscribe(topic, executor, onMsg);
+            public void subscribeOnReadThread(String topic, Callback<Long> onMsg) {
+                tcpClient.subscribeOnReadThread(topic, onMsg);
             }
 
             @Override
@@ -164,20 +168,22 @@ public class LatencyPing {
 
     public static class LongSerializer implements Serializer<Long, Long> {
 
+        @Override
         public ObjectByteWriter<Long> getWriter() {
             return new ObjectByteWriter<Long>() {
-                byte[] bytes = new byte[8];
-                ByteBuffer buffer = ByteBuffer.wrap(bytes);
+                ByteBuffer buffer = ByteBuffer.allocateDirect(8).order(ByteOrder.BIG_ENDIAN);
 
                 @Override
                 public void write(String topic, Long msg, ByteMessageWriter writer) {
                     buffer.clear();
                     buffer.putLong(msg);
-                    writer.writeObjectAsBytes(bytes, 0, bytes.length);
+                    buffer.flip();
+                    writer.writeObjectAsBytes(buffer);
                 }
             };
         }
 
+        @Override
         public ObjectByteReader<Long> getReader() {
             return (topic, bb, length) -> bb.getLong();
         }

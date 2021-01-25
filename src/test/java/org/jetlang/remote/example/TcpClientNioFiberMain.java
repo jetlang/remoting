@@ -25,7 +25,8 @@ public class TcpClientNioFiberMain {
         Supplier<SocketAddress> socketAddress = () -> new InetSocketAddress("localhost", 8080);
         TcpClientNioConfig.ClientFactory clientFact = (chan, nioFiber, writer) -> {
             System.out.println("chan = " + chan);
-            writer.write("Hello".getBytes(StandardCharsets.UTF_8));
+            byte[] bytes = "Hello".getBytes(StandardCharsets.UTF_8);
+            writer.send(bytes);
             return new TcpClientNioFiber.ConnectedClient() {
                 @Override
                 public boolean read(SocketChannel chan) {

@@ -28,29 +28,6 @@ public class TcpClientNioFiber {
         this.fiber = fiber;
     }
 
-    public static class Writer {
-
-        private final NioWriter writer;
-
-        public Writer(NioWriter writer) {
-            this.writer = writer;
-        }
-
-        public SendResult write(byte[] data) {
-            return write(data, 0, data.length);
-        }
-
-        public SendResult write(byte[] toSend, int start, int length) {
-            return writer.send(toSend, start, length);
-        }
-
-        public SendResult write(ByteBuffer bb) {
-            SendResult send = writer.send(bb);
-            bb.clear();
-            return send;
-        }
-    }
-
     public interface ConnectedClient {
 
         boolean read(SocketChannel chan);
@@ -157,7 +134,7 @@ public class TcpClientNioFiber {
         private void onConnect(NioFiber nioFiber) {
             connectTimeout.dispose();
             NioWriter writer = new NioWriter(new Object(), chan, nioFiber, ioPool.createFor(chan, nioFiber));
-            readHandler.client = channel.createClientOnConnect(chan, nioFiber, new Writer(writer));
+            readHandler.client = channel.createClientOnConnect(chan, nioFiber, writer);
         }
 
         @Override
