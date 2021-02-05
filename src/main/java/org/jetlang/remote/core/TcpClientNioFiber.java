@@ -6,10 +6,8 @@ import org.jetlang.fibers.NioControls;
 import org.jetlang.fibers.NioFiber;
 import org.jetlang.web.IoBufferPool;
 import org.jetlang.web.NioWriter;
-import org.jetlang.web.SendResult;
 
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.nio.channels.NoConnectionPendingException;
 import java.nio.channels.SelectableChannel;
 import java.nio.channels.SelectionKey;
@@ -77,7 +75,7 @@ public class TcpClientNioFiber {
                     factory.onUnresolvedAddress(chan, unresolved);
                 }
                 ReadHandler readHandler = new ReadHandler(chan, factory, this);
-                ConnectHandler connect = new ConnectHandler(chan, factory, this, pool, readHandler);
+                ConnectHandler connect = new ConnectHandler(chan, factory, pool, readHandler);
                 channels.add(chan);
                 connect.connectTimeout = fiber.schedule(() -> {
                     readHandler.reconnectOnClose = false;
@@ -100,16 +98,14 @@ public class TcpClientNioFiber {
     private static class ConnectHandler implements NioChannelHandler {
         private final SocketChannel chan;
         private final TcpClientNioConfig channel;
-        private final TcpConnectionState state;
         public Disposable connectTimeout;
         private final IoBufferPool.Factory ioPool;
         private final ReadHandler readHandler;
 
-        public ConnectHandler(SocketChannel chan, TcpClientNioConfig channel, TcpConnectionState state, IoBufferPool.Factory pool,
+        public ConnectHandler(SocketChannel chan, TcpClientNioConfig channel, IoBufferPool.Factory pool,
                               ReadHandler readHandler) {
             this.chan = chan;
             this.channel = channel;
-            this.state = state;
             this.ioPool = pool;
             this.readHandler = readHandler;
         }
