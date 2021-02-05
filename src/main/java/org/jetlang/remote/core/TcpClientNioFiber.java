@@ -103,7 +103,7 @@ public class TcpClientNioFiber {
         private final TcpConnectionState state;
         public Disposable connectTimeout;
         private final IoBufferPool.Factory ioPool;
-        private ReadHandler readHandler;
+        private final ReadHandler readHandler;
 
         public ConnectHandler(SocketChannel chan, TcpClientNioConfig channel, TcpConnectionState state, IoBufferPool.Factory pool,
                               ReadHandler readHandler) {
@@ -123,11 +123,8 @@ public class TcpClientNioFiber {
                 }
                 return Result.Continue;
             } catch (IOException | NoConnectionPendingException e) {
-                if (state.closed) {
-                    return Result.CloseSocket;
-                } else {
-                    return Result.Continue;
-                }
+                readHandler.reconnectOnClose = false;
+                return Result.CloseSocket;
             }
         }
 
@@ -149,7 +146,6 @@ public class TcpClientNioFiber {
 
         @Override
         public void onEnd() {
-            connectTimeout.dispose();
         }
 
         @Override
