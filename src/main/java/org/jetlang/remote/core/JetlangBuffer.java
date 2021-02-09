@@ -39,7 +39,7 @@ public class JetlangBuffer {
     }
 
     public <T> void appendMsg(byte[] topicBytes, ByteBuffer msg) {
-        int sz = msg.limit();
+        int sz = msg.remaining();
         resize(1 + 1 + topicBytes.length + 4 + sz);
         appendIntAsByte(MsgTypes.Data);
         appendString(topicBytes);
@@ -109,7 +109,7 @@ public class JetlangBuffer {
     }
 
     public <T> void appendRequest(int reqId, byte[] reqTopic, ByteBuffer reqMsg) {
-        int sz = reqMsg.limit();
+        int sz = reqMsg.remaining();
         resize(1 + 4 + 1 + reqTopic.length + 4 + sz);
         appendIntAsByte(MsgTypes.DataRequest);
         appendInt(reqId);
