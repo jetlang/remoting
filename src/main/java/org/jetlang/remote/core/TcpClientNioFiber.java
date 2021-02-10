@@ -27,7 +27,7 @@ public class TcpClientNioFiber {
     private static final SocketConector DEFAULT = new SocketConector() {
     };
 
-    interface SocketConector {
+    public interface SocketConector {
 
         default SocketChannel createChannel(TcpClientNioConfig factory){
             return factory.createNewSocketChannel();
