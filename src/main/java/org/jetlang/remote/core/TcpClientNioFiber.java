@@ -8,6 +8,7 @@ import org.jetlang.web.IoBufferPool;
 import org.jetlang.web.NioWriter;
 
 import java.io.IOException;
+import java.net.SocketAddress;
 import java.nio.channels.NoConnectionPendingException;
 import java.nio.channels.SelectableChannel;
 import java.nio.channels.SelectionKey;
@@ -20,11 +21,36 @@ import java.util.concurrent.TimeUnit;
 public class TcpClientNioFiber {
 
     private final NioFiber fiber;
+    private final SocketConector connector;
     private final IoBufferPool.Factory pool = new IoBufferPool.Default();
 
-    public TcpClientNioFiber(NioFiber fiber) {
-        this.fiber = fiber;
+    private static final SocketConector DEFAULT = new SocketConector() {
+    };
+
+    interface SocketConector {
+
+        default SocketChannel createChannel(TcpClientNioConfig factory){
+            return factory.createNewSocketChannel();
+        }
+
+        default boolean startConnect(SocketChannel chan, SocketAddress remoteAddress) throws IOException {
+            return chan.connect(remoteAddress);
+        }
+
+        default boolean finishConnect(SocketChannel chan) throws IOException {
+            return chan.finishConnect();
+        }
     }
+
+    public TcpClientNioFiber(NioFiber fiber, SocketConector connector) {
+        this.fiber = fiber;
+        this.connector = connector;
+    }
+
+    public TcpClientNioFiber(NioFiber fiber) {
+        this(fiber, DEFAULT);
+    }
+
 
     public interface ConnectedClient {
 
@@ -34,7 +60,7 @@ public class TcpClientNioFiber {
     }
 
     public Disposable connect(TcpClientNioConfig channel) {
-        TcpConnectionState state = new TcpConnectionState(channel, fiber, pool);
+        TcpConnectionState state = new TcpConnectionState(channel, fiber, pool, connector);
         fiber.execute(() -> {
             state.startNewConnection(channel.getInitialConnectTimeoutInMs());
         });
@@ -48,11 +74,13 @@ public class TcpClientNioFiber {
         private final TcpClientNioConfig factory;
         private final NioFiber fiber;
         private final IoBufferPool.Factory pool;
+        private final SocketConector connector;
 
-        public TcpConnectionState(TcpClientNioConfig factory, NioFiber fiber, IoBufferPool.Factory pool) {
+        public TcpConnectionState(TcpClientNioConfig factory, NioFiber fiber, IoBufferPool.Factory pool, SocketConector connector) {
             this.factory = factory;
             this.fiber = fiber;
             this.pool = pool;
+            this.connector = connector;
         }
 
         public void close() {
@@ -65,17 +93,17 @@ public class TcpClientNioFiber {
 
         public void startNewConnection(long delayInMs) {
             if (!closed) {
-                SocketChannel chan = factory.createNewSocketChannel();
+                SocketChannel chan = connector.createChannel(factory);
                 boolean connected = false;
                 try {
-                    connected = chan.connect(factory.getRemoteAddress());
+                    connected = connector.startConnect(chan, factory.getRemoteAddress());
                 } catch (IOException e) {
                     factory.onInitialConnectException(chan, e);
                 } catch (UnresolvedAddressException unresolved) {
                     factory.onUnresolvedAddress(chan, unresolved);
                 }
                 ReadHandler readHandler = new ReadHandler(chan, factory, this);
-                ConnectHandler connect = new ConnectHandler(chan, factory, pool, readHandler);
+                ConnectHandler connect = new ConnectHandler(chan, factory, pool, readHandler, connector);
                 channels.add(chan);
                 connect.connectTimeout = fiber.schedule(() -> {
                     readHandler.reconnectOnClose = false;
@@ -101,19 +129,21 @@ public class TcpClientNioFiber {
         public Disposable connectTimeout;
         private final IoBufferPool.Factory ioPool;
         private final ReadHandler readHandler;
+        private final SocketConector connector;
 
         public ConnectHandler(SocketChannel chan, TcpClientNioConfig channel, IoBufferPool.Factory pool,
-                              ReadHandler readHandler) {
+                              ReadHandler readHandler, SocketConector connector) {
             this.chan = chan;
             this.channel = channel;
             this.ioPool = pool;
             this.readHandler = readHandler;
+            this.connector = connector;
         }
 
         @Override
         public Result onSelect(NioFiber nioFiber, NioControls controls, SelectionKey key) {
             try {
-                if (chan.finishConnect()) {
+                if (connector.finishConnect(chan)) {
                     onConnect(nioFiber);
                     return Result.RemoveHandler;
                 }
