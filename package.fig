@@ -1,7 +1,7 @@
-resource "target/jetlang.remoting-0.7.06.jar"
-resource "target/jetlang.remoting-0.7.06-sources.jar"
+resource "target/jetlang.remoting-0.7.07.jar"
+resource "target/jetlang.remoting-0.7.07-sources.jar"
 
 config default
-  append CLASSPATH=@/target//jetlang.remoting-0.7.06.jar
-  append SOURCEPATH=@/target//jetlang.remoting-0.7.06-sources.jar
+  append CLASSPATH=@/target//jetlang.remoting-0.7.07.jar
+  append SOURCEPATH=@/target//jetlang.remoting-0.7.07-sources.jar
 end
