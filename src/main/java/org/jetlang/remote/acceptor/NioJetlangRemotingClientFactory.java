@@ -6,6 +6,7 @@ import org.jetlang.fibers.NioFiber;
 import org.jetlang.remote.core.Serializer;
 import org.jetlang.remote.core.TopicReader;
 
+import java.io.IOException;
 import java.net.SocketAddress;
 import java.net.SocketException;
 import java.nio.channels.SelectionKey;
@@ -47,6 +48,11 @@ public class NioJetlangRemotingClientFactory<R, W> implements NioAcceptorHandler
 
     @Override
     public void onAccept(NioFiber fiber, NioControls controls, SelectionKey key, SocketChannel channel) {
+        try {
+            channel.configureBlocking(false);
+        } catch (IOException e) {
+
+        }
         try {
             handler.configureAcceptedClient(key, channel);
         } catch (SocketException e) {
