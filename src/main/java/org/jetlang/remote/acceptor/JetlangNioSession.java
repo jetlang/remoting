@@ -2,6 +2,7 @@ package org.jetlang.remote.acceptor;
 
 import org.jetlang.fibers.NioFiber;
 import org.jetlang.remote.core.MsgTypes;
+import org.jetlang.web.NioWriter;
 
 import java.nio.channels.SocketChannel;
 
@@ -20,12 +21,17 @@ public class JetlangNioSession<R, W> extends JetlangBaseSession<R, W> implements
         void onHandlerException(Exception failed);
     }
 
-    public JetlangNioSession(NioFiber fiber, SocketChannel channel, NioJetlangSendFiber<W> sendFiber, NioJetlangRemotingClientFactory.Id id, ErrorHandler<R> errorHandler) {
+    public JetlangNioSession(NioFiber fiber, NioJetlangSendFiber<W> sendFiber, NioJetlangRemotingClientFactory.Id id, ErrorHandler<R> errorHandler,
+                             NioWriter writer) {
         super(id);
         this.errorHandler = errorHandler;
-        this.channel = new NioJetlangSendFiber.ChannelState(channel, id, fiber);
+        this.channel = new NioJetlangSendFiber.ChannelState(writer, id, fiber);
         this.sendFiber = sendFiber;
         this.sendFiber.onNewSession(this.channel);
+    }
+
+    public NioWriter getWriter(){
+        return channel.channel;
     }
 
     @Override

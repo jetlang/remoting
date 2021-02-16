@@ -1,19 +1,16 @@
 package org.jetlang.remote.acceptor;
 
 import org.jetlang.fibers.Fiber;
-import org.jetlang.fibers.NioChannelHandler;
 import org.jetlang.fibers.NioControls;
 import org.jetlang.fibers.NioFiber;
 import org.jetlang.fibers.NioFiberImpl;
 import org.jetlang.remote.core.JetlangBuffer;
 import org.jetlang.remote.core.MsgTypes;
 import org.jetlang.remote.core.ObjectByteWriter;
+import org.jetlang.web.NioWriter;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.nio.channels.SelectableChannel;
-import java.nio.channels.SelectionKey;
-import java.nio.channels.SocketChannel;
 import java.nio.channels.WritableByteChannel;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
@@ -27,9 +24,9 @@ public class NioJetlangSendFiber<T> {
     private final Buffer<T> buffer;
     private final List<ChannelState> sessions = new ArrayList<>();
 
-    public NioJetlangSendFiber(Fiber sendFiber, NioFiber receiveFiber, ObjectByteWriter<T> objectByteWriter, Charset charset, NioFiberImpl.OnBuffer ob) {
+    public NioJetlangSendFiber(Fiber sendFiber, ObjectByteWriter<T> objectByteWriter, Charset charset) {
         this.sendFiber = sendFiber;
-        this.buffer = new Buffer<>(receiveFiber, sendFiber, ob, objectByteWriter, charset);
+        this.buffer = new Buffer<>(objectByteWriter, charset);
     }
 
     public Fiber getFiber() {
@@ -90,20 +87,19 @@ public class NioJetlangSendFiber<T> {
     }
 
     public static class ChannelState {
-        private final SocketChannel channel;
+        public final NioWriter channel;
         private final NioJetlangRemotingClientFactory.Id id;
         private final NioFiber fiber;
-        private BufferState buffer;
         private final Set<String> subscriptions = new HashSet<>();
 
-        public ChannelState(SocketChannel channel, NioJetlangRemotingClientFactory.Id id, NioFiber fiber) {
+        public ChannelState(NioWriter channel, NioJetlangRemotingClientFactory.Id id, NioFiber fiber) {
             this.channel = channel;
             this.id = id;
             this.fiber = fiber;
         }
 
         private void close(NioControls controls) {
-            controls.close(channel);
+            controls.close(channel.getChannel());
         }
 
         public void closeOnNioFiber() {
@@ -185,86 +181,16 @@ public class NioJetlangSendFiber<T> {
     public void handleClose(ChannelState sc) {
         sendFiber.execute(() -> {
             removeSubscriptions(sc);
-            sc.buffer = null;
         });
-    }
-
-    private static class BufferState implements NioChannelHandler {
-
-        private final SocketChannel sc;
-        private final NioFiber fiber;
-        private final Fiber sendFiber;
-        private final ChannelState buffered;
-        private final NioFiberImpl.OnBuffer onBuffer;
-        private ByteBuffer b;
-
-        public BufferState(SocketChannel sc, NioFiber fiber, Fiber sendFiber, ChannelState buffered, NioFiberImpl.OnBuffer onBuffer) {
-            this.sc = sc;
-            this.fiber = fiber;
-            this.sendFiber = sendFiber;
-            this.buffered = buffered;
-            this.onBuffer = onBuffer;
-            fiber.addHandler(this);
-        }
-
-        public void add(ByteBuffer byteBuffer) {
-            b = NioFiberImpl.addTo(b, byteBuffer);
-            onBuffer.onBuffer(sc, b);
-        }
-
-        @Override
-        public Result onSelect(NioFiber nioFiber, NioControls controls, SelectionKey key) {
-            sendFiber.execute(this::flush);
-            return Result.RemoveHandler;
-        }
-
-        private void flush() {
-            try {
-                Buffer.tryWrite(sc, b);
-                if (b.remaining() > 0) {
-                    fiber.addHandler(this);
-                } else {
-                    buffered.buffer = null;
-                    onBuffer.onBufferEnd(sc);
-                }
-            } catch (IOException e) {
-                buffered.buffer = null;
-                buffered.closeOnNioFiber();
-            }
-        }
-
-        @Override
-        public SelectableChannel getChannel() {
-            return sc;
-        }
-
-        @Override
-        public int getInterestSet() {
-            return SelectionKey.OP_WRITE;
-        }
-
-        @Override
-        public void onEnd() {
-        }
-
-        @Override
-        public void onSelectorEnd() {
-        }
     }
 
     private static class Buffer<T> {
 
-        private final NioFiber nioFiber;
-        private final Fiber sendFiber;
-        private final NioFiberImpl.OnBuffer onBuffer;
         private final ObjectByteWriter<T> objectByteWriter;
         private final Charset charset;
         private final JetlangBuffer byteBuffer;
 
-        public Buffer(NioFiber nioFiber, Fiber sendFiber, NioFiberImpl.OnBuffer onBuffer, ObjectByteWriter<T> objectByteWriter, Charset charset) {
-            this.nioFiber = nioFiber;
-            this.sendFiber = sendFiber;
-            this.onBuffer = onBuffer;
+        public Buffer(ObjectByteWriter<T> objectByteWriter, Charset charset) {
             this.objectByteWriter = objectByteWriter;
             this.charset = charset;
             this.byteBuffer = new JetlangBuffer(1024);
@@ -278,27 +204,7 @@ public class NioJetlangSendFiber<T> {
         }
 
         private void executeFlush(ByteBuffer toSend, ChannelState session) {
-            final SocketChannel channel = session.channel;
-            BufferState st = session.buffer;
-            if (st != null) {
-                if (channel.isOpen())
-                    st.add(toSend);
-                else
-                    session.buffer = null;
-                return;
-            }
-            try {
-                tryWrite(channel, toSend);
-                if (toSend.remaining() > 0) {
-                    if (channel.isOpen()) {
-                        final BufferState value = new BufferState(channel, nioFiber, sendFiber, session, onBuffer);
-                        value.add(toSend);
-                        session.buffer = value;
-                    }
-                }
-            } catch (IOException e) {
-                session.closeOnNioFiber();
-            }
+            session.channel.send(toSend);
         }
 
         public void append(String topic, T object) {

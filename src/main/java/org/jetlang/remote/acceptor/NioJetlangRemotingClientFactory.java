@@ -5,13 +5,14 @@ import org.jetlang.fibers.NioControls;
 import org.jetlang.fibers.NioFiber;
 import org.jetlang.remote.core.Serializer;
 import org.jetlang.remote.core.TopicReader;
+import org.jetlang.web.IoBufferPool;
+import org.jetlang.web.NioWriter;
 
 import java.io.IOException;
 import java.net.SocketAddress;
 import java.net.SocketException;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.SocketChannel;
-import java.nio.charset.Charset;
 import java.util.concurrent.TimeUnit;
 
 public class NioJetlangRemotingClientFactory<R, W> implements NioAcceptorHandler.ClientFactory {
@@ -21,6 +22,7 @@ public class NioJetlangRemotingClientFactory<R, W> implements NioAcceptorHandler
     private final Handler<R, W> handler;
     private final NioJetlangSendFiber<W> sendFiber;
     private final TopicReader charset;
+    private final IoBufferPool.Default ioBufferPool;
 
     public interface Handler<R, W> {
         void onNewSession(JetlangNioSession<R, W> session);
@@ -44,6 +46,7 @@ public class NioJetlangRemotingClientFactory<R, W> implements NioAcceptorHandler
         this.handler = handler;
         this.sendFiber = sendFiber;
         this.charset = charset;
+        this.ioBufferPool = new IoBufferPool.Default();
     }
 
     @Override
@@ -59,7 +62,8 @@ public class NioJetlangRemotingClientFactory<R, W> implements NioAcceptorHandler
             throw new RuntimeException(e);
         }
         Hb hb = new Hb();
-        final JetlangNioSession<R, W> session = new JetlangNioSession<R, W>(fiber, channel, sendFiber, new Id(channel), new JetlangNioSession.ErrorHandler<R>() {
+        NioWriter writer = new NioWriter(new Object(), channel, fiber, ioBufferPool.createFor(channel, fiber));
+        final JetlangNioSession<R, W> session = new JetlangNioSession<R, W>(fiber, sendFiber, new Id(channel), new JetlangNioSession.ErrorHandler<R>() {
             @Override
             public void onUnhandledReplyMsg(int reqId, String dataTopicVal, R readObject) {
                 handler.onUnhandledReplyMsg(key, channel, dataTopicVal, readObject);
@@ -74,7 +78,7 @@ public class NioJetlangRemotingClientFactory<R, W> implements NioAcceptorHandler
             public void onHandlerException(Exception failed) {
                 handler.onHandlerException(failed);
             }
-        });
+        }, writer);
         Runnable onClose = () -> {
             hb.onClose();
             session.onClose(new SessionCloseEvent());

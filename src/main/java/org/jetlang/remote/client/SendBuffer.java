@@ -29,6 +29,10 @@ public class SendBuffer {
         this.buffer.appendMsg(topic, msg, objWriter, topicCharSet);
     }
 
+    public <T> void appendMsg(String topic, byte[] topicBytes, T msg, ObjectByteWriter<T> objWriter){
+        this.buffer.appendMsg(topic, topicBytes, msg, objWriter);
+    }
+
     public <T> void appendRequest(int reqId, String reqTopic, T reqMsg, ObjectByteWriter<T> objectByteWriter, Charset topicCharset){
         this.buffer.appendRequest(reqId, reqTopic, reqMsg, objectByteWriter, topicCharset);
     }

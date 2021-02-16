@@ -1,6 +1,5 @@
 package org.jetlang.remote.core;
 
-import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.charset.Charset;
@@ -34,26 +33,35 @@ public class JetlangBuffer {
     }
 
     public <T> void appendMsg(String topic, T msg, ObjectByteWriter<T> objWriter, Charset charset) {
+        appendMsg(topic, topic.getBytes(charset), msg, objWriter);
+    }
+
+    public <T> void appendMsg(String topic, byte[] topicBytes, T msg, ObjectByteWriter<T> objWriter) {
         appendIntAsByte(MsgTypes.Data);
-        appendMsgBody(topic, msg, objWriter, charset);
+        appendTopic(topicBytes);
+        writeMsgOnly(topic, msg, objWriter);
+    }
+
+    public <T> void writeMsgOnly(String topic, T msg, ObjectByteWriter<T> objWriter) {
+        objWriter.write(topic, msg, byteMsgWriter);
     }
 
     public <T> void appendMsg(byte[] topicBytes, ByteBuffer msg) {
         int sz = msg.remaining();
         resize(1 + 1 + topicBytes.length + 4 + sz);
         appendIntAsByte(MsgTypes.Data);
-        appendString(topicBytes);
+        appendTopic(topicBytes);
         appendInt(sz);
         buffer.put(msg);
     }
 
     private <T> void appendMsgBody(String topic, T msg, ObjectByteWriter<T> objWriter, Charset charset) {
         byte[] topicBytes = topic.getBytes(charset);
-        appendString(topicBytes);
+        appendTopic(topicBytes);
         objWriter.write(topic, msg, byteMsgWriter);
     }
 
-    private void appendString(byte[] topicBytes) {
+    public void appendTopic(byte[] topicBytes) {
         appendIntAsByte(topicBytes.length);
         append(topicBytes, 0, topicBytes.length);
     }
@@ -95,7 +103,7 @@ public class JetlangBuffer {
     public void appendSubscription(String subject, int subscriptionType, Charset charset) {
         byte[] bytes = subject.getBytes(charset);
         appendIntAsByte(subscriptionType);
-        appendString(bytes);
+        appendTopic(bytes);
     }
 
     public void appendBytes(byte[] bytes) {
@@ -113,7 +121,7 @@ public class JetlangBuffer {
         resize(1 + 4 + 1 + reqTopic.length + 4 + sz);
         appendIntAsByte(MsgTypes.DataRequest);
         appendInt(reqId);
-        appendString(reqTopic);
+        appendTopic(reqTopic);
         appendInt(sz);
         buffer.put(reqMsg);
     }

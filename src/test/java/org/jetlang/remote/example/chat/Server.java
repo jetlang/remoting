@@ -38,7 +38,7 @@ public class Server {
         ByteArraySerializer.Factory factory = new ByteArraySerializer.Factory();
         final Serializer<byte[], byte[]> serializer = factory.create();
         final Charset charset = Charset.forName("ASCII");
-        NioJetlangSendFiber<byte[]> sender = new NioJetlangSendFiber<>(sendFiber, nioFiber, serializer.getWriter(), charset, new NioFiberImpl.NoOpBuffer());
+        NioJetlangSendFiber<byte[]> sender = new NioJetlangSendFiber<>(sendFiber, serializer.getWriter(), charset);
 
         NioJetlangRemotingClientFactory.Handler<byte[], byte[]> sessions = new NioJetlangRemotingClientFactory.Handler<byte[], byte[]>() {
             @Override
