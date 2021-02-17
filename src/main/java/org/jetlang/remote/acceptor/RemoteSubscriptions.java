@@ -182,6 +182,11 @@ public class RemoteSubscriptions<W> {
             writer.append(msg);
             writer.flushTo(topic);
         }
+
+        public void sendRawMsg(ByteBuffer msg){
+            writer.appendRawMsg(msg);
+            writer.flushTo(topic);
+        }
     }
 
     private static class Buffer<T> {
@@ -201,6 +206,12 @@ public class RemoteSubscriptions<W> {
             ByteBuffer beforeWrite = this.sendBuffer.getBuffer();
             beforeWrite.clear();
             this.sendBuffer.appendMsg(topic, topicBytes, msg, writer);
+        }
+
+        public void appendRawMsg(ByteBuffer msg){
+            ByteBuffer beforeWrite = this.sendBuffer.getBuffer();
+            beforeWrite.clear();
+            this.sendBuffer.appendMsg(topicBytes, msg);
         }
 
         void flushTo(Collection<Subscription<T>> values) {
@@ -235,6 +246,15 @@ public class RemoteSubscriptions<W> {
             int sz = subscriptions.size();
             if (sz > 0) {
                 this.sendBuffer.append(msg);
+                this.sendBuffer.flushTo(subscriptions.values());
+            }
+            return sz;
+        }
+
+        public int publishRawMsg(ByteBuffer msg){
+            int sz = subscriptions.size();
+            if (sz > 0) {
+                this.sendBuffer.appendRawMsg(msg);
                 this.sendBuffer.flushTo(subscriptions.values());
             }
             return sz;
