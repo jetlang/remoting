@@ -1,10 +1,10 @@
 package org.jetlang.remote.acceptor;
 
 import org.jetlang.fibers.NioFiber;
+import org.jetlang.remote.client.SendBuffer;
 import org.jetlang.remote.core.MsgTypes;
 import org.jetlang.web.NioWriter;
-
-import java.nio.channels.SocketChannel;
+import org.jetlang.web.SendResult;
 
 public class JetlangNioSession<R, W> extends JetlangBaseSession<R, W> implements JetlangMessageHandler<R> {
 
@@ -30,8 +30,12 @@ public class JetlangNioSession<R, W> extends JetlangBaseSession<R, W> implements
         this.sendFiber.onNewSession(this.channel);
     }
 
-    public NioWriter getWriter(){
+    NioWriter getWriter(){
         return channel.channel;
+    }
+
+    public SendResult send(SendBuffer buffer){
+        return getWriter().send(buffer.getBuffer());
     }
 
     @Override
