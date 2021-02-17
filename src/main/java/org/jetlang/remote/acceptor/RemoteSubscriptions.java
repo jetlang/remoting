@@ -162,7 +162,7 @@ public class RemoteSubscriptions<W> {
     }
 
     public static class Subscription<T> {
-        private final Topic<T> topic;
+        final Topic<T> topic;
         private final Buffer<T> writer;
 
         public Subscription(Topic<T> topic, Buffer<T> writer){
@@ -176,10 +176,6 @@ public class RemoteSubscriptions<W> {
 
         public String topic(){
             return this.topic.topic();
-        }
-
-        void send(ByteBuffer buffer) {
-            topic.send(buffer);
         }
 
         public void send(T msg){
@@ -211,7 +207,7 @@ public class RemoteSubscriptions<W> {
             ByteBuffer buffer = sendBuffer.getBuffer();
             buffer.flip();
             for (Subscription subscription : values) {
-                subscription.send(buffer);
+                subscription.topic.send(buffer);
                 buffer.position(0);
             }
         }
