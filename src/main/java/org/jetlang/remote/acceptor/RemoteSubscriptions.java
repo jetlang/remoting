@@ -13,7 +13,6 @@ import org.jetlang.remote.core.JetlangBuffer;
 import org.jetlang.remote.core.MsgTypes;
 import org.jetlang.remote.core.ObjectByteWriter;
 import org.jetlang.remote.core.Serializer;
-import org.jetlang.web.NioWriter;
 
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
@@ -26,8 +25,8 @@ import java.util.function.Supplier;
 
 public class RemoteSubscriptions<W> {
 
-    private final Channel<SubscriptionTopic<W>> subscriptions = new MemoryChannel<>();
-    private final Channel<SubscriptionTopic<W>> unsub = new MemoryChannel<>();
+    private final Channel<Topic<W>> subscriptions = new MemoryChannel<>();
+    private final Channel<Topic<W>> unsub = new MemoryChannel<>();
     private final Supplier<ObjectByteWriter<W>> serializer;
     private final Charset topicCharSet;
 
@@ -55,64 +54,88 @@ public class RemoteSubscriptions<W> {
         this.topicCharSet = topicCharSet;
     }
 
-    void publishSubscription(SubscriptionTopic<W> subscription) {
+    void publishSubscription(Topic<W> subscription) {
         subscriptions.publish(subscription);
     }
 
-    void unsubscribe(SubscriptionTopic<W> sub) {
+    void unsubscribe(Topic<W> sub) {
         unsub.publish(sub);
     }
 
-    public <T extends W> Subscribers<T> subscribe(DisposingExecutor executor, String topic, Callback<Subscription<T>> onSubscribe, Callback<Object> onUnsubscribe, int initialSendBufferSize) {
-        final Map<SubscriptionTopic<T>, Subscription<T>> subs = new HashMap<>();
-        final ObjectByteWriter<T> writer = (ObjectByteWriter<T>) this.serializer.get();
-        final Buffer<T> buffer = new Buffer<>(topic, topicCharSet, initialSendBufferSize, writer);
-        Callback<SubscriptionTopic<W>> gen = (msg) -> {
-            SubscriptionTopic<T> cast = (SubscriptionTopic<T>) msg;
-            Subscription<T> t = new Subscription<>(cast, buffer);
-            subs.put(cast, t);
-            onSubscribe.onMessage(t);
-        };
-        Filter<SubscriptionTopic<W>> filterByTopic = (sub) -> sub.topic().equals(topic);
-        Disposable newSub = subscriptions.subscribe(new ChannelSubscription<>(executor, gen, filterByTopic));
-        Callback<SubscriptionTopic<W>> genUnSub = (msg) -> {
-            subs.remove(msg);
-            onUnsubscribe.onMessage(msg.session());
-        };
-        Disposable unsubClose = unsub.subscribe(new ChannelSubscription<>(executor, genUnSub, filterByTopic));
-        Disposable disposable = () -> {
-            newSub.dispose();
-            unsubClose.dispose();
-        };
-        return new Subscribers<T>(subs, disposable, buffer);
+    public static class FiberSubscriptions<W> {
+        private final DisposingExecutor fiber;
+        private final ObjectByteWriter<W> writer;
+        private final Charset topicCharSet;
+        private final Channel<Topic<W>> subscriptions;
+        private final Channel<Topic<W>> unsub;
+        private final JetlangBuffer buffer;
+
+        public FiberSubscriptions(DisposingExecutor fiber, ObjectByteWriter<W> writer, int initialSendBufferSize, Charset topicCharSet, Channel<Topic<W>> subscriptions, Channel<Topic<W>> unsub) {
+            this.fiber = fiber;
+            this.writer = writer;
+            this.topicCharSet = topicCharSet;
+            this.subscriptions = subscriptions;
+            this.unsub = unsub;
+            this.buffer = new JetlangBuffer(initialSendBufferSize);
+        }
+
+        public <T extends W> Subscribers<T> subscribe(String topic, Callback<Subscription<T>> onSubscribe, Callback<Subscription<T>> onUnsubscribe) {
+            final Map<Topic<T>, Subscription<T>> subs = new HashMap<>();
+            final ObjectByteWriter<T> writer = (ObjectByteWriter<T>) this.writer;
+            final Buffer<T> buffer = new Buffer<>(topic, this.topicCharSet, this.buffer, writer);
+            Callback<Topic<W>> gen = (msg) -> {
+                Topic<T> cast = (Topic<T>) msg;
+                Subscription<T> t = new Subscription<>(cast, buffer);
+                subs.put(cast, t);
+                onSubscribe.onMessage(t);
+            };
+            Filter<Topic<W>> filterByTopic = (sub) -> sub.topic().equals(topic);
+            Disposable newSub = subscriptions.subscribe(new ChannelSubscription<>(fiber, gen, filterByTopic));
+            Callback<Topic<W>> genUnSub = (msg) -> {
+                Subscription<T> remove = subs.remove(msg);
+                if(remove != null) {
+                    onUnsubscribe.onMessage(remove);
+                }
+            };
+            Disposable unsubClose = unsub.subscribe(new ChannelSubscription<>(fiber, genUnSub, filterByTopic));
+            Disposable disposable = () -> {
+                newSub.dispose();
+                unsubClose.dispose();
+            };
+            return new Subscribers<T>(subs, disposable, buffer);
+        }
+    }
+
+    public FiberSubscriptions<W> onFiber(DisposingExecutor executor, int initialSendBufferSize){
+        return new FiberSubscriptions<>(executor, this.serializer.get(), initialSendBufferSize, topicCharSet, subscriptions, unsub);
     }
 
     public void onNewSession(JetlangNioSession<?, W> session) {
-        final Map<String, SubscriptionTopic<W>> sessionSubscriptions = new HashMap<>();
+        final Map<String, Topic<W>> sessionSubscriptions = new HashMap<>();
         session.getSubscriptionRequestChannel().subscribe(onReadThread(req -> {
-            SubscriptionTopic<W> subscription = new SubscriptionTopic<>(session, req);
+            Topic<W> subscription = new Topic<>(session, req);
             sessionSubscriptions.put(subscription.topic, subscription);
             publishSubscription(subscription);
         }));
         session.getUnsubscribeChannel().subscribe(onReadThread(unsub1 -> {
-            final RemoteSubscriptions.SubscriptionTopic<W> sub = sessionSubscriptions.remove(unsub1);
+            final Topic<W> sub = sessionSubscriptions.remove(unsub1);
             if (sub != null) {
                 unsubscribe(sub);
             }
         }));
         session.getSessionCloseChannel().subscribe(onReadThread(close -> {
-            for (RemoteSubscriptions.SubscriptionTopic<W> sub : sessionSubscriptions.values()) {
+            for (Topic<W> sub : sessionSubscriptions.values()) {
                 unsubscribe(sub);
             }
             sessionSubscriptions.clear();
         }));
     }
 
-    public static class SubscriptionTopic<T> {
+    public static class Topic<T> {
         private final JetlangNioSession<?, T> session;
         private final String topic;
 
-        public SubscriptionTopic(JetlangNioSession<?, T> session, SessionTopic<T> sessionTopic) {
+        public Topic(JetlangNioSession<?, T> session, SessionTopic<T> sessionTopic) {
             this.session = session;
             this.topic = sessionTopic.getTopic();
         }
@@ -128,13 +151,21 @@ public class RemoteSubscriptions<W> {
         public void send(ByteBuffer sendBuffer) {
             session.getWriter().send(sendBuffer);
         }
+
+        @Override
+        public String toString() {
+            return "Topic{" +
+                    "session=" + session() +
+                    ", topic='" + topic() + '\'' +
+                    '}';
+        }
     }
 
     public static class Subscription<T> {
-        private final SubscriptionTopic<T> topic;
+        private final Topic<T> topic;
         private final Buffer<T> writer;
 
-        public Subscription(SubscriptionTopic<T> topic, Buffer<T> writer){
+        public Subscription(Topic<T> topic, Buffer<T> writer){
             this.topic = topic;
             this.writer = writer;
         }
@@ -160,27 +191,23 @@ public class RemoteSubscriptions<W> {
     private static class Buffer<T> {
         private final JetlangBuffer sendBuffer;
         private final ObjectByteWriter<T> writer;
-        private final int startPosition;
         private final String topic;
+        private final byte[] topicBytes;
 
-        public Buffer(String topic, Charset topicCharset, int initialSize, ObjectByteWriter<T> writer){
+        public Buffer(String topic, Charset topicCharset, JetlangBuffer jBuf, ObjectByteWriter<T> writer){
             this.topic = topic;
-            this.sendBuffer = new JetlangBuffer(initialSize);
+            this.sendBuffer = jBuf;
             this.writer = writer;
-            this.sendBuffer.appendIntAsByte(MsgTypes.Data);
-            this.sendBuffer.appendTopic(topic.getBytes(topicCharset));
-            this.startPosition = sendBuffer.getBuffer().position();
+            this.topicBytes = topic.getBytes(topicCharset);
         }
 
         public void append(T msg) {
             ByteBuffer beforeWrite = this.sendBuffer.getBuffer();
-            beforeWrite.position(startPosition);
-            beforeWrite.limit(beforeWrite.capacity());
-            this.sendBuffer.writeMsgOnly(topic, msg, writer);
+            beforeWrite.clear();
+            this.sendBuffer.appendMsg(topic, topicBytes, msg, writer);
         }
 
         void flushTo(Collection<Subscription<T>> values) {
-            //get the buffer again b/c it may have been resized
             ByteBuffer buffer = sendBuffer.getBuffer();
             buffer.flip();
             for (Subscription subscription : values) {
@@ -189,7 +216,7 @@ public class RemoteSubscriptions<W> {
             }
         }
 
-        void flushTo(SubscriptionTopic<T> writer) {
+        void flushTo(Topic<T> writer) {
             ByteBuffer buffer = sendBuffer.getBuffer();
             buffer.flip();
             writer.send(buffer);
@@ -197,11 +224,11 @@ public class RemoteSubscriptions<W> {
     }
 
     public static class Subscribers<T> implements Disposable {
-        private final Map<SubscriptionTopic<T>, Subscription<T>> subscriptions;
+        private final Map<Topic<T>, Subscription<T>> subscriptions;
         private final Disposable onEnd;
         private final Buffer<T> sendBuffer;
 
-        public Subscribers(Map<SubscriptionTopic<T>, Subscription<T>> subscriptions, Disposable onEnd,
+        public Subscribers(Map<Topic<T>, Subscription<T>> subscriptions, Disposable onEnd,
                            Buffer<T> buffer) {
             this.subscriptions = subscriptions;
             this.onEnd = onEnd;
