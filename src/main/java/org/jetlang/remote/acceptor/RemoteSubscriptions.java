@@ -171,7 +171,7 @@ public class RemoteSubscriptions<W> {
         }
 
         public Object session(){
-            return topic.session;
+            return topic.session();
         }
 
         public String topic(){
