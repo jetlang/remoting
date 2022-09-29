@@ -207,7 +207,7 @@ public class JetlangRemotingProtocol<T> {
 
             @Override
             public State run() {
-                stringSize = buffer.get();
+                stringSize = Byte.toUnsignedInt(buffer.get());
                 return getSubRequestString;
             }
         };
