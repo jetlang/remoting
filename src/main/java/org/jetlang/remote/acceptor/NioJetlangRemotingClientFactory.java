@@ -11,6 +11,7 @@ import org.jetlang.web.NioWriter;
 import java.io.IOException;
 import java.net.SocketAddress;
 import java.net.SocketException;
+import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.SocketChannel;
 import java.util.concurrent.TimeUnit;
@@ -38,6 +39,8 @@ public class NioJetlangRemotingClientFactory<R, W> implements NioAcceptorHandler
         }
 
         void onHandlerException(Exception failed);
+
+        void onParseFailure(String topic, ByteBuffer buffer, int startingPosition, int dataSizeVal, Throwable failed);
     }
 
     public NioJetlangRemotingClientFactory(Serializer<R, W> serializer, JetlangSessionConfig config, Handler<R, W> handler, NioJetlangSendFiber<W> sendFiber, TopicReader charset) {
@@ -77,6 +80,11 @@ public class NioJetlangRemotingClientFactory<R, W> implements NioAcceptorHandler
             @Override
             public void onHandlerException(Exception failed) {
                 handler.onHandlerException(failed);
+            }
+
+            @Override
+            public void onParseFailure(String topic, ByteBuffer buffer, int startingPosition, int dataSizeVal, Throwable failed) {
+                handler.onParseFailure(topic, buffer, startingPosition, dataSizeVal, failed);
             }
         }, writer);
         Runnable onClose = () -> {

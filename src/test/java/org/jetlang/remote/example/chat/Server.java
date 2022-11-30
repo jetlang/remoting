@@ -19,6 +19,7 @@ import org.jetlang.remote.core.TopicReader;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
@@ -71,6 +72,11 @@ public class Server {
 
             @Override
             public void onHandlerException(Exception failed) {
+                failed.printStackTrace();
+            }
+
+            @Override
+            public void onParseFailure(String topic, ByteBuffer buffer, int startingPosition, int dataSizeVal, Throwable failed) {
                 failed.printStackTrace();
             }
         };

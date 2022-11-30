@@ -1,7 +1,6 @@
 package org.jetlang.remote.core;
 
 import org.jetlang.channels.Publisher;
-import org.jetlang.remote.client.RemoteSubscriptions;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -15,13 +14,12 @@ public class JetlangRemotingProtocol<T> {
     private final DataRequestReply dataRequestReply = new DataRequestReply();
     private final DataReader dataReader = new DataReader() {
         @Override
-        protected State onObject(String dataTopicVal, T readObject) {
+        protected void onObject(String dataTopicVal, T readObject) {
             try {
                 session.onMessage(dataTopicVal, readObject);
             } catch (Exception failed) {
                 session.onHandlerException(failed);
             }
-            return root;
         }
     };
     public final State root = new State() {
@@ -115,6 +113,8 @@ public class JetlangRemotingProtocol<T> {
         void onRequestReply(int reqId, String dataTopicVal, T readObject);
 
         void onHandlerException(Exception failed);
+
+        void onParseFailure(String topic, ByteBuffer buffer, int startingPosition, int dataSizeVal, Throwable failed);
     }
 
     public interface MessageDispatcher {
@@ -157,6 +157,11 @@ public class JetlangRemotingProtocol<T> {
         @Override
         public void onHandlerException(Exception failed) {
             errorHandler.onException(failed);
+        }
+
+        @Override
+        public void onParseFailure(String topic, ByteBuffer buffer, int startingPosition, int dataSizeVal, Throwable failed) {
+            errorHandler.onParseFailure(topic, buffer, startingPosition, dataSizeVal, failed);
         }
 
         @Override
@@ -227,12 +232,23 @@ public class JetlangRemotingProtocol<T> {
             @Override
             public State run() throws IOException {
                 int origPos = buffer.position();
-                T readObject = reader.readObject(dataTopicVal, buffer, dataSizeVal);
-                State newState = onObject(dataTopicVal, readObject);
+                parseObject(origPos);
                 buffer.position(origPos + dataSizeVal);
-                return newState;
+                return root;
             }
         };
+
+        private void parseObject(int startingPosition) throws IOException {
+            T readObject = null;
+            try {
+                readObject = reader.readObject(dataTopicVal, buffer, dataSizeVal);
+            }catch(Throwable failed){
+                session.onParseFailure(dataTopicVal, buffer, startingPosition, dataSizeVal, failed);
+                return;
+            }
+            onObject(dataTopicVal, readObject);
+        }
+
         State dataSize = new State() {
             @Override
             public int getRequiredBytes() {
@@ -253,7 +269,7 @@ public class JetlangRemotingProtocol<T> {
             }
         };
 
-        protected abstract State onObject(String dataTopicVal, T readObject) throws IOException;
+        protected abstract void onObject(String dataTopicVal, T readObject) throws IOException;
     }
 
     private class DataRequest extends DataRequestBase {
@@ -276,13 +292,12 @@ public class JetlangRemotingProtocol<T> {
 
         DataReader data = new DataReader() {
             @Override
-            protected State onObject(String dataTopicVal, T readObject) {
+            protected void onObject(String dataTopicVal, T readObject) {
                 try {
                     handleRequest(reqId, dataTopicVal, readObject);
                 } catch (Exception failed) {
                     session.onHandlerException(failed);
                 }
-                return root;
             }
         };
 

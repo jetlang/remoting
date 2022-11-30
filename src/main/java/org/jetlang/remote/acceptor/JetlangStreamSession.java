@@ -7,6 +7,7 @@ import org.jetlang.remote.core.JetlangRemotingProtocol;
 import org.jetlang.remote.core.MsgTypes;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
@@ -115,6 +116,11 @@ public class JetlangStreamSession<R, W> extends JetlangBaseSession<R, W> impleme
     @Override
     public void onHandlerException(Exception failed) {
         errorHandler.onException(failed);
+    }
+
+    @Override
+    public void onParseFailure(String topic, ByteBuffer buffer, int startingPosition, int dataSizeVal, Throwable failed) {
+        errorHandler.onParseFailure(topic, buffer, startingPosition, dataSizeVal, failed);
     }
 
     @Override
