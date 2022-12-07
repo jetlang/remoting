@@ -13,14 +13,14 @@ import java.nio.ByteBuffer;
 public class JavaSerializationReader implements ObjectByteReader<Object> {
 
     @Override
-    public Object readObject(String fromTopic, ByteBuffer bb, int length) throws IOException{
+    public Object readObject(String fromTopic, ByteBuffer bb, int length){
         byte[] body = new byte[length];
         bb.get(body);
         ByteArrayInputStream readStream = new ByteArrayInputStream(body, 0, length);
         try {
             return new ObjectInputStream(readStream).readObject();
-        } catch (ClassNotFoundException e) {
-            throw new RuntimeException(e);
+        } catch (Exception failed) {
+            throw new RuntimeException(failed);
         }
     }
 }

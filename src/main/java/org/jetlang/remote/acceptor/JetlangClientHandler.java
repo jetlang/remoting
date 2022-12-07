@@ -190,7 +190,7 @@ public class JetlangClientHandler<R, W> implements Acceptor.ClientHandler, Clien
 
                     }
                 } catch (IOException disconnect) {
-                    //failed.printStackTrace();
+                    errorHandler.onClientDisconnect(disconnect);
                 } catch (Exception clientFailure) {
                     errorHandler.onException(clientFailure);
                 } finally {

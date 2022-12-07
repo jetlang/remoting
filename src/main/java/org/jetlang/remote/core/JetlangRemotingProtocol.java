@@ -238,7 +238,7 @@ public class JetlangRemotingProtocol<T> {
             }
         };
 
-        private void parseObject(int startingPosition) throws IOException {
+        private void parseObject(int startingPosition){
             T readObject = null;
             try {
                 readObject = reader.readObject(dataTopicVal, buffer, dataSizeVal);
@@ -269,7 +269,7 @@ public class JetlangRemotingProtocol<T> {
             }
         };
 
-        protected abstract void onObject(String dataTopicVal, T readObject) throws IOException;
+        protected abstract void onObject(String dataTopicVal, T readObject);
     }
 
     private class DataRequest extends DataRequestBase {
