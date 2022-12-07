@@ -185,7 +185,7 @@ public class JetlangRemotingProtocol<T> {
     public interface State {
         int getRequiredBytes();
 
-        State run() throws IOException;
+        State run();
     }
 
     private abstract class StringState {
@@ -197,7 +197,7 @@ public class JetlangRemotingProtocol<T> {
             }
 
             @Override
-            public State run() throws IOException {
+            public State run() {
                 int origPos = buffer.position();
                 String val = topicReader.read(buffer, stringSize);
                 buffer.position(origPos + stringSize);
@@ -217,7 +217,7 @@ public class JetlangRemotingProtocol<T> {
             }
         };
 
-        protected abstract State onString(String val) throws IOException;
+        protected abstract State onString(String val);
     }
 
     private abstract class DataReader {
@@ -230,7 +230,7 @@ public class JetlangRemotingProtocol<T> {
             }
 
             @Override
-            public State run() throws IOException {
+            public State run(){
                 int origPos = buffer.position();
                 parseObject(origPos);
                 buffer.position(origPos + dataSizeVal);
