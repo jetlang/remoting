@@ -41,6 +41,8 @@ public class NioJetlangRemotingClientFactory<R, W> implements NioAcceptorHandler
         void onHandlerException(Exception failed);
 
         void onParseFailure(String topic, ByteBuffer buffer, int startingPosition, int dataSizeVal, Throwable failed);
+
+        void onClientDisconnect(IOException ioException);
     }
 
     public NioJetlangRemotingClientFactory(Serializer<R, W> serializer, JetlangSessionConfig config, Handler<R, W> handler, NioJetlangSendFiber<W> sendFiber, TopicReader charset) {
@@ -85,6 +87,11 @@ public class NioJetlangRemotingClientFactory<R, W> implements NioAcceptorHandler
             @Override
             public void onParseFailure(String topic, ByteBuffer buffer, int startingPosition, int dataSizeVal, Throwable failed) {
                 handler.onParseFailure(topic, buffer, startingPosition, dataSizeVal, failed);
+            }
+
+            @Override
+            public void onClientDisconnect(IOException ioException) {
+                handler.onClientDisconnect(ioException);
             }
         }, writer);
         Runnable onClose = () -> {

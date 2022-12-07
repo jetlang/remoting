@@ -124,6 +124,11 @@ public class JetlangStreamSession<R, W> extends JetlangBaseSession<R, W> impleme
     }
 
     @Override
+    public void onClientDisconnect(IOException ioException) {
+        errorHandler.onClientDisconnect(ioException);
+    }
+
+    @Override
     public void publish(final String topic, final W msg) {
         Runnable r = new Runnable() {
             @Override

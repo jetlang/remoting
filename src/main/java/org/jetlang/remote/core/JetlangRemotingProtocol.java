@@ -115,6 +115,8 @@ public class JetlangRemotingProtocol<T> {
         void onHandlerException(Exception failed);
 
         void onParseFailure(String topic, ByteBuffer buffer, int startingPosition, int dataSizeVal, Throwable failed);
+
+        void onClientDisconnect(IOException ioException);
     }
 
     public interface MessageDispatcher {
@@ -162,6 +164,11 @@ public class JetlangRemotingProtocol<T> {
         @Override
         public void onParseFailure(String topic, ByteBuffer buffer, int startingPosition, int dataSizeVal, Throwable failed) {
             errorHandler.onParseFailure(topic, buffer, startingPosition, dataSizeVal, failed);
+        }
+
+        @Override
+        public void onClientDisconnect(IOException ioException) {
+            errorHandler.onClientDisconnect(ioException);
         }
 
         @Override

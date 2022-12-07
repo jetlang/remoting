@@ -6,6 +6,7 @@ import org.jetlang.remote.core.MsgTypes;
 import org.jetlang.web.NioWriter;
 import org.jetlang.web.SendResult;
 
+import java.io.IOException;
 import java.nio.ByteBuffer;
 
 public class JetlangNioSession<R, W> extends JetlangBaseSession<R, W> implements JetlangMessageHandler<R> {
@@ -23,6 +24,8 @@ public class JetlangNioSession<R, W> extends JetlangBaseSession<R, W> implements
         void onHandlerException(Exception failed);
 
         void onParseFailure(String topic, ByteBuffer buffer, int startingPosition, int dataSizeVal, Throwable failed);
+
+        void onClientDisconnect(IOException ioException);
     }
 
     public JetlangNioSession(NioFiber fiber, NioJetlangSendFiber<W> sendFiber, NioJetlangRemotingClientFactory.Id id, ErrorHandler<R> errorHandler,
@@ -50,6 +53,11 @@ public class JetlangNioSession<R, W> extends JetlangBaseSession<R, W> implements
     @Override
     public void onParseFailure(String topic, ByteBuffer buffer, int startingPosition, int dataSizeVal, Throwable failed) {
         errorHandler.onParseFailure(topic, buffer, startingPosition, dataSizeVal, failed);
+    }
+
+    @Override
+    public void onClientDisconnect(IOException ioException) {
+        errorHandler.onClientDisconnect(ioException);
     }
 
     public void sendHb() {
