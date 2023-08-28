@@ -59,6 +59,12 @@ public class HeaderReader<T> {
         @Override
         public NioReader.State processBytes(ByteBuffer buffer) {
             final int startPosition = buffer.position();
+            if(startPosition == 0 && buffer.remaining() > 0){
+                if(buffer.get(0) == 22){
+                    handler.onUnsupportedHttpsConnection(writer.getRemoteAddress());
+                    return new NioReader.Close();
+                }
+            }
             while (buffer.remaining() > 0) {
                 if (isCurrentCharEol(buffer)) {
                     addFirstLine(buffer.array(), startPosition, buffer.position() - startPosition);

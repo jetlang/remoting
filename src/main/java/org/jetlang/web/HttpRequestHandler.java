@@ -1,11 +1,16 @@
 package org.jetlang.web;
 
+import java.net.SocketAddress;
 import java.nio.channels.SocketChannel;
 
 public interface HttpRequestHandler<T> {
     NioReader.State dispatch(SessionDispatcherFactory.SessionDispatcher<T> dispatcher, HttpRequest headers, HttpResponse response, HeaderReader<T> reader, NioWriter writer, T sessionState);
 
     void onException(Throwable processingException, SocketChannel channel);
+
+    default void onUnsupportedHttpsConnection(SocketAddress remoteAddress){
+
+    }
 
     interface ExceptionHandler {
 
