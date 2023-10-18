@@ -9,6 +9,7 @@ import org.jetlang.web.AuthenticatedUser;
 import org.jetlang.web.BasicAuthSecurity;
 import org.jetlang.web.HandlerLocator;
 import org.jetlang.web.HttpRequest;
+import org.jetlang.web.HttpRequestHandler;
 import org.jetlang.web.Permissions;
 import org.jetlang.web.RoundRobinClientFactory;
 import org.jetlang.web.SendResult;
@@ -19,6 +20,7 @@ import org.jetlang.web.WebServerConfigBuilder;
 import org.jetlang.web.WebSocketConnection;
 import org.jetlang.web.WebSocketHandler;
 
+import java.net.SocketAddress;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.channels.SocketChannel;
@@ -129,8 +131,17 @@ public class WebServerEchoMain {
                 System.out.println("session closed = " + session);
             }
         };
-        WebServerConfigBuilder<MyConnectionState> config = new WebServerConfigBuilder<>(fact);
-
+        WebServerConfigBuilder<MyConnectionState> config = new WebServerConfigBuilder<MyConnectionState>(fact){
+            @Override
+            protected HttpRequestHandler createHandler(HandlerLocator.List handlerMap) {
+                return new HttpRequestHandler.Default(handlerMap, getDefaultHandler(), getExceptionHandler()){
+                    @Override
+                    public void onUnsupportedHttpsConnection(SocketAddress remoteAddress) {
+                        System.out.println("unsupported https remoteAddress = " + remoteAddress);
+                    }
+                };
+            }
+        };
         //half of the cores for reading from sockets and half for handling requests.
         //this will give very good throughput, but isn't ideal for every use case.
         final int halfOfCores = Math.max(Runtime.getRuntime().availableProcessors() / 2, 1);

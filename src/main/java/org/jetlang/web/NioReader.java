@@ -27,7 +27,7 @@ public class NioReader<T> implements NioChannelHandler {
         this.maxReadLoops = maxReadLoops;
         this.bufferFactory = bufferFactory;
         this.headerReader = new HeaderReader<>(channel, fiber, controls, handler, fact, dispatcherFact, bufferFactory);
-        this.current = headerReader.start();
+        this.current = headerReader.initStateOnConnect();
     }
 
     public boolean onRead() throws IOException {
